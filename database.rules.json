@@ -8,7 +8,16 @@
       "$uid": {
         ".read": "auth != null && (auth.uid == $uid || auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
         ".write": "auth != null && (auth.uid == $uid || auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
-        ".validate": "newData.hasChildren(['email', 'name', 'role'])"
+        ".validate": "newData.hasChildren(['name', 'role']) && (newData.hasChild('email') || newData.child('isGhost').val() == true)"
+      }
+    },
+    
+    // Usuarios fantasma - Solo administradores pueden gestionar
+    "ghostUsers": {
+      ".read": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+      ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+      "$ghostId": {
+        ".validate": "newData.hasChildren(['name', 'role', 'isGhost', 'status', 'createdAt']) && newData.child('isGhost').val() == true && newData.child('status').val() == 'ghost' && newData.child('canLogin').val() == false"
       }
     },
     

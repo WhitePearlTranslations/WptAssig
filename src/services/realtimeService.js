@@ -12,6 +12,16 @@ import {
 } from 'firebase/database';
 import { realtimeDb } from './firebase';
 
+// Funciones auxiliares para codificar/decodificar números de capítulos decimales
+// Firebase no permite puntos (.) en las rutas, así que los reemplazamos
+const encodeChapterNumber = (chapterNumber) => {
+  return String(chapterNumber).replace(/\./g, '_DOT_');
+};
+
+const decodeChapterNumber = (encodedChapterNumber) => {
+  return String(encodedChapterNumber).replace(/_DOT_/g, '.');
+};
+
 export const realtimeService = {
   // USUARIOS
   createUser: async (userData) => {
@@ -195,6 +205,11 @@ export const realtimeService = {
         progress: assignmentData.progress || 0
       });
       
+      // Actualizar automáticamente el conteo de capítulos del manga si aplica
+      if (assignmentData.mangaId) {
+        await realtimeService.updateMangaChapterCount(assignmentData.mangaId);
+      }
+      
       return { id: newAssignmentRef.key, shareableId };
     } catch (error) {
       console.error('Error creating assignment:', error);
@@ -217,8 +232,17 @@ export const realtimeService = {
 
   deleteAssignment: async (assignmentId) => {
     try {
+      // Obtener datos de la asignación antes de eliminarla para actualizar el conteo
       const assignmentRef = ref(realtimeDb, `assignments/${assignmentId}`);
+      const snapshot = await get(assignmentRef);
+      const assignmentData = snapshot.exists() ? snapshot.val() : null;
+      
       await remove(assignmentRef);
+      
+      // Actualizar automáticamente el conteo de capítulos del manga si aplica
+      if (assignmentData && assignmentData.mangaId) {
+        await realtimeService.updateMangaChapterCount(assignmentData.mangaId);
+      }
     } catch (error) {
       console.error('Error deleting assignment:', error);
       throw error;
@@ -353,15 +377,67 @@ export const realtimeService = {
     return () => off(assignmentRef);
   },
 
+  // Función auxiliar para actualizar el conteo de capítulos de un manga
+  updateMangaChapterCount: async (mangaId) => {
+    try {
+      // Contar capítulos independientes
+      const chaptersRef = ref(realtimeDb, `mangas/${mangaId}/chapters`);
+      const chaptersSnapshot = await get(chaptersRef);
+      const independentChapters = new Set();
+      
+      if (chaptersSnapshot.exists()) {
+        Object.keys(chaptersSnapshot.val()).forEach(encodedChapterNumber => {
+          const decodedChapterNumber = decodeChapterNumber(encodedChapterNumber);
+          independentChapters.add(decodedChapterNumber);
+        });
+      }
+      
+      // Contar capítulos únicos desde asignaciones
+      const assignmentsRef = ref(realtimeDb, 'assignments');
+      const assignmentsSnapshot = await get(assignmentsRef);
+      const assignmentChapters = new Set();
+      
+      if (assignmentsSnapshot.exists()) {
+        assignmentsSnapshot.forEach((childSnapshot) => {
+          const assignment = childSnapshot.val();
+          if (assignment.mangaId === mangaId && assignment.chapter) {
+            assignmentChapters.add(assignment.chapter);
+          }
+        });
+      }
+      
+      // Combinar capítulos únicos de ambas fuentes
+      const allChapters = new Set([...independentChapters, ...assignmentChapters]);
+      
+      // Actualizar el conteo en el manga
+      const mangaRef = ref(realtimeDb, `mangas/${mangaId}`);
+      await update(mangaRef, {
+        publishedChapters: allChapters.size,
+        updatedAt: serverTimestamp()
+      });
+      
+      return allChapters.size;
+    } catch (error) {
+      console.error('Error updating manga chapter count:', error);
+      throw error;
+    }
+  },
+
   // CAPÍTULOS (independientes de asignaciones)
   createChapter: async (mangaId, chapterData) => {
     try {
-      const chapterRef = ref(realtimeDb, `mangas/${mangaId}/chapters/${chapterData.chapter}`);
+      const encodedChapterNumber = encodeChapterNumber(chapterData.chapter);
+      const chapterRef = ref(realtimeDb, `mangas/${mangaId}/chapters/${encodedChapterNumber}`);
       await set(chapterRef, {
         ...chapterData,
+        chapter: chapterData.chapter, // Guardar el número original en los datos
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
+      
+      // Actualizar automáticamente el conteo de capítulos del manga
+      await realtimeService.updateMangaChapterCount(mangaId);
+      
       return chapterData.chapter;
     } catch (error) {
       console.error('Error creating chapter:', error);
@@ -371,9 +447,11 @@ export const realtimeService = {
 
   updateChapter: async (mangaId, chapterNumber, updateData) => {
     try {
-      const chapterRef = ref(realtimeDb, `mangas/${mangaId}/chapters/${chapterNumber}`);
+      const encodedChapterNumber = encodeChapterNumber(chapterNumber);
+      const chapterRef = ref(realtimeDb, `mangas/${mangaId}/chapters/${encodedChapterNumber}`);
       await update(chapterRef, {
         ...updateData,
+        chapter: chapterNumber, // Asegurar que el número original se mantiene
         updatedAt: serverTimestamp()
       });
     } catch (error) {
@@ -384,8 +462,12 @@ export const realtimeService = {
 
   deleteChapter: async (mangaId, chapterNumber) => {
     try {
-      const chapterRef = ref(realtimeDb, `mangas/${mangaId}/chapters/${chapterNumber}`);
+      const encodedChapterNumber = encodeChapterNumber(chapterNumber);
+      const chapterRef = ref(realtimeDb, `mangas/${mangaId}/chapters/${encodedChapterNumber}`);
       await remove(chapterRef);
+      
+      // Actualizar automáticamente el conteo de capítulos del manga
+      await realtimeService.updateMangaChapterCount(mangaId);
     } catch (error) {
       console.error('Error deleting chapter:', error);
       throw error;
@@ -399,12 +481,20 @@ export const realtimeService = {
       if (snapshot.exists()) {
         const chapters = [];
         snapshot.forEach((childSnapshot) => {
+          const decodedChapterNumber = decodeChapterNumber(childSnapshot.key);
+          const chapterData = childSnapshot.val();
           chapters.push({
-            number: childSnapshot.key,
-            ...childSnapshot.val()
+            number: decodedChapterNumber,
+            chapter: chapterData.chapter || decodedChapterNumber, // Preferir el número guardado en los datos
+            ...chapterData
           });
         });
-        return chapters.sort((a, b) => parseInt(a.number) - parseInt(b.number));
+        // Ordenar por número de capítulo (manejando decimales correctamente)
+        return chapters.sort((a, b) => {
+          const numA = parseFloat(a.chapter || a.number);
+          const numB = parseFloat(b.chapter || b.number);
+          return numA - numB;
+        });
       }
       return [];
     } catch (error) {

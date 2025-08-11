@@ -249,8 +249,31 @@ const AssignmentInfo = ({ assignment, users }) => {
 
 // Componente para mostrar asignaciones de un manga organizado por capítulos
 const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCreateAssignment, onCreateChapter, onDeleteAssignment, userProfile, chapters }) => {
+  // Mapeo de nombres de tareas de la DB a los nombres internos
+  const taskMapping = {
+    'traduccion': 'traduccion',
+    'proofreading': 'proofreading', 
+    'limpieza': 'cleanRedrawer',
+    'clean': 'cleanRedrawer',
+    'cleanRedrawer': 'cleanRedrawer',
+    'typesetting': 'type',
+    'type': 'type'
+  };
+
+  // Normalizar availableTasks si es un manga joint
+  const normalizedAvailableTasks = manga.isJoint && manga.availableTasks 
+    ? manga.availableTasks.map(task => taskMapping[task] || task).filter(Boolean)
+    : null;
+
   // Filtrar asignaciones de este manga
-  const mangaAssignments = assignments.filter(assignment => assignment.mangaId === manga.id);
+  let mangaAssignments = assignments.filter(assignment => assignment.mangaId === manga.id);
+  
+  // Si es un manga joint, filtrar solo las tareas permitidas
+  if (manga.isJoint && normalizedAvailableTasks && normalizedAvailableTasks.length > 0) {
+    mangaAssignments = mangaAssignments.filter(assignment => 
+      normalizedAvailableTasks.includes(assignment.type)
+    );
+  }
   
   // Obtener capítulos independientes para este manga
   const independentChapters = chapters[manga.id] || [];
@@ -355,7 +378,10 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
             );
             
             // Verificar diferentes estados del capítulo
-            const totalPossibleAssignments = 4; // traduccion, proofreading, cleanRedrawer, type
+            // Para mangas joint, el total de asignaciones posibles depende de availableTasks
+            const totalPossibleAssignments = manga.isJoint && normalizedAvailableTasks 
+              ? normalizedAvailableTasks.length 
+              : 4; // traduccion, proofreading, cleanRedrawer, type
             const assignedCount = assignedAssignments.length;
             
             // Un capítulo está completado si:
@@ -434,7 +460,9 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                 
                 {/* Traducción */}
                 <TableCell>
-                  {chapterData.traduccion ? (
+                  {/* Solo mostrar si la traducción está permitida en mangas joint */}
+                  {(!manga.isJoint || !normalizedAvailableTasks || normalizedAvailableTasks.includes('traduccion')) ? (
+                    chapterData.traduccion ? (
                     // Si existe asignación pero sin usuario asignado
                     (!chapterData.traduccion.assignedTo || chapterData.traduccion.status === 'sin_asignar') ? (
                       // Solo admins y jefes pueden asignar
@@ -482,12 +510,20 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                         No Asignado Aún
                       </Typography>
                     )
-                  )}
+                  )
+                ) : (
+                  // Tarea no disponible para este manga joint
+                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', opacity: 0.7 }}>
+                    No disponible
+                  </Typography>
+                )}
                 </TableCell>
 
                 {/* Proofreading */}
                 <TableCell>
-                  {chapterData.proofreading ? (
+                  {/* Solo mostrar si el proofreading está permitido en mangas joint */}
+                  {(!manga.isJoint || !normalizedAvailableTasks || normalizedAvailableTasks.includes('proofreading')) ? (
+                    chapterData.proofreading ? (
                     // Si existe asignación pero sin usuario asignado
                     (!chapterData.proofreading.assignedTo || chapterData.proofreading.status === 'sin_asignar') ? (
                       // Solo admins y jefes pueden asignar
@@ -535,12 +571,20 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                         No Asignado Aún
                       </Typography>
                     )
-                  )}
+                  )
+                ) : (
+                  // Tarea no disponible para este manga joint
+                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', opacity: 0.7 }}>
+                    No disponible
+                  </Typography>
+                )}
                 </TableCell>
 
                 {/* Clean/Redrawer */}
                 <TableCell>
-                  {chapterData.cleanRedrawer ? (
+                  {/* Solo mostrar si el clean/redrawer está permitido en mangas joint */}
+                  {(!manga.isJoint || !normalizedAvailableTasks || normalizedAvailableTasks.includes('cleanRedrawer')) ? (
+                    chapterData.cleanRedrawer ? (
                     // Si existe asignación pero sin usuario asignado
                     (!chapterData.cleanRedrawer.assignedTo || chapterData.cleanRedrawer.status === 'sin_asignar') ? (
                       // Solo admins y jefes pueden asignar
@@ -588,12 +632,20 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                         No Asignado Aún
                       </Typography>
                     )
-                  )}
+                  )
+                ) : (
+                  // Tarea no disponible para este manga joint
+                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', opacity: 0.7 }}>
+                    No disponible
+                  </Typography>
+                )}
                 </TableCell>
 
                 {/* Typesetting */}
                 <TableCell>
-                  {chapterData.type ? (
+                  {/* Solo mostrar si el typesetting está permitido en mangas joint */}
+                  {(!manga.isJoint || !normalizedAvailableTasks || normalizedAvailableTasks.includes('type')) ? (
+                    chapterData.type ? (
                     // Si existe asignación pero sin usuario asignado
                     (!chapterData.type.assignedTo || chapterData.type.status === 'sin_asignar') ? (
                       // Solo admins y jefes pueden asignar
@@ -641,7 +693,13 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                         No Asignado Aún
                       </Typography>
                     )
-                  )}
+                  )
+                ) : (
+                  // Tarea no disponible para este manga joint
+                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', opacity: 0.7 }}>
+                    No disponible
+                  </Typography>
+                )}
                 </TableCell>
 
                 {/* Acciones */}
@@ -802,10 +860,15 @@ const ChapterDialog = ({ open, onClose, manga, chapterData, onSave }) => {
             <TextField
               fullWidth
               label="Capítulo"
-              type="number"
+              type="text"
               value={formData.chapter}
               onChange={(e) => setFormData({ ...formData, chapter: e.target.value })}
               variant="outlined"
+              placeholder="Ej: 1, 7.2, 15.5"
+              inputProps={{
+                pattern: "[0-9]+(\.[0-9]+)?",
+                title: "Ingresa un número válido (ej: 1, 7.2, 15.5)"
+              }}
             />
           </Grid>
           <Grid item xs={12}>
@@ -931,11 +994,16 @@ const AssignmentDialog = ({ open, onClose, assignment, manga, users, onSave, pre
             <TextField
               fullWidth
               label="Capítulo"
-              type="number"
+              type="text"
               value={formData.chapter}
               onChange={(e) => setFormData({ ...formData, chapter: e.target.value })}
               variant="outlined"
               disabled={!!prefilledChapter}
+              placeholder="Ej: 1, 7.2, 15.5"
+              inputProps={{
+                pattern: "[0-9]+(\.[0-9]+)?",
+                title: "Ingresa un número válido (ej: 1, 7.2, 15.5)"
+              }}
             />
           </Grid>
           <Grid item xs={12} sm={6}>
@@ -2397,6 +2465,17 @@ const SeriesManagement = () => {
                           size="small"
                           sx={{ bgcolor: `${statusConfig.color}20`, color: statusConfig.color }}
                         />
+                        {manga.isJoint && (
+                          <Chip
+                            label={`Joint con ${manga.jointPartner || 'Otro grupo'}`}
+                            size="small"
+                            sx={{ 
+                              bgcolor: 'rgba(147, 51, 234, 0.1)', 
+                              color: '#9333ea',
+                              fontWeight: 600
+                            }}
+                          />
+                        )}
                         <Chip
                           label={`${stats.totalAssignments} asignaciones`}
                           size="small"

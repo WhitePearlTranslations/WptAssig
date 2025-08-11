@@ -28,7 +28,9 @@ import {
   Edit,
   Delete,
   PersonAdd,
-  SupervisorAccount
+  SupervisorAccount,
+  PersonOutline,
+  History
 } from '@mui/icons-material';
 import { ref, onValue, set, update, remove, push } from 'firebase/database';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
@@ -46,7 +48,8 @@ const Users = () => {
     email: '',
     role: ROLES.TRADUCTOR,
     password: '',
-    active: true
+    active: true,
+    isGhost: false
   });
 
   useEffect(() => {
@@ -86,22 +89,24 @@ const Users = () => {
   const handleOpenDialog = (user = null) => {
     if (user) {
       setEditingUser(user);
-      setFormData({
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        password: '', // No mostrar contraseña existente
-        active: user.active !== false
-      });
+        setFormData({
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          password: '', // No mostrar contraseña existente
+          active: user.active !== false,
+          isGhost: user.isGhost || false
+        });
     } else {
       setEditingUser(null);
-      setFormData({
-        name: '',
-        email: '',
-        role: ROLES.TRADUCTOR,
-        password: '',
-        active: true
-      });
+        setFormData({
+          name: '',
+          email: '',
+          role: ROLES.TRADUCTOR,
+          password: '',
+          active: true,
+          isGhost: false
+        });
     }
     setOpenDialog(true);
   };
@@ -120,36 +125,66 @@ const Users = () => {
           role: formData.role,
           status: formData.active ? 'active' : 'inactive',
           updatedAt: new Date().toISOString(),
-          updatedBy: userProfile.uid
+          updatedBy: userProfile.uid,
+          isGhost: formData.isGhost
         };
 
         await update(ref(realtimeDb, `users/${editingUser.uid}`), updateData);
         toast.success('Usuario actualizado exitosamente');
       } else {
         // Crear nuevo usuario
-        const userCredential = await createUserWithEmailAndPassword(
-          auth, 
-          formData.email, 
-          formData.password
-        );
+        let userId;
+        
+        if (formData.isGhost) {
+          // Usuario fantasma - no crear cuenta real en Auth
+          userId = `ghost_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          
+          const userData = {
+            name: formData.name,
+            email: formData.email || 'no-email@ghost.user',
+            role: formData.role,
+            status: formData.active ? 'active' : 'inactive',
+            isGhost: true,
+            createdAt: new Date().toISOString(),
+            createdBy: userProfile.uid,
+            lastActive: 'Usuario Fantasma',
+            profileImage: '',
+            stats: {
+              assignmentsCompleted: 0,
+              assignmentsActive: 0
+            },
+            notes: 'Usuario fantasma creado para dar crédito a trabajo anterior al sistema'
+          };
 
-        const userData = {
-          name: formData.name,
-          email: formData.email,
-          role: formData.role,
-          status: formData.active ? 'active' : 'inactive',
-          createdAt: new Date().toISOString(),
-          createdBy: userProfile.uid,
-          lastActive: 'Nunca',
-          profileImage: '', // Campo para imagen de perfil
-          stats: {
-            assignmentsCompleted: 0,
-            assignmentsActive: 0
-          }
-        };
+          await set(ref(realtimeDb, `users/${userId}`), userData);
+          toast.success('Usuario fantasma creado exitosamente');
+        } else {
+          // Usuario normal - crear cuenta real
+          const userCredential = await createUserWithEmailAndPassword(
+            auth, 
+            formData.email, 
+            formData.password
+          );
 
-        await set(ref(realtimeDb, `users/${userCredential.user.uid}`), userData);
-        toast.success('Usuario creado exitosamente');
+          const userData = {
+            name: formData.name,
+            email: formData.email,
+            role: formData.role,
+            status: formData.active ? 'active' : 'inactive',
+            isGhost: false,
+            createdAt: new Date().toISOString(),
+            createdBy: userProfile.uid,
+            lastActive: 'Nunca',
+            profileImage: '',
+            stats: {
+              assignmentsCompleted: 0,
+              assignmentsActive: 0
+            }
+          };
+
+          await set(ref(realtimeDb, `users/${userCredential.user.uid}`), userData);
+          toast.success('Usuario creado exitosamente');
+        }
       }
 
       handleCloseDialog();
@@ -256,13 +291,42 @@ const Users = () => {
         <Typography variant="h4">
           Gestión de Usuarios
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<PersonAdd />}
-          onClick={() => handleOpenDialog()}
-        >
-          Crear Usuario
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<History />}
+            onClick={() => {
+              const ghostUser = {
+                name: '',
+                email: '',
+                role: ROLES.TRADUCTOR,
+                password: '',
+                active: true,
+                isGhost: true
+              };
+              setEditingUser(null);
+              setFormData(ghostUser);
+              setOpenDialog(true);
+            }}
+            sx={{
+              borderColor: 'orange',
+              color: 'orange',
+              '&:hover': {
+                borderColor: 'darkorange',
+                backgroundColor: 'rgba(255, 165, 0, 0.1)'
+              }
+            }}
+          >
+            Usuario Fantasma
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<PersonAdd />}
+            onClick={() => handleOpenDialog()}
+          >
+            Crear Usuario
+          </Button>
+        </Box>
       </Box>
 
       {/* Estadísticas rápidas */}
@@ -307,6 +371,16 @@ const Users = () => {
             </Typography>
           </Paper>
         </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="h4" sx={{ color: 'orange' }}>
+              {users.filter(u => u.isGhost).length}
+            </Typography>
+            <Typography color="textSecondary">
+              Usuarios Fantasma
+            </Typography>
+          </Paper>
+        </Grid>
       </Grid>
 
       <Paper sx={{ width: '100%', overflow: 'hidden' }}>
@@ -330,14 +404,22 @@ const Users = () => {
                       <Avatar 
                         src={user.profileImage}
                         sx={{ 
-                          bgcolor: user.profileImage ? 'transparent' : getRoleColor(user.role) + '.main'
+                          bgcolor: user.profileImage ? 'transparent' : user.isGhost ? 'orange' : getRoleColor(user.role) + '.main',
+                          opacity: user.isGhost ? 0.7 : 1
                         }}
                       >
-                        {!user.profileImage && <SupervisorAccount />}
+                        {!user.profileImage && (user.isGhost ? <PersonOutline /> : <SupervisorAccount />)}
                       </Avatar>
-                      <Typography variant="subtitle2">
-                        {user.name}
-                      </Typography>
+                      <Box>
+                        <Typography variant="subtitle2">
+                          {user.name} {user.isGhost && '👻'}
+                        </Typography>
+                        {user.isGhost && (
+                          <Typography variant="caption" sx={{ color: 'orange', fontStyle: 'italic' }}>
+                            Usuario Fantasma
+                          </Typography>
+                        )}
+                      </Box>
                     </Box>
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
@@ -349,11 +431,24 @@ const Users = () => {
                     />
                   </TableCell>
                   <TableCell>
-                    <Chip
-                      size="small"
-                      label={user.active !== false ? 'Activo' : 'Inactivo'}
-                      color={user.active !== false ? 'success' : 'default'}
-                    />
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      <Chip
+                        size="small"
+                        label={user.active !== false ? 'Activo' : 'Inactivo'}
+                        color={user.active !== false ? 'success' : 'default'}
+                      />
+                      {user.isGhost && (
+                        <Chip
+                          size="small"
+                          label="Fantasma"
+                          sx={{ 
+                            backgroundColor: 'rgba(255, 165, 0, 0.2)',
+                            color: 'darkorange',
+                            border: '1px solid orange'
+                          }}
+                        />
+                      )}
+                    </Box>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" color="textSecondary">
@@ -400,7 +495,7 @@ const Users = () => {
       {/* Dialog para crear/editar usuario */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editingUser ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
+          {editingUser ? 'Editar Usuario' : formData.isGhost ? '👻 Crear Usuario Fantasma' : 'Crear Nuevo Usuario'}
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -416,25 +511,58 @@ const Users = () => {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Email"
+                label={formData.isGhost ? "Email (opcional)" : "Email"}
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 disabled={!!editingUser}
-                required
+                required={!formData.isGhost}
+                helperText={formData.isGhost ? "Para usuarios fantasma, el email es opcional" : ""}
               />
             </Grid>
             {!editingUser && (
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Contraseña"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                />
-              </Grid>
+              <>
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                    <input
+                      type="checkbox"
+                      id="isGhost"
+                      checked={formData.isGhost}
+                      onChange={(e) => setFormData({ ...formData, isGhost: e.target.checked })}
+                    />
+                    <label htmlFor="isGhost">
+                      <Typography variant="body2">
+                        🚨 <strong>Usuario Fantasma</strong> - Para dar crédito a trabajo anterior al sistema
+                      </Typography>
+                    </label>
+                  </Box>
+                  {formData.isGhost && (
+                    <Box sx={{ p: 2, bgcolor: 'rgba(255, 165, 0, 0.1)', borderRadius: 1, mb: 2 }}>
+                      <Typography variant="body2" sx={{ color: 'darkorange', mb: 1 }}>
+                        ⚠️ <strong>Usuario Fantasma:</strong>
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        • No tendrá cuenta real de Firebase Auth<br/>
+                        • No podrá iniciar sesión en el sistema<br/>
+                        • Sirve solo para dar crédito en asignaciones<br/>
+                        • Email es opcional para usuarios fantasma
+                      </Typography>
+                    </Box>
+                  )}
+                </Grid>
+                {!formData.isGhost && (
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Contraseña"
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      required
+                    />
+                  </Grid>
+                )}
+              </>
             )}
             <Grid item xs={6}>
               <TextField

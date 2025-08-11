@@ -186,28 +186,28 @@ export const getAllUsers = async () => {
       };
     }
 
-    // Para superadmin, intentar obtener todos los usuarios
+    // Para superadmin, intentar obtener todos los usuarios (incluyendo fantasma)
     if (isSuperAdmin) {
       try {
-        const snapshot = await get(ref(realtimeDb, 'users'));
-        if (snapshot.exists()) {
-          const users = [];
-          snapshot.forEach((childSnapshot) => {
+        const usersSnapshot = await get(ref(realtimeDb, 'users'));
+        const users = [];
+        
+        if (usersSnapshot.exists()) {
+          usersSnapshot.forEach((childSnapshot) => {
+            const userData = childSnapshot.val();
             users.push({
               uid: childSnapshot.key,
-              ...childSnapshot.val()
+              ...userData,
+              // Marcar usuarios fantasma para identificarlos en la UI
+              isGhost: userData.isGhost || false
             });
           });
-          return {
-            success: true,
-            users: users
-          };
-        } else {
-          return {
-            success: true,
-            users: []
-          };
         }
+        
+        return {
+          success: true,
+          users: users
+        };
       } catch (dbError) {
         console.warn('Error accediendo a la base de datos completa, usando datos mock:', dbError);
         // Fallback a datos mock si las reglas de FB son muy restrictivas
@@ -287,6 +287,170 @@ export const canManageUser = (currentUserRole, targetUserRole) => {
   };
 
   return hierarchy[currentUserRole] > hierarchy[targetUserRole];
+};
+
+// Actualizar perfil completo de usuario (solo admin)
+export const updateUserProfile = async (userId, updateData) => {
+  try {
+    if (!userId || !updateData) {
+      return {
+        success: false,
+        error: 'ID de usuario y datos de actualización son requeridos'
+      };
+    }
+
+    // Verificar que el usuario existe
+    const userRef = ref(realtimeDb, `users/${userId}`);
+    const userSnapshot = await get(userRef);
+    
+    if (!userSnapshot.exists()) {
+      return {
+        success: false,
+        error: 'Usuario no encontrado'
+      };
+    }
+
+    const currentUserData = userSnapshot.val();
+    
+    // Preparar los datos de actualización con validaciones
+    const dataToUpdate = {
+      ...updateData,
+      updatedAt: new Date().toISOString(),
+      updatedBy: auth.currentUser?.uid || 'admin'
+    };
+
+    // No permitir cambiar el email a través de esta función
+    if (updateData.email && updateData.email !== currentUserData.email) {
+      return {
+        success: false,
+        error: 'El email no se puede modificar a través de esta función'
+      };
+    }
+
+    // No permitir cambiar la imagen de perfil de otros usuarios (solo el propio usuario puede hacerlo)
+    if (updateData.profileImage !== undefined) {
+      return {
+        success: false,
+        error: 'Los administradores no pueden modificar las imágenes de perfil de otros usuarios por razones de privacidad'
+      };
+    }
+
+    // Validar el rol si se está actualizando
+    if (updateData.role) {
+      const validRoles = Object.values(ROLES);
+      if (!validRoles.includes(updateData.role)) {
+        return {
+          success: false,
+          error: 'Rol no válido'
+        };
+      }
+    }
+
+    // Validar el estado si se está actualizando
+    if (updateData.status) {
+      const validStatuses = ['active', 'suspended', 'inactive'];
+      if (!validStatuses.includes(updateData.status)) {
+        return {
+          success: false,
+          error: 'Estado no válido'
+        };
+      }
+    }
+
+    // Actualizar el perfil del usuario
+    await update(userRef, dataToUpdate);
+
+    return {
+      success: true,
+      message: 'Perfil de usuario actualizado exitosamente'
+    };
+
+  } catch (error) {
+    console.error('Error actualizando perfil de usuario:', error);
+    return {
+      success: false,
+      error: 'Error interno del servidor: ' + error.message
+    };
+  }
+};
+
+// Crear usuario fantasma (sin autenticación Firebase)
+export const createGhostUser = async ({ name, email, role, isGhost = true }) => {
+  try {
+    if (!name || !role) {
+      return {
+        success: false,
+        error: 'Nombre y rol son requeridos para crear un usuario fantasma'
+      };
+    }
+
+    // Generar un ID único para el usuario fantasma
+    const ghostId = `ghost_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Crear perfil de usuario fantasma
+    const ghostProfile = {
+      id: ghostId,
+      name,
+      email: email || '', // Email opcional para usuarios fantasma
+      role,
+      status: 'ghost', // Estado especial para usuarios fantasma
+      isGhost: true,
+      canLogin: false,
+      createdAt: new Date().toISOString().split('T')[0],
+      createdBy: auth.currentUser?.uid || 'system',
+      lastActive: 'Usuario fantasma - no puede iniciar sesión',
+      description: 'Usuario creado para mantener historial de trabajos previos al sistema de autenticación'
+    };
+
+    // Guardar en la base de datos bajo una colección especial para usuarios fantasma
+    await set(ref(realtimeDb, `users/${ghostId}`), ghostProfile);
+
+    // También guardarlo en una colección separada para facilitar consultas
+    await set(ref(realtimeDb, `ghostUsers/${ghostId}`), ghostProfile);
+
+    return {
+      success: true,
+      user: ghostProfile,
+      message: 'Usuario fantasma creado exitosamente. Este usuario aparecerá en el historial pero no podrá iniciar sesión.'
+    };
+  } catch (error) {
+    console.error('Error creando usuario fantasma:', error);
+    return {
+      success: false,
+      error: 'Error al crear usuario fantasma: ' + error.message
+    };
+  }
+};
+
+// Obtener todos los usuarios fantasma
+export const getAllGhostUsers = async () => {
+  try {
+    const snapshot = await get(ref(realtimeDb, 'ghostUsers'));
+    if (snapshot.exists()) {
+      const ghostUsers = [];
+      snapshot.forEach((childSnapshot) => {
+        ghostUsers.push({
+          uid: childSnapshot.key,
+          ...childSnapshot.val()
+        });
+      });
+      return {
+        success: true,
+        users: ghostUsers
+      };
+    } else {
+      return {
+        success: true,
+        users: []
+      };
+    }
+  } catch (error) {
+    console.error('Error obteniendo usuarios fantasma:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
 };
 
 // Resetear contraseña de usuario

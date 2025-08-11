@@ -22,7 +22,10 @@ export const createManga = async (mangaData) => {
       createdBy: auth.currentUser.uid,
       updatedAt: new Date().toISOString(),
       publishedChapters: 0, // Inicialmente 0 capítulos publicados
-      status: mangaData.status || 'active'
+      status: mangaData.status || 'active',
+      isJoint: mangaData.isJoint || false, // Indica si es un proyecto conjunto
+      availableTasks: mangaData.availableTasks || ['traduccion', 'proofreading', 'cleanRedrawer', 'type'], // Tareas disponibles
+      jointPartner: mangaData.jointPartner || '' // Nombre del scan colaborador
     };
 
     await set(newMangaRef, mangaProfile);
@@ -41,7 +44,67 @@ export const createManga = async (mangaData) => {
   }
 };
 
-// Obtener todos los mangas
+// Contar capítulos de un manga desde la base de datos
+const countMangaChapters = async (mangaId) => {
+  try {
+    // Contar capítulos independientes
+    const chaptersRef = ref(realtimeDb, `mangas/${mangaId}/chapters`);
+    const chaptersSnapshot = await get(chaptersRef);
+    const independentChaptersCount = chaptersSnapshot.exists() ? Object.keys(chaptersSnapshot.val()).length : 0;
+    
+    // Contar capítulos únicos desde asignaciones
+    const assignmentsRef = ref(realtimeDb, 'assignments');
+    const assignmentsSnapshot = await get(assignmentsRef);
+    const assignmentChapters = new Set();
+    
+    if (assignmentsSnapshot.exists()) {
+      assignmentsSnapshot.forEach((childSnapshot) => {
+        const assignment = childSnapshot.val();
+        if (assignment.mangaId === mangaId && assignment.chapter) {
+          assignmentChapters.add(assignment.chapter);
+        }
+      });
+    }
+    
+    // Combinar capítulos únicos de ambas fuentes
+    const allChapters = new Set();
+    
+    // Agregar capítulos independientes
+    if (chaptersSnapshot.exists()) {
+      Object.keys(chaptersSnapshot.val()).forEach(chapterNumber => {
+        allChapters.add(chapterNumber);
+      });
+    }
+    
+    // Agregar capítulos de asignaciones
+    assignmentChapters.forEach(chapter => {
+      allChapters.add(chapter);
+    });
+    
+    return allChapters.size;
+  } catch (error) {
+    console.error('Error contando capítulos:', error);
+    return 0;
+  }
+};
+
+// Actualizar automáticamente el conteo de capítulos de un manga
+export const updateMangaChapterCount = async (mangaId) => {
+  try {
+    const chapterCount = await countMangaChapters(mangaId);
+    const mangaRef = ref(realtimeDb, `mangas/${mangaId}`);
+    await update(mangaRef, {
+      publishedChapters: chapterCount,
+      updatedAt: new Date().toISOString()
+    });
+    return chapterCount;
+  } catch (error) {
+    console.error('Error actualizando conteo de capítulos:', error);
+    throw error;
+  }
+};
+
+// Obtener todos los mangas con conteo automático de capítulos
 export const getAllMangas = async () => {
   try {
     if (!auth.currentUser) {
@@ -56,12 +119,29 @@ export const getAllMangas = async () => {
 
     if (snapshot.exists()) {
       const mangas = [];
-      snapshot.forEach((childSnapshot) => {
+      
+      // Procesar cada manga y actualizar su conteo de capítulos
+      for (const childSnapshot of snapshot.val() ? Object.entries(snapshot.val()) : []) {
+        const [mangaId, mangaData] = childSnapshot;
+        
+        // Contar capítulos automáticamente
+        const chapterCount = await countMangaChapters(mangaId);
+        
+        // Actualizar el conteo en la base de datos si es diferente
+        if (mangaData.publishedChapters !== chapterCount) {
+          const mangaRef = ref(realtimeDb, `mangas/${mangaId}`);
+          await update(mangaRef, {
+            publishedChapters: chapterCount,
+            updatedAt: new Date().toISOString()
+          });
+        }
+        
         mangas.push({
-          id: childSnapshot.key,
-          ...childSnapshot.val()
+          id: mangaId,
+          ...mangaData,
+          publishedChapters: chapterCount // Asegurar que se use el conteo actualizado
         });
-      });
+      }
 
       // Ordenar por fecha de creación (más recientes primero)
       mangas.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -183,35 +263,9 @@ export const deleteManga = async (mangaId) => {
   }
 };
 
-// Actualizar el progreso de capítulos publicados
-export const updateMangaProgress = async (mangaId, publishedChapters) => {
-  try {
-    if (!auth.currentUser) {
-      return {
-        success: false,
-        error: 'Usuario no autenticado'
-      };
-    }
-
-    const mangaRef = ref(realtimeDb, `mangas/${mangaId}`);
-    await update(mangaRef, {
-      publishedChapters: publishedChapters,
-      updatedAt: new Date().toISOString(),
-      updatedBy: auth.currentUser.uid
-    });
-
-    return {
-      success: true,
-      message: 'Progreso actualizado exitosamente'
-    };
-  } catch (error) {
-    console.error('Error actualizando progreso:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-};
+// NOTA: La función updateMangaProgress ya no es necesaria
+// El conteo de capítulos ahora se actualiza automáticamente
+// cuando se crean, editan o eliminan capítulos o asignaciones
 
 // Cambiar estado del manga (activo, pausado, completado, etc.)
 export const changeMangaStatus = async (mangaId, newStatus) => {

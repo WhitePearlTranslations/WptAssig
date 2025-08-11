@@ -41,6 +41,8 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
+  Checkbox,
+  OutlinedInput,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -64,6 +66,8 @@ import {
   Block as BlockIcon,
   CheckCircle as CheckCircleIcon,
   PersonOff as PersonOffIcon,
+  GroupWork as GroupWorkIcon,
+  PersonAdd as PersonAddIcon,
 } from '@mui/icons-material';
 import { useAuth, ROLES } from '../contexts/AuthContext';
 
@@ -99,9 +103,11 @@ const MangaManagement = () => {
     author: '',
     description: '',
     status: 'active',
-    totalChapters: 0,
     driveLink: '',
-    coverImage: ''
+    coverImage: '',
+    isJoint: false,
+    jointPartner: '',
+    availableTasks: ['traduccion', 'edicion', 'limpieza', 'typesetting']
   });
 
   // Cargar mangas desde Firebase
@@ -177,9 +183,11 @@ const MangaManagement = () => {
       author: manga.author || '',
       description: manga.description || '',
       status: manga.status || 'active',
-      totalChapters: manga.totalChapters || 0,
       driveLink: manga.driveLink || '',
-      coverImage: manga.coverImage || ''
+      coverImage: manga.coverImage || '',
+      isJoint: manga.isJoint || false,
+      jointPartner: manga.jointPartner || '',
+      availableTasks: manga.availableTasks || ['traduccion', 'edicion', 'limpieza', 'typesetting']
     });
     setDialogOpen(true);
   };
@@ -233,9 +241,11 @@ const MangaManagement = () => {
       author: '',
       description: '',
       status: 'active',
-      totalChapters: 0,
       driveLink: '',
-      coverImage: ''
+      coverImage: '',
+      isJoint: false,
+      jointPartner: '',
+      availableTasks: ['traduccion', 'edicion', 'limpieza', 'typesetting']
     });
   };
 
@@ -377,13 +387,33 @@ const MangaManagement = () => {
                         {!manga.coverImage && <BookIcon />}
                       </Avatar>
                       <Box>
-                        <Typography fontWeight={600}>{manga.title}</Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                          <Typography fontWeight={600}>{manga.title}</Typography>
+                          {manga.isJoint && (
+                            <Chip
+                              label="Joint"
+                              size="small"
+                              color="secondary"
+                              sx={{ 
+                                fontSize: '0.7rem', 
+                                height: 20,
+                                fontWeight: 500 
+                              }}
+                              icon={<GroupWorkIcon sx={{ fontSize: 12 }} />}
+                            />
+                          )}
+                        </Box>
                         {manga.author && (
                           <Typography variant="body2" color="textSecondary">
                             Por: {manga.author}
                           </Typography>
                         )}
-                        <Typography variant="caption" color="textSecondary">
+                        {manga.isJoint && manga.jointPartner && (
+                          <Typography variant="caption" color="secondary.main" sx={{ fontWeight: 500 }}>
+                            Colaboración con: {manga.jointPartner}
+                          </Typography>
+                        )}
+                        <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
                           Creado: {manga.createdAt}
                         </Typography>
                       </Box>
@@ -398,29 +428,13 @@ const MangaManagement = () => {
                     />
                   </TableCell>
                   <TableCell>
-                    <Box sx={{ minWidth: 120 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                        <Typography variant="body2" fontWeight={500}>
-                          {manga.publishedChapters || 0}/{manga.totalChapters || 0}
-                        </Typography>
-                        <Typography variant="caption" color="textSecondary">
-                          caps
-                        </Typography>
-                      </Box>
-                      <TextField
-                        size="small"
-                        type="number"
-                        variant="outlined"
-                        placeholder="Actualizar"
-                        inputProps={{ min: 0, max: manga.totalChapters || 999 }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleUpdateProgress(manga.id, e.target.value);
-                            e.target.value = '';
-                          }
-                        }}
-                        sx={{ width: '100px' }}
-                      />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body2" fontWeight={500} color="primary.main">
+                        {manga.publishedChapters || 0}
+                      </Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        capítulos creados
+                      </Typography>
                     </Box>
                   </TableCell>
                   <TableCell>
@@ -525,15 +539,11 @@ const MangaManagement = () => {
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Total de Capítulos"
-                type="number"
-                value={formData.totalChapters}
-                onChange={(e) => setFormData({ ...formData, totalChapters: parseInt(e.target.value) || 0 })}
-                inputProps={{ min: 0, max: 9999 }}
-                helperText="Número estimado de capítulos totales"
-              />
+              <Alert severity="info" sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                <Typography variant="body2">
+                  📚 Los capítulos se agregarán dinámicamente conforme se vayan publicando
+                </Typography>
+              </Alert>
             </Grid>
             <Grid item xs={12}>
               <TextField
@@ -555,6 +565,109 @@ const MangaManagement = () => {
                 helperText="URL directa de la imagen de portada del manga"
               />
             </Grid>
+            
+            {/* Sección de configuración Joint */}
+            <Grid item xs={12}>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <GroupWorkIcon color="secondary" />
+                Configuración de Proyecto Conjunto
+              </Typography>
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.isJoint}
+                    onChange={(e) => setFormData({ ...formData, isJoint: e.target.checked })}
+                    color="secondary"
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant="body1" fontWeight={500}>Proyecto en Conjunto (Joint)</Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      Este manga se traduce en colaboración con otro scan
+                    </Typography>
+                  </Box>
+                }
+              />
+            </Grid>
+            
+            {formData.isJoint && (
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Scan Colaborador"
+                  value={formData.jointPartner}
+                  onChange={(e) => setFormData({ ...formData, jointPartner: e.target.value })}
+                  placeholder="Nombre del scan colaborador"
+                  helperText="Nombre del scan con el que colaboramos"
+                  InputProps={{
+                    startAdornment: <GroupWorkIcon sx={{ color: 'text.secondary', mr: 1 }} />
+                  }}
+                />
+              </Grid>
+            )}
+            
+            {formData.isJoint && (
+              <Grid item xs={12}>
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  <Typography variant="body2">
+                    <strong>💡 Configuración de Tareas:</strong> Para mangas en conjunto, puedes personalizar qué tareas necesita este proyecto. Por defecto, todos los mangas incluyen las 4 tareas básicas.
+                  </Typography>
+                </Alert>
+                
+                <Typography variant="body1" fontWeight={500} sx={{ mb: 2 }}>Tareas Disponibles para este Manga:</Typography>
+                
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {[
+                    { key: 'traduccion', label: 'Traducción', icon: '📝' },
+                    { key: 'edicion', label: 'Edición', icon: '✏️' },
+                    { key: 'limpieza', label: 'Limpieza', icon: '🧹' },
+                    { key: 'typesetting', label: 'Typesetting', icon: '🎨' }
+                  ].map((task) => (
+                    <FormControlLabel
+                      key={task.key}
+                      control={
+                        <Checkbox
+                          checked={formData.availableTasks.includes(task.key)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({
+                                ...formData,
+                                availableTasks: [...formData.availableTasks, task.key]
+                              });
+                            } else {
+                              setFormData({
+                                ...formData,
+                                availableTasks: formData.availableTasks.filter(t => t !== task.key)
+                              });
+                            }
+                          }}
+                          color="primary"
+                        />
+                      }
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography sx={{ fontSize: '1.2em' }}>{task.icon}</Typography>
+                          <Typography variant="body2">{task.label}</Typography>
+                        </Box>
+                      }
+                    />
+                  ))}
+                </Box>
+                
+                {formData.availableTasks.length === 0 && (
+                  <Alert severity="warning" sx={{ mt: 2 }}>
+                    <Typography variant="body2">
+                      ⚠️ Debes seleccionar al menos una tarea para este manga.
+                    </Typography>
+                  </Alert>
+                )}
+              </Grid>
+            )}
           </Grid>
         </DialogContent>
         <DialogActions>
@@ -581,6 +694,7 @@ const MangaManagement = () => {
 const StaffManagement = () => {
   const [staff, setStaff] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [ghostDialogOpen, setGhostDialogOpen] = useState(false);
   const [editDialog, setEditDialog] = useState({ open: false, user: null });
   const [permissionsDialog, setPermissionsDialog] = useState({ open: false, user: null });
   const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', onConfirm: null });
@@ -596,6 +710,12 @@ const StaffManagement = () => {
     role: ROLES.TRADUCTOR,
     password: '',
     status: 'active'
+  });
+  const [ghostFormData, setGhostFormData] = useState({
+    name: '',
+    email: '',
+    role: ROLES.TRADUCTOR,
+    isGhost: true
   });
   const [editFormData, setEditFormData] = useState({
     name: '',
@@ -726,27 +846,58 @@ const StaffManagement = () => {
     });
   };
 
-  const handleEditRole = async (staffId, currentRole) => {
-    // Por ahora comentamos esta funcionalidad hasta crear un diálogo apropiado
-    alert('Funcionalidad de editar rol estará disponible próximamente');
-    return;
-    
-    /* TODO: Crear un diálogo para editar roles
+  const handleEditRole = async (member) => {
+    setEditDialog({ open: true, user: member });
+    setEditFormData({
+      name: member.name || '',
+      email: member.email || '',
+      role: member.role || ROLES.TRADUCTOR,
+      status: member.status || 'active'
+    });
+  };
+
+  const handleSaveEditUser = async () => {
+    if (!editFormData.name || !editFormData.email || !editFormData.role) {
+      alert('Por favor completa todos los campos requeridos');
+      return;
+    }
+
+    setLoading(true);
     try {
-      const { updateUserRole } = await import('../services/userManagement');
-      const result = await updateUserRole(staffId, newRole);
+      // Actualizar información básica del usuario
+      const { updateUserProfile } = await import('../services/userManagement');
+      const userId = editDialog.user.uid || editDialog.user.id;
+      
+      const updateData = {
+        name: editFormData.name,
+        role: editFormData.role,
+        status: editFormData.status
+      };
+
+      const result = await updateUserProfile(userId, updateData);
       
       if (result.success) {
-        alert(result.message);
-        loadUsers();
+        alert('Usuario actualizado exitosamente');
+        setEditDialog({ open: false, user: null });
+        loadUsers(); // Recargar la lista
       } else {
         alert('Error: ' + result.error);
       }
     } catch (error) {
-      console.error('Error actualizando rol:', error);
-      alert('Error inesperado al actualizar rol');
+      console.error('Error actualizando usuario:', error);
+      alert('Error inesperado al actualizar usuario');
     }
-    */
+    setLoading(false);
+  };
+
+  const handleCloseEditDialog = () => {
+    setEditDialog({ open: false, user: null });
+    setEditFormData({
+      name: '',
+      email: '',
+      role: '',
+      status: ''
+    });
   };
 
   const handleCloseDialog = () => {
@@ -757,6 +908,41 @@ const StaffManagement = () => {
       role: ROLES.TRADUCTOR,
       password: '',
       status: 'active'
+    });
+  };
+
+  const handleSaveGhostUser = async () => {
+    if (!ghostFormData.name) {
+      alert('Por favor completa el nombre para el usuario fantasma');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { createGhostUser } = await import('../services/userManagement');
+      const result = await createGhostUser(ghostFormData);
+      
+      if (result.success) {
+        alert('Usuario fantasma creado exitosamente');
+        handleCloseGhostDialog();
+        loadUsers(); // Recargar la lista
+      } else {
+        alert('Error: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error creando usuario fantasma:', error);
+      alert('Error inesperado al crear usuario fantasma');
+    }
+    setLoading(false);
+  };
+
+  const handleCloseGhostDialog = () => {
+    setGhostDialogOpen(false);
+    setGhostFormData({
+      name: '',
+      email: '',
+      role: ROLES.TRADUCTOR,
+      isGhost: true
     });
   };
 
@@ -824,6 +1010,7 @@ const StaffManagement = () => {
       case 'active': return 'success';
       case 'inactive': return 'default';
       case 'suspended': return 'error';
+      case 'ghost': return 'secondary';
       default: return 'default';
     }
   };
@@ -833,6 +1020,7 @@ const StaffManagement = () => {
       case 'active': return 'Activo';
       case 'inactive': return 'Inactivo';
       case 'suspended': return 'Suspendido';
+      case 'ghost': return 'Usuario Fantasma';
       default: return status;
     }
   };
@@ -879,6 +1067,23 @@ const StaffManagement = () => {
             }}
           >
             Agregar Staff
+          </Button>
+          
+          <Button
+            variant="outlined"
+            startIcon={<PersonAddIcon />}
+            onClick={() => setGhostDialogOpen(true)}
+            sx={{
+              borderColor: '#6b7280',
+              color: '#6b7280',
+              '&:hover': {
+                borderColor: '#4b5563',
+                color: '#4b5563',
+                backgroundColor: 'rgba(107, 114, 128, 0.1)',
+              },
+            }}
+          >
+            Usuario Fantasma
           </Button>
         </Box>
       </Box>
@@ -929,6 +1134,7 @@ const StaffManagement = () => {
                 <MenuItem value="active">Activo</MenuItem>
                 <MenuItem value="inactive">Inactivo</MenuItem>
                 <MenuItem value="suspended">Suspendido</MenuItem>
+                <MenuItem value="ghost">Usuarios Fantasma</MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -994,8 +1200,15 @@ const StaffManagement = () => {
                         <TableRow key={member.uid || member.id} hover>
                           <TableCell>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                              <Avatar sx={{ bgcolor: 'primary.main' }}>
-                                {getRoleIcon(member.role)}
+                              <Avatar 
+                                src={member.profileImage} 
+                                sx={{ 
+                                  bgcolor: 'primary.main',
+                                  width: 40,
+                                  height: 40
+                                }}
+                              >
+                                {!member.profileImage && getRoleIcon(member.role)}
                               </Avatar>
                               <Box>
                                 <Typography fontWeight={600}>{member.name}</Typography>
@@ -1055,7 +1268,7 @@ const StaffManagement = () => {
                               <Tooltip title="Editar Usuario">
                                 <IconButton 
                                   color="primary" 
-                                  onClick={() => handleEditRole(member.uid || member.id, member.role)}
+                                  onClick={() => handleEditRole(member)}
                                   size="small"
                                 >
                                   <EditIcon />
@@ -1103,8 +1316,16 @@ const StaffManagement = () => {
                       <Card sx={{ height: '100%' }}>
                         <CardContent>
                           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                            <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
-                              {getRoleIcon(member.role)}
+                            <Avatar 
+                              src={member.profileImage}
+                              sx={{ 
+                                mr: 2, 
+                                bgcolor: 'primary.main',
+                                width: 56,
+                                height: 56
+                              }}
+                            >
+                              {!member.profileImage && getRoleIcon(member.role)}
                             </Avatar>
                             <Box sx={{ flex: 1 }}>
                               <Typography variant="h6" fontWeight={600}>
@@ -1423,6 +1644,173 @@ const StaffManagement = () => {
             }}
           >
             Guardar Permisos
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog para editar usuario */}
+      <Dialog open={editDialog.open} onClose={handleCloseEditDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Editar Usuario - {editDialog.user?.name}
+        </DialogTitle>
+        <DialogContent>
+          <Grid container spacing={3} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Nombre completo"
+                value={editFormData.name}
+                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                error={!editFormData.name}
+                helperText={!editFormData.name ? 'Campo requerido' : ''}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Email"
+                value={editFormData.email}
+                disabled
+                helperText="El email no se puede modificar"
+                InputProps={{
+                  style: { backgroundColor: 'rgba(0,0,0,0.05)' }
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth error={!editFormData.role}>
+                <InputLabel>Rol *</InputLabel>
+                <Select
+                  value={editFormData.role}
+                  onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
+                  label="Rol *"
+                >
+                  <MenuItem value={ROLES.JEFE_EDITOR}>Jefe Editor</MenuItem>
+                  <MenuItem value={ROLES.JEFE_TRADUCTOR}>Jefe Traductor</MenuItem>
+                  <MenuItem value={ROLES.UPLOADER}>Uploader</MenuItem>
+                  <MenuItem value={ROLES.EDITOR}>Editor</MenuItem>
+                  <MenuItem value={ROLES.TRADUCTOR}>Traductor</MenuItem>
+                  {/* Solo superadmin puede asignar rol de admin */}
+                  {editDialog.user?.role === ROLES.ADMIN && (
+                    <MenuItem value={ROLES.ADMIN}>Administrador</MenuItem>
+                  )}
+                </Select>
+                {!editFormData.role && (
+                  <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 2 }}>
+                    Campo requerido
+                  </Typography>
+                )}
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Estado</InputLabel>
+                <Select
+                  value={editFormData.status}
+                  onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+                  label="Estado"
+                >
+                  <MenuItem value="active">Activo</MenuItem>
+                  <MenuItem value="inactive">Inactivo</MenuItem>
+                  <MenuItem value="suspended">Suspendido</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <Alert severity="info" sx={{ mt: 1 }}>
+                <Typography variant="body2">
+                  📸 <strong>Nota sobre la imagen de perfil:</strong> Los usuarios pueden cambiar su propia imagen de perfil desde su página de perfil personal. Los administradores no pueden modificar las imágenes de perfil de otros usuarios por razones de privacidad.
+                </Typography>
+              </Alert>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseEditDialog}>Cancelar</Button>
+          <Button 
+            variant="contained" 
+            onClick={handleSaveEditUser}
+            disabled={loading || !editFormData.name || !editFormData.role}
+          >
+            {loading ? 'Guardando...' : 'Guardar Cambios'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog para crear usuario fantasma */}
+      <Dialog open={ghostDialogOpen} onClose={handleCloseGhostDialog} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <PersonOffIcon color="secondary" />
+          Crear Usuario Fantasma
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: 3 }}>
+            <Typography variant="body2">
+              👻 <strong>Los usuarios fantasma</strong> son registros de personas que trabajaron antes de implementar el sistema de autenticación. No pueden iniciar sesión, pero conservan los créditos de su trabajo.
+            </Typography>
+          </Alert>
+          
+          <Grid container spacing={3} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Nombre completo *"
+                value={ghostFormData.name}
+                onChange={(e) => setGhostFormData({ ...ghostFormData, name: e.target.value })}
+                error={!ghostFormData.name}
+                helperText={!ghostFormData.name ? 'Campo requerido' : 'Nombre del usuario que trabajó anteriormente'}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Email (opcional)"
+                type="email"
+                value={ghostFormData.email}
+                onChange={(e) => setGhostFormData({ ...ghostFormData, email: e.target.value })}
+                helperText="Email del usuario si se conoce"
+                placeholder="usuario@ejemplo.com"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Rol que desempeñaba</InputLabel>
+                <Select
+                  value={ghostFormData.role}
+                  onChange={(e) => setGhostFormData({ ...ghostFormData, role: e.target.value })}
+                  label="Rol que desempeñaba"
+                >
+                  <MenuItem value={ROLES.JEFE_EDITOR}>Jefe Editor</MenuItem>
+                  <MenuItem value={ROLES.JEFE_TRADUCTOR}>Jefe Traductor</MenuItem>
+                  <MenuItem value={ROLES.UPLOADER}>Uploader</MenuItem>
+                  <MenuItem value={ROLES.EDITOR}>Editor</MenuItem>
+                  <MenuItem value={ROLES.TRADUCTOR}>Traductor</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <Alert severity="warning" sx={{ mt: 1 }}>
+                <Typography variant="body2">
+                  ⚠️ <strong>Nota:</strong> Este usuario no podrá iniciar sesión en el sistema. Solo se usará para mantener el historial de trabajos realizados antes del sistema de autenticación.
+                </Typography>
+              </Alert>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseGhostDialog}>Cancelar</Button>
+          <Button 
+            variant="contained" 
+            onClick={handleSaveGhostUser}
+            disabled={loading || !ghostFormData.name}
+            sx={{
+              background: 'linear-gradient(135deg, #6b7280, #4b5563)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #4b5563, #374151)',
+              },
+            }}
+          >
+            {loading ? 'Creando...' : 'Crear Usuario Fantasma'}
           </Button>
         </DialogActions>
       </Dialog>
