@@ -1,0 +1,87 @@
+{
+  "rules": {
+    // Usuarios - Permitir lectura a todos los usuarios autenticados (necesario para asignaciones)
+    // pero escritura solo a administradores y el propio usuario
+    "users": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+        ".write": "auth != null && (auth.uid == $uid || auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+        ".validate": "newData.hasChildren(['email', 'name', 'role'])"
+      }
+    },
+    
+    // Mangas - Solo usuarios con roles específicos pueden gestionar
+    "mangas": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor')",
+      "$mangaId": {
+        ".validate": "newData.hasChildren(['title', 'author', 'status', 'createdAt'])"
+      }
+    },
+    
+    // Asignaciones - Permisos basados en roles y propiedad
+    "assignments": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor')",
+      "$assignmentId": {
+        // Los usuarios asignados pueden actualizar su progreso
+        ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor' || data.child('assignedTo').val() == auth.uid)",
+        ".validate": "newData.hasChildren(['mangaId', 'mangaTitle', 'chapter', 'type', 'status', 'createdAt'])",
+        
+        // Reglas específicas para campos
+        "progress": {
+          ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor' || root.child('assignments').child($assignmentId).child('assignedTo').val() == auth.uid)",
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+        },
+        
+        "status": {
+          ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor' || root.child('assignments').child($assignmentId).child('assignedTo').val() == auth.uid)",
+          ".validate": "newData.isString() && (newData.val() == 'pendiente' || newData.val() == 'en_progreso' || newData.val() == 'completado' || newData.val() == 'cancelado' || newData.val() == 'sin_asignar' || newData.val() == 'uploaded')"
+        }
+      }
+    },
+    
+    // Asignaciones compartidas - Acceso público para lectura y actualización de progreso
+    "sharedAssignments": {
+      ".read": true,
+      "$shareId": {
+        ".read": true,
+        ".write": true,
+        ".validate": "newData.hasChildren(['assignmentId', 'createdAt'])",
+        
+        // Permitir actualización de progreso sin autenticación
+        "progress": {
+          ".write": true,
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+        },
+        
+        "status": {
+          ".write": true,
+          ".validate": "newData.isString() && (newData.val() == 'pendiente' || newData.val() == 'en_progreso' || newData.val() == 'completado' || newData.val() == 'cancelado' || newData.val() == 'sin_asignar' || newData.val() == 'uploaded')"
+        },
+        
+        "updatedAt": {
+          ".write": true
+        },
+        
+        "lastUpdatedBy": {
+          ".write": true
+        }
+      }
+    },
+    
+    // Estadísticas - Solo lectura para usuarios autenticados
+    "stats": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')"
+    },
+    
+    // Configuración del sistema - Solo administradores
+    "config": {
+      ".read": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+      ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')"
+    }
+  }
+}
