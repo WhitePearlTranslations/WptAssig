@@ -66,6 +66,7 @@ import {
 } from '@mui/icons-material';
 import { realtimeService } from '../services/realtimeService';
 import { useAuth, ROLES } from '../contexts/AuthContext';
+import { getUniqueUsers } from '../utils/cleanDuplicateUsers';
 import toast from 'react-hot-toast';
 
 // Importar componentes adicionales para el nuevo diálogo
@@ -695,7 +696,7 @@ const Assignments = () => {
 
   // Filtrar usuarios que pueden ser asignados (similar a SeriesManagement)
   const getAssignableUsers = () => {
-    return users.filter(user => {
+    return getUniqueUsers(users).filter(user => {
       const role = user.role;
       return role === ROLES.EDITOR || 
              role === ROLES.TRADUCTOR || 
@@ -865,7 +866,7 @@ const Assignments = () => {
                 }}
               >
                 <MenuItem value="">Todos los usuarios</MenuItem>
-                {users.map((user) => (
+                {getUniqueUsers(users).map((user) => (
                   <MenuItem key={user.uid || user.id} value={user.uid || user.id}>
                     {user.name}
                   </MenuItem>

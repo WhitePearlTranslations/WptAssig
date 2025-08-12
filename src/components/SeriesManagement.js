@@ -69,6 +69,7 @@ import {
 } from '@mui/icons-material';
 import { realtimeService } from '../services/realtimeService';
 import { useAuth, ROLES } from '../contexts/AuthContext';
+import { getUniqueUsers } from '../utils/cleanDuplicateUsers';
 
 // Estados y configuraciones
 const ASSIGNMENT_STATUS = {
@@ -960,7 +961,9 @@ const AssignmentDialog = ({ open, onClose, assignment, manga, users, onSave, pre
   };
 
   // Filtrar usuarios que pueden ser asignados (editores, traductores, etc.)
-  const assignableUsers = users.filter(user => {
+  // Primero obtener usuarios únicos para evitar duplicados
+  const uniqueUsers = getUniqueUsers(users);
+  const assignableUsers = uniqueUsers.filter(user => {
     const role = user.role;
     return role === ROLES.EDITOR || 
            role === ROLES.TRADUCTOR || 

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { ref, get, child, onValue } from 'firebase/database';
-import { auth, realtimeDb } from '../services/firebase';
+import { ref, onValue } from 'firebase/database';
+import { getFirebaseAuth, getRealtimeDb } from '../services/firebase';
 
 const AuthContext = createContext();
 
@@ -41,8 +41,15 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     let userProfileUnsubscribe = null;
+    let unsubscribe = null;
     
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    // Initialize Firebase and set up auth listener
+    const initializeAuth = async () => {
+      try {
+        const auth = await getFirebaseAuth();
+        const realtimeDb = await getRealtimeDb();
+        
+        unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setCurrentUser(user);
         
@@ -60,22 +67,26 @@ export const AuthProvider = ({ children }) => {
             // Verificar si el usuario está suspendido o inactivo
             if (profileData.status === 'suspended') {
               // Cerrar sesión automáticamente si está suspendido
-              auth.signOut().then(() => {
-                // Redirigir a login con parámetro de estado suspendido
-                window.location.href = '/login?status=suspended';
-              }).catch(error => {
-                console.error('Error cerrando sesión:', error);
-                window.location.href = '/login?status=suspended';
+              getFirebaseAuth().then(auth => {
+                auth.signOut().then(() => {
+                  // Redirigir a login con parámetro de estado suspendido
+                  window.location.href = '/login?status=suspended';
+                }).catch(error => {
+                  console.error('Error cerrando sesión:', error);
+                  window.location.href = '/login?status=suspended';
+                });
               });
               return;
             } else if (profileData.status === 'inactive') {
               // Cerrar sesión automáticamente si está inactivo
-              auth.signOut().then(() => {
-                // Redirigir a login con parámetro de estado inactivo
-                window.location.href = '/login?status=inactive';
-              }).catch(error => {
-                console.error('Error cerrando sesión:', error);
-                window.location.href = '/login?status=inactive';
+              getFirebaseAuth().then(auth => {
+                auth.signOut().then(() => {
+                  // Redirigir a login con parámetro de estado inactivo
+                  window.location.href = '/login?status=inactive';
+                }).catch(error => {
+                  console.error('Error cerrando sesión:', error);
+                  window.location.href = '/login?status=inactive';
+                });
               });
               return;
             }
@@ -89,20 +100,29 @@ export const AuthProvider = ({ children }) => {
           console.error('Error al escuchar perfil del usuario:', error);
           setLoading(false);
         });
-      } else {
-        // Limpiar listener si existe
-        if (userProfileUnsubscribe) {
-          userProfileUnsubscribe();
-          userProfileUnsubscribe = null;
+        } else {
+          // Limpiar listener si existe
+          if (userProfileUnsubscribe) {
+            userProfileUnsubscribe();
+            userProfileUnsubscribe = null;
+          }
+          setCurrentUser(null);
+          setUserProfile(null);
+          setLoading(false);
         }
-        setCurrentUser(null);
-        setUserProfile(null);
+      });
+      } catch (error) {
+        console.error('Error initializing Firebase auth:', error);
         setLoading(false);
       }
-    });
+    };
+    
+    initializeAuth();
 
     return () => {
-      unsubscribe();
+      if (unsubscribe) {
+        unsubscribe();
+      }
       if (userProfileUnsubscribe) {
         userProfileUnsubscribe();
       }

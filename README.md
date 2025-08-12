@@ -141,6 +141,15 @@ npm install -g serve
 serve -s build
 ```
 
+## 🌐 Deployment en Cloudflare Pages
+
+Este proyecto está optimizado para Cloudflare Pages. Ver [CLOUDFLARE-PAGES-DEPLOY.md](CLOUDFLARE-PAGES-DEPLOY.md) para instrucciones detalladas.
+
+### Deploy Rápido
+1. Conecta tu repositorio GitHub a Cloudflare Pages
+2. Configura las variables de entorno de Firebase
+3. ¡Listo! Auto-deploy en cada push a master
+
 ## 📱 Uso del Sistema
 
 ### Primer Uso - Crear Administrador
