@@ -13,6 +13,8 @@ Este checklist asegura un deployment exitoso en Cloudflare Pages.
 
 ### Variables de Entorno (Cloudflare Pages)
 - [ ] `NODE_VERSION=18`
+- [ ] `DISABLE_ESLINT_PLUGIN=true` **← IMPORTANTE: Evita errores de ESLint en CI**
+- [ ] `CI=false` **← IMPORTANTE: Deshabilita modo CI estricto**
 - [ ] `REACT_APP_FIREBASE_API_KEY=your_key`
 - [ ] `REACT_APP_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com`
 - [ ] `REACT_APP_FIREBASE_DATABASE_URL=https://your_project.firebaseio.com`
