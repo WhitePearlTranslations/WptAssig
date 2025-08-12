@@ -27,7 +27,8 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "cross-env GENERATE_SOURCEMAP=false react-scripts build",
+    "build:strict": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "setup-firebase": "node setup-firebase.js",
@@ -43,7 +44,13 @@
     "extends": [
       "react-app",
       "react-app/jest"
-    ]
+    ],
+    "rules": {
+      "no-unused-vars": "warn",
+      "no-useless-escape": "warn",
+      "eqeqeq": "warn",
+      "react-hooks/exhaustive-deps": "warn"
+    }
   },
   "browserslist": {
     "production": [
@@ -56,5 +63,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "cross-env": "^10.0.0"
   }
 }

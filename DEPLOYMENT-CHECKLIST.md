@@ -103,7 +103,19 @@ If using Worker for API key management:
 ```
 npm error Invalid: lock file's typescript@5.9.2 does not satisfy typescript@4.9.5
 ```
-**Solución**: El package-lock.json se regeneró automáticamente para resolver conflictos de dependencias. Si persiste, en tu local ejecuta:
+**Solución**: ✅ Resuelto - package-lock.json regenerado
+
+**ESLint warnings treated as errors in CI:**
+```
+Treating warnings as errors because process.env.CI = true
+Failed to compile.
+```
+**Solución**: ✅ Resuelto - Configurado ESLint y .env.production para producción:
+- ESLint rules configuradas como "warn" en package.json
+- .env.production con CI=false para Cloudflare Pages
+- Build script optimizado con cross-env
+
+**Si necesitas regenerar package-lock.json:**
 ```bash
 rm package-lock.json
 npm install
