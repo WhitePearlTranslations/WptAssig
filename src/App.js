@@ -50,31 +50,58 @@ const theme = createTheme({
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
     h1: {
       fontWeight: 700,
-      fontSize: '3.5rem',
+      fontSize: { xs: '2rem', sm: '2.5rem', md: '3.5rem' },
       background: 'linear-gradient(135deg, #6366f1 0%, #ec4899 100%)',
       WebkitBackgroundClip: 'text',
       WebkitTextFillColor: 'transparent',
       backgroundClip: 'text',
+      lineHeight: { xs: 1.2, md: 1.1 },
     },
     h2: {
       fontWeight: 600,
-      fontSize: '2.5rem',
+      fontSize: { xs: '1.75rem', sm: '2rem', md: '2.5rem' },
+      lineHeight: { xs: 1.3, md: 1.2 },
     },
     h3: {
       fontWeight: 600,
-      fontSize: '2rem',
+      fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
+      lineHeight: { xs: 1.3, md: 1.2 },
     },
     h4: {
       fontWeight: 600,
-      fontSize: '1.5rem',
+      fontSize: { xs: '1.25rem', sm: '1.375rem', md: '1.5rem' },
+      lineHeight: 1.3,
     },
     h5: {
       fontWeight: 600,
-      fontSize: '1.25rem',
+      fontSize: { xs: '1.125rem', sm: '1.1875rem', md: '1.25rem' },
+      lineHeight: 1.4,
     },
     h6: {
       fontWeight: 600,
-      fontSize: '1.125rem',
+      fontSize: { xs: '1rem', sm: '1.0625rem', md: '1.125rem' },
+      lineHeight: 1.4,
+    },
+    body1: {
+      fontSize: { xs: '0.875rem', sm: '1rem' },
+      lineHeight: 1.5,
+    },
+    body2: {
+      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+      lineHeight: 1.5,
+    },
+    button: {
+      fontSize: { xs: '0.875rem', sm: '1rem' },
+      fontWeight: 500,
+    },
+  },
+  breakpoints: {
+    values: {
+      xs: 0,
+      sm: 600,
+      md: 900,
+      lg: 1200,
+      xl: 1536,
     },
   },
   components: {
@@ -266,10 +293,28 @@ const RoleProtectedRoute = ({ children, requiredRoles }) => {
 // Layout principal con navbar
 const AppLayout = ({ children }) => {
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      minHeight: '100vh',
+      overflow: 'hidden' 
+    }}>
       <Navbar />
-      <Box component="main" sx={{ flexGrow: 1, bgcolor: 'background.default' }}>
-        {children}
+      <Box 
+        component="main" 
+        sx={{ 
+          flexGrow: 1, 
+          bgcolor: 'background.default',
+          overflow: 'auto',
+          position: 'relative',
+          // Add responsive padding
+          px: { xs: 1, sm: 2, md: 3 },
+          py: { xs: 2, md: 3 }
+        }}
+      >
+        <Box sx={{ maxWidth: '100%', mx: 'auto' }}>
+          {children}
+        </Box>
       </Box>
     </Box>
   );
