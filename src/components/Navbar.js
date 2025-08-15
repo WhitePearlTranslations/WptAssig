@@ -153,18 +153,34 @@ const Navbar = () => {
       {/* Mobile Header */}
       <Box sx={{ p: 3, borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-              borderRadius: '12px',
-              p: 1,
-              mr: 2,
-            }}
-          >
-            <Book sx={{ color: 'white', fontSize: '1.2rem' }} />
-          </Box>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                borderRadius: '12px',
+                p: 0.5,
+                mr: 2,
+                overflow: 'hidden'
+              }}
+            >
+              <img 
+                src="/logo.webp" 
+                alt="WhitePearl Translations Logo" 
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  objectFit: 'cover'
+                }}
+                onError={(e) => {
+                  // Fallback to Book icon if image fails to load
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'block';
+                }}
+              />
+              <Book sx={{ color: 'white', fontSize: '1.2rem', display: 'none' }} />
+            </Box>
           <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1rem' }}>
             WhitePearl
           </Typography>
@@ -336,9 +352,25 @@ const Navbar = () => {
                 p: { xs: 0.5, md: 1 },
                 mr: { xs: 1, md: 2 },
                 animation: 'float 3s ease-in-out infinite',
+                overflow: 'hidden'
               }}
             >
-              <Book sx={{ color: 'white', fontSize: { xs: '1.2rem', md: '1.5rem' } }} />
+              <img 
+                src="/logo.webp" 
+                alt="WhitePearl Translations Logo" 
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '6px',
+                  objectFit: 'cover'
+                }}
+                onError={(e) => {
+                  // Fallback to Book icon if image fails to load
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'block';
+                }}
+              />
+              <Book sx={{ color: 'white', fontSize: { xs: '1.2rem', md: '1.5rem' }, display: 'none' }} />
             </Box>
             <Typography 
               variant="h6" 
