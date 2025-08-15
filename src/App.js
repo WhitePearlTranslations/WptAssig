@@ -4,7 +4,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { CssBaseline, Box } from '@mui/material';
 import { Toaster } from 'react-hot-toast';
 
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider, useAuth, ROLES } from './contexts/AuthContext';
 import './scripts/setupAdmin'; // Cargar script de configuración
 import './utils/migrateAssignmentTypes'; // Cargar utilidad de migración
 import Navbar from './components/Navbar';
@@ -18,6 +18,7 @@ import SeriesAssignmentManager from './components/SeriesAssignmentManager';
 import SeriesManagement from './components/SeriesManagement';
 import AdminPanel from './components/AdminPanel';
 import MyWorks from './components/MyWorks';
+import Uploads from './pages/Uploads';
 
 const theme = createTheme({
   palette: {
@@ -241,6 +242,27 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// Componente para proteger rutas que requieren roles específicos
+const RoleProtectedRoute = ({ children, requiredRoles }) => {
+  const { userProfile, isSuperAdmin } = useAuth();
+  
+  // Si es superadministrador, tiene acceso a todo
+  if (isSuperAdmin()) {
+    return children;
+  }
+  
+  // Verificar si el usuario tiene uno de los roles requeridos
+  if (!userProfile || !userProfile.role) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  if (!requiredRoles.includes(userProfile.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  return children;
+};
+
 // Layout principal con navbar
 const AppLayout = ({ children }) => {
   return (
@@ -337,8 +359,21 @@ function App() {
               path="/myworks"
               element={
                 <ProtectedRoute>
+                  <RoleProtectedRoute requiredRoles={[ROLES.ADMIN, ROLES.JEFE_EDITOR, ROLES.JEFE_TRADUCTOR, ROLES.EDITOR, ROLES.TRADUCTOR]}>
+                    <AppLayout>
+                      <MyWorks />
+                    </AppLayout>
+                  </RoleProtectedRoute>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/uploads"
+              element={
+                <ProtectedRoute>
                   <AppLayout>
-                    <MyWorks />
+                    <Uploads />
                   </AppLayout>
                 </ProtectedRoute>
               }

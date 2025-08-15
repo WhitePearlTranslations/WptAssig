@@ -189,7 +189,7 @@ const Users = () => {
 
       handleCloseDialog();
     } catch (error) {
-      console.error('Error al guardar usuario:', error);
+      //  message removed for production
       if (error.code === 'auth/email-already-in-use') {
         toast.error('El email ya está en uso');
       } else if (error.code === 'auth/weak-password') {
@@ -211,7 +211,7 @@ const Users = () => {
         });
         toast.success('Usuario eliminado exitosamente');
       } catch (error) {
-        console.error('Error al eliminar usuario:', error);
+        //  message removed for production
         toast.error('Error al eliminar el usuario');
       }
     }

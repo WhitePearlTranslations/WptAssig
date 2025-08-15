@@ -26,27 +26,44 @@
       ".read": "auth != null",
       ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor')",
       "$mangaId": {
-        ".validate": "newData.hasChildren(['title', 'author', 'status', 'createdAt'])"
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor')",
+        ".validate": "newData.hasChildren(['title', 'author', 'status', 'createdAt']) || !newData.exists()"
+      }
+    },
+    
+    // Capítulos independientes - Solo usuarios con roles específicos pueden gestionar
+    "chapters": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor')",
+      "$mangaId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor')",
+        "$chapterNumber": {
+          ".read": "auth != null",
+          ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor')",
+          ".validate": "newData.hasChildren(['chapter', 'status']) || !newData.exists()"
+        }
       }
     },
     
     // Asignaciones - Permisos basados en roles y propiedad
     "assignments": {
       ".read": "auth != null",
-      ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor')",
+      ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor' || root.child('users').child(auth.uid).child('role').val() == 'uploader')",
       "$assignmentId": {
         // Los usuarios asignados pueden actualizar su progreso
-        ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor' || data.child('assignedTo').val() == auth.uid)",
-        ".validate": "newData.hasChildren(['mangaId', 'mangaTitle', 'chapter', 'type', 'status', 'createdAt'])",
+        ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor' || root.child('users').child(auth.uid).child('role').val() == 'uploader' || data.child('assignedTo').val() == auth.uid)",
+        ".validate": "newData.hasChildren(['mangaId', 'mangaTitle', 'chapter', 'type', 'status', 'createdAt']) || !newData.exists()",
         
         // Reglas específicas para campos
         "progress": {
-          ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor' || root.child('assignments').child($assignmentId).child('assignedTo').val() == auth.uid)",
+          ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor' || root.child('users').child(auth.uid).child('role').val() == 'uploader' || data.child('assignedTo').val() == auth.uid)",
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
         },
         
         "status": {
-          ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor' || root.child('assignments').child($assignmentId).child('assignedTo').val() == auth.uid)",
+          ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor' || root.child('users').child(auth.uid).child('role').val() == 'uploader' || data.child('assignedTo').val() == auth.uid)",
           ".validate": "newData.isString() && (newData.val() == 'pendiente' || newData.val() == 'en_progreso' || newData.val() == 'completado' || newData.val() == 'cancelado' || newData.val() == 'sin_asignar' || newData.val() == 'uploaded')"
         }
       }
@@ -85,6 +102,27 @@
     "stats": {
       ".read": "auth != null",
       ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')"
+    },
+    
+    
+    // Progreso de Upload - Los usuarios pueden guardar su progreso
+    "uploadProgress": {
+      ".read": "auth != null",
+      "$userId": {
+        ".read": "auth != null && (auth.uid == $userId || auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+        ".write": "auth != null && (auth.uid == $userId || auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+        ".validate": "newData.hasChildren(['selectedChapters', 'currentChapterIndex', 'layoutProgress', 'workflow', 'lastSaved'])"
+      }
+    },
+    
+    // Reportes de Upload - Uploaders pueden leer la colección pero solo acceder a sus reportes
+    "uploadReports": {
+      ".read": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'uploader')",
+      ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'uploader')",
+      "$reportId": {
+        ".read": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || data.child('uploaderId').val() == auth.uid)",
+        ".validate": "newData.hasChildren(['uploaderId', 'uploaderName', 'chapters', 'uploadDate', 'totalChapters'])"
+      }
     },
     
     // Configuración del sistema - Solo administradores

@@ -7,7 +7,8 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "preview": "wrangler dev --remote",
-    "setup-secrets": "node setup-secrets.js"
+    "setup-secrets": "node setup-secrets.js",
+    "setup-admin-secrets": "node setup-admin-secrets.js"
   },
   "keywords": [
     "cloudflare",
@@ -17,6 +18,7 @@
   ],
   "author": "WPT Team",
   "license": "MIT",
+  "dependencies": {},
   "devDependencies": {
     "wrangler": "^3.0.0"
   }

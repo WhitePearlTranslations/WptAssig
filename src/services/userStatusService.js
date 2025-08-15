@@ -67,7 +67,7 @@ export const updateUserStatus = async (userId, newStatus) => {
     };
 
   } catch (error) {
-    console.error('Error actualizando estado del usuario:', error);
+    //  message removed for production
     return {
       success: false,
       error: 'Error interno del servidor: ' + error.message
@@ -109,7 +109,7 @@ export const getUserStatus = async (userId) => {
     };
 
   } catch (error) {
-    console.error('Error obteniendo estado del usuario:', error);
+    //  message removed for production
     return {
       success: false,
       error: 'Error interno del servidor: ' + error.message
@@ -156,7 +156,7 @@ export const canUserAccess = async (userId) => {
     }
 
   } catch (error) {
-    console.error('Error verificando acceso del usuario:', error);
+    //  message removed for production
     return {
       canAccess: false,
       reason: 'Error interno del servidor'
@@ -186,7 +186,7 @@ export const getUserStatusHistory = async (userId) => {
     };
 
   } catch (error) {
-    console.error('Error obteniendo historial de estado:', error);
+    //  message removed for production
     return {
       success: false,
       error: 'Error interno del servidor: ' + error.message

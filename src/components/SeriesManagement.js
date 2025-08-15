@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './SeriesManagement.css';
 import {
   Box,
   Container,
@@ -77,7 +78,8 @@ const ASSIGNMENT_STATUS = {
   EN_PROGRESO: 'en_progreso',
   COMPLETADO: 'completado',
   RETRASADO: 'retrasado',
-  SIN_ASIGNAR: 'sin_asignar'
+  SIN_ASIGNAR: 'sin_asignar',
+  UPLOADED: 'uploaded'
 };
 
 const STATUS_CONFIG = {
@@ -110,6 +112,12 @@ const STATUS_CONFIG = {
     color: '#6b7280',
     bgColor: 'rgba(107, 114, 128, 0.1)',
     icon: <AssignmentIcon />
+  },
+  [ASSIGNMENT_STATUS.UPLOADED]: {
+    label: 'Subido',
+    color: '#3b82f6',
+    bgColor: 'rgba(59, 130, 246, 0.1)',
+    icon: <UploadIcon />
   }
 };
 
@@ -249,7 +257,7 @@ const AssignmentInfo = ({ assignment, users }) => {
 };
 
 // Componente para mostrar asignaciones de un manga organizado por capítulos
-const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCreateAssignment, onCreateChapter, onDeleteAssignment, userProfile, chapters }) => {
+const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCreateAssignment, onCreateChapter, onDeleteAssignment, userProfile, chapters, onMarkUploaded, onMarkNotUploaded }) => {
   // Mapeo de nombres de tareas de la DB a los nombres internos
   const taskMapping = {
     'traduccion': 'traduccion',
@@ -385,7 +393,7 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
               : 4; // traduccion, proofreading, cleanRedrawer, type
             const assignedCount = assignedAssignments.length;
             
-            // Un capítulo está completado si:
+            // Un capítulo está completado (verde) si:
             // 1. Tiene al menos una asignación, Y
             // 2. TODAS las asignaciones existentes están asignadas a usuarios, Y
             // 3. TODAS las asignaciones existentes están completadas
@@ -393,11 +401,23 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
               assignedAssignments.length === allAssignments.length &&
               assignedAssignments.every(assignment => assignment.status === 'completado');
             
+            // Un capítulo está subido (azul) si:
+            // 1. Tiene al menos una asignación, Y
+            // 2. TODAS las asignaciones existentes están asignadas a usuarios, Y
+            // 3. TODAS las asignaciones existentes están subidas
+            const isChapterUploaded = allAssignments.length > 0 && 
+              assignedAssignments.length === allAssignments.length &&
+              assignedAssignments.every(assignment => assignment.status === 'uploaded');
+            
             // Un capítulo tiene trabajo en progreso (amarillo) si:
             // 1. Hay al menos una asignación asignada a un usuario, Y
-            // 2. No está completamente terminado (es decir, no todas las tareas están completadas)
-            const hasWorkInProgress = assignedCount > 0 && !isChapterCompleted;
+            // 2. No está completamente terminado ni subido
+            const hasWorkInProgress = assignedCount > 0 && !isChapterCompleted && !isChapterUploaded;
             
+            // Debug logging para verificar el estado
+            if (allAssignments.length > 0) {
+              // Debug message removed for production
+            }
             
             return (
               <TableRow
@@ -407,8 +427,30 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                     borderBottom: '1px solid rgba(148, 163, 184, 0.05)',
                     py: 2,
                   },
-                  // Resaltado verde cuando todo el capítulo está completado
-                  ...(isChapterCompleted && {
+                  // Resaltado azul cuando todo el capítulo está subido
+                  ...(isChapterUploaded && {
+                    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                    '& td': {
+                      borderBottom: '1px solid rgba(59, 130, 246, 0.2)',
+                      py: 2,
+                      position: 'relative',
+                    },
+                    '&:hover': {
+                      backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                    },
+                    '& td:first-of-type::before': {
+                      content: '""',
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: '4px',
+                      backgroundColor: '#3b82f6',
+                      borderRadius: '0 2px 2px 0',
+                    }
+                  }),
+                  // Resaltado verde cuando todo el capítulo está completado (solo si no está subido)
+                  ...(!isChapterUploaded && isChapterCompleted && {
                     backgroundColor: 'rgba(16, 185, 129, 0.08)',
                     '& td': {
                       borderBottom: '1px solid rgba(16, 185, 129, 0.2)',
@@ -764,6 +806,62 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                         }}
                       >
                         Eliminar Cap.
+                      </Button>
+                    )}
+
+                    {/* Botón para marcar como subido - solo para uploaders y superadmin */}
+                    {(userProfile?.role === 'uploader' || userProfile?.role === 'admin') && 
+                     isChapterCompleted && !isChapterUploaded && (
+                      <Button
+                        size="small"
+                        startIcon={<UploadIcon />}
+                        onClick={() => {
+                          // Marcar todas las asignaciones completadas de este capítulo como subidas
+                          const completedAssignments = assignedAssignments.filter(a => a.status === 'completado');
+                          completedAssignments.forEach(assignment => {
+                            onMarkUploaded(assignment.id);
+                          });
+                        }}
+                        sx={{ 
+                          fontSize: '0.75rem', 
+                          px: 1, 
+                          py: 0.5,
+                          background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                          color: 'white',
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                          }
+                        }}
+                      >
+                        Marcar Subido
+                      </Button>
+                    )}
+
+                    {/* Botón para desmarcar como subido - solo para uploaders y superadmin */}
+                    {(userProfile?.role === 'uploader' || userProfile?.role === 'admin') && 
+                     isChapterUploaded && (
+                      <Button
+                        size="small"
+                        startIcon={<CheckCircleIcon />}
+                        onClick={() => {
+                          // Desmarcar todas las asignaciones subidas de este capítulo a completado
+                          const uploadedAssignments = assignedAssignments.filter(a => a.status === 'uploaded');
+                          uploadedAssignments.forEach(assignment => {
+                            onMarkNotUploaded(assignment.id);
+                          });
+                        }}
+                        sx={{ 
+                          fontSize: '0.75rem', 
+                          px: 1, 
+                          py: 0.5,
+                          background: 'linear-gradient(135deg, #10b981, #059669)',
+                          color: 'white',
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, #059669, #047857)',
+                          }
+                        }}
+                      >
+                        Desmarcar Subido
                       </Button>
                     )}
                   </Box>
@@ -1673,6 +1771,7 @@ const SeriesManagement = () => {
     pending: 0,
     inProgress: 0,
     completed: 0,
+    uploaded: 0,
     overdue: 0
   });
   
@@ -1698,7 +1797,7 @@ const SeriesManagement = () => {
               const mangaChapters = await realtimeService.getChapters(manga.id);
               chaptersData[manga.id] = mangaChapters;
             } catch (error) {
-              console.error(`Error loading chapters for manga ${manga.id}:`, error);
+              //  message removed for production
               chaptersData[manga.id] = [];
             }
           }
@@ -1727,38 +1826,38 @@ const SeriesManagement = () => {
         });
 
         // Prueba directa para verificar usuarios en Firebase
-        console.log('Testing direct users access...');
+        //  message removed for production
         try {
           const directUsers = await realtimeService.getAllUsers();
-          console.log('Direct users fetch result:', directUsers);
+          //  message removed for production
         } catch (directError) {
-          console.error('Error with direct users fetch:', directError);
+          //  message removed for production
         }
 
         // Inicializar con array vacío - se llenará con datos reales
         setUsers([]);
 
         // Suscribirse a usuarios (comentado debido a permisos)
-        console.log('Intentando suscribirse a usuarios...');
+        //  message removed for production
         try {
           unsubscribeUsers = realtimeService.subscribeToUsers((usersData) => {
-            console.log('Users subscription callback triggered');
-            console.log('Users loaded:', usersData);
-            console.log('Users array length:', usersData?.length);
-            console.log('Users array type:', typeof usersData);
-            console.log('Users array is array:', Array.isArray(usersData));
+            //  message removed for production
+            //  message removed for production
+            //  message removed for production
+            //  message removed for production
+            //  message removed for production
             if (usersData && usersData.length > 0) {
-              console.log('First user example:', usersData[0]);
+              //  message removed for production
               setUsers(usersData); // Solo usar datos reales si están disponibles
             }
           });
-          console.log('Subscription to users established successfully');
+          //  message removed for production
         } catch (error) {
-          console.error('Error subscribing to users (usando usuarios temporales):', error);
+          //  message removed for production
         }
 
       } catch (error) {
-        console.error('Error loading data:', error);
+        //  message removed for production
         setSnackbar({ 
           open: true, 
           message: 'Error cargando datos: ' + error.message, 
@@ -1778,6 +1877,81 @@ const SeriesManagement = () => {
       if (unsubscribeUsers) unsubscribeUsers();
     };
   }, [userProfile, hasRole]);
+
+  // Efecto para actualizar automáticamente el estado de capítulos cuando cambien las asignaciones
+  useEffect(() => {
+    if (assignments.length === 0 || Object.keys(chapters).length === 0) {
+      return; // No hacer nada si no hay datos
+    }
+
+    const updateChapterStates = async () => {
+      //  message removed for production
+      
+      // Agrupar asignaciones por manga y capítulo
+      const assignmentsByChapter = {};
+      
+      assignments.forEach(assignment => {
+        if (!assignment.mangaId || !assignment.chapter) return;
+        
+        const key = `${assignment.mangaId}-${assignment.chapter}`;
+        if (!assignmentsByChapter[key]) {
+          assignmentsByChapter[key] = [];
+        }
+        assignmentsByChapter[key].push(assignment);
+      });
+      
+      // Para cada capítulo que tenga asignaciones, verificar si necesita actualización
+      for (const [key, chapterAssignments] of Object.entries(assignmentsByChapter)) {
+        if (chapterAssignments.length === 0) continue;
+        
+        const [mangaId, chapterNumber] = key.split('-');
+        
+        // Buscar el capítulo correspondiente en nuestra data local
+        const mangaChapters = chapters[mangaId] || [];
+        const chapter = mangaChapters.find(ch => 
+          ch.chapter == chapterNumber || ch.number == chapterNumber
+        );
+        
+        // Si existe el capítulo independiente, verificar si necesita actualización
+        if (chapter) {
+          // Calcular el estado que debería tener basado en las asignaciones actuales
+          const expectedStatus = getChapterStatusFromAssignments(mangaId, chapterNumber);
+          
+          // Solo actualizar si el estado actual es diferente al esperado
+          if (chapter.status !== expectedStatus) {
+            //  message removed for production
+            
+            try {
+              // Actualizar en Firebase
+              await realtimeService.updateChapter(mangaId, chapterNumber, {
+                ...chapter,
+                status: expectedStatus
+              });
+              
+              // Actualizar estado local inmediatamente
+              setChapters(prev => ({
+                ...prev,
+                [mangaId]: (prev[mangaId] || []).map(ch => 
+                  (ch.chapter == chapterNumber || ch.number == chapterNumber) 
+                    ? { ...ch, status: expectedStatus }
+                    : ch
+                )
+              }));
+              
+              //  message removed for production
+            } catch (error) {
+              //  message removed for production
+            }
+          }
+        }
+      }
+    };
+    
+    // Ejecutar la actualización después de un pequeño delay para evitar actualizaciones excesivas
+    const timeoutId = setTimeout(updateChapterStates, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, [assignments, chapters]); // Se ejecuta cuando cambian las asignaciones o capítulos
 
   const handleToggleExpand = (seriesId) => {
     setExpandedSeries(prev => ({
@@ -1885,7 +2059,7 @@ const SeriesManagement = () => {
         severity: 'success' 
       });
     } catch (error) {
-      console.error('Error deleting chapter:', error);
+      //  message removed for production
       setSnackbar({ 
         open: true, 
         message: 'Error eliminando capítulo: ' + error.message, 
@@ -1904,16 +2078,7 @@ const SeriesManagement = () => {
       const assignedUser = formData.assignedTo ? users.find(u => (u.uid || u.id) === formData.assignedTo) : null;
       
       // Debug logging
-      console.log('handleSaveAssignment - Debug info:', {
-        existingAssignment: existingAssignment?.id,
-        formData: {
-          assignedTo: formData.assignedTo,
-          chapter: formData.chapter,
-          type: formData.type
-        },
-        assignedUser,
-        calculatedStatus: formData.assignedTo ? 'pendiente' : 'sin_asignar'
-      });
+      // Debug message removed for production
       
       if (existingAssignment) {
         // Actualizar asignación existente
@@ -1928,7 +2093,7 @@ const SeriesManagement = () => {
           status: formData.assignedTo ? 'pendiente' : 'sin_asignar'
         };
         
-        console.log('About to update assignment with data:', updateData);
+        //  message removed for production
         
         await realtimeService.updateAssignment(existingAssignment.id, updateData);
         setSnackbar({ open: true, message: 'Asignación actualizada exitosamente', severity: 'success' });
@@ -1959,7 +2124,7 @@ const SeriesManagement = () => {
         inheritedDriveLink: ''
       });
     } catch (error) {
-      console.error('Error saving assignment:', error);
+      //  message removed for production
       setSnackbar({ open: true, message: 'Error guardando asignación: ' + error.message, severity: 'error' });
     } finally {
       setLoading(false);
@@ -2024,9 +2189,74 @@ const SeriesManagement = () => {
     };
   };
 
+  // Función para determinar el status del capítulo basado en las asignaciones
+  const getChapterStatusFromAssignments = (mangaId, chapterNumber) => {
+    const chapterAssignments = assignments.filter(
+      assignment => assignment.mangaId === mangaId && assignment.chapter == chapterNumber
+    );
+    
+    // Si no hay asignaciones, el capítulo está solo creado
+    if (chapterAssignments.length === 0) {
+      return 'created';
+    }
+    
+    // Filtrar solo asignaciones válidas (con tipo definido)
+    const validAssignments = chapterAssignments.filter(assignment => 
+      assignment && 
+      assignment.type && 
+      assignment.type !== undefined && 
+      typeof assignment.type === 'string' && 
+      ['traduccion', 'proofreading', 'cleanRedrawer', 'type'].includes(assignment.type)
+    );
+    
+    if (validAssignments.length === 0) {
+      return 'created';
+    }
+    
+    // Obtener asignaciones que están asignadas a usuarios
+    const assignedAssignments = validAssignments.filter(assignment => 
+      assignment.assignedTo && assignment.status !== 'sin_asignar'
+    );
+    
+    // Si no hay asignaciones asignadas, solo está creado
+    if (assignedAssignments.length === 0) {
+      return 'created';
+    }
+    
+    // Verificar estados:
+    // AZUL (uploaded): Todas las asignaciones están subidas
+    const isChapterUploaded = assignedAssignments.length === validAssignments.length &&
+      assignedAssignments.every(assignment => assignment.status === 'uploaded');
+    
+    if (isChapterUploaded) {
+      return 'uploaded';
+    }
+    
+    // VERDE (listo): Todas las asignaciones están completadas (pero no subidas)
+    const isChapterCompleted = assignedAssignments.length === validAssignments.length &&
+      assignedAssignments.every(assignment => assignment.status === 'completado');
+    
+    if (isChapterCompleted) {
+      return 'listo';
+    }
+    
+    // AMARILLO (en progreso): Hay al menos una asignación en progreso
+    const hasWorkInProgress = assignedAssignments.length > 0;
+    
+    if (hasWorkInProgress) {
+      return 'en_progreso';
+    }
+    
+    // Por defecto, creado
+    return 'created';
+  };
+
   const handleSaveChapter = async (formData) => {
     try {
       setLoading(true);
+      
+      // Determinar el status del capítulo basado en las asignaciones actuales
+      const dynamicStatus = getChapterStatusFromAssignments(formData.mangaId, formData.chapter);
       
       if (formData.isEditing) {
         // Modo edición - actualizar capítulo existente
@@ -2034,7 +2264,7 @@ const SeriesManagement = () => {
           chapter: formData.chapter,
           notes: formData.notes,
           driveLink: formData.driveLink,
-          status: 'created' // Estado del capítulo
+          status: dynamicStatus // Estado dinámico basado en asignaciones
         };
         
         await realtimeService.updateChapter(formData.mangaId, formData.chapter, updatedChapterData);
@@ -2049,14 +2279,15 @@ const SeriesManagement = () => {
           )
         }));
         
-        setSnackbar({ open: true, message: 'Capítulo actualizado exitosamente', severity: 'success' });
+        //  message removed for production
+        setSnackbar({ open: true, message: `Capítulo actualizado exitosamente (status: ${dynamicStatus})`, severity: 'success' });
       } else {
         // Modo creación - crear nuevo capítulo
         const newChapterData = {
           chapter: formData.chapter,
           notes: formData.notes,
           driveLink: formData.driveLink,
-          status: 'created' // Estado del capítulo, no de asignación
+          status: dynamicStatus // Estado dinámico basado en asignaciones
         };
         
         await realtimeService.createChapter(formData.mangaId, newChapterData);
@@ -2073,12 +2304,13 @@ const SeriesManagement = () => {
           ].sort((a, b) => parseInt(a.chapter || a.number) - parseInt(b.chapter || b.number))
         }));
         
-        setSnackbar({ open: true, message: 'Capítulo creado exitosamente', severity: 'success' });
+        //  message removed for production
+        setSnackbar({ open: true, message: `Capítulo creado exitosamente (status: ${dynamicStatus})`, severity: 'success' });
       }
       
       setChapterDialog({ open: false, manga: null, chapterData: null });
     } catch (error) {
-      console.error('Error saving chapter:', error);
+      //  message removed for production
       setSnackbar({ open: true, message: `Error ${formData.isEditing ? 'actualizando' : 'creando'} capítulo: ` + error.message, severity: 'error' });
     } finally {
       setLoading(false);
@@ -2088,27 +2320,188 @@ const SeriesManagement = () => {
   // Funciones para el staff dashboard
   const handleMarkComplete = async (assignmentId) => {
     try {
+      const assignment = assignments.find(a => a.id === assignmentId);
+      if (!assignment) {
+        //  message removed for production
+        return;
+      }
+      
       await realtimeService.updateAssignment(assignmentId, { 
         status: 'completado', 
         completedDate: new Date().toISOString().split('T')[0] 
       });
+      
+      // Actualizar el status del capítulo después de cambiar la asignación
+      await updateChapterStatusAfterAssignmentChange(assignment.mangaId, assignment.chapter);
+      
       setSnackbar({ open: true, message: 'Asignación marcada como completada', severity: 'success' });
     } catch (error) {
-      console.error('Error actualizando asignación:', error);
+      //  message removed for production
       setSnackbar({ open: true, message: 'Error actualizando asignación', severity: 'error' });
     }
   };
 
   const handleMarkUploaded = async (assignmentId) => {
     try {
+      const assignment = assignments.find(a => a.id === assignmentId);
+      if (!assignment) {
+        //  message removed for production
+        return;
+      }
+      
       await realtimeService.updateAssignment(assignmentId, { 
         status: 'uploaded', 
         uploadedDate: new Date().toISOString().split('T')[0] 
       });
+      
+      // Actualizar el status del capítulo después de cambiar la asignación
+      await updateChapterStatusAfterAssignmentChange(assignment.mangaId, assignment.chapter);
+      
       setSnackbar({ open: true, message: 'Asignación marcada como subida', severity: 'success' });
     } catch (error) {
-      console.error('Error actualizando asignación:', error);
+      //  message removed for production
       setSnackbar({ open: true, message: 'Error actualizando asignación', severity: 'error' });
+    }
+  };
+
+  const handleMarkNotUploaded = async (assignmentId) => {
+    try {
+      const assignment = assignments.find(a => a.id === assignmentId);
+      if (!assignment) {
+        //  message removed for production
+        return;
+      }
+      
+      await realtimeService.updateAssignment(assignmentId, { 
+        status: 'completado', 
+        uploadedDate: null // Remover la fecha de subida
+      });
+      
+      // Actualizar el status del capítulo después de cambiar la asignación
+      await updateChapterStatusAfterAssignmentChange(assignment.mangaId, assignment.chapter);
+      
+      setSnackbar({ open: true, message: 'Asignación marcada como completada', severity: 'success' });
+    } catch (error) {
+      //  message removed for production
+      setSnackbar({ open: true, message: 'Error actualizando asignación', severity: 'error' });
+    }
+  };
+
+  // Funciones para manejar el toggle de estados en capítulos completos
+  const handleToggleChapterUploadStatus = async (mangaId, chapter, currentStatus) => {
+    try {
+      setLoading(true);
+      
+      // Encontrar todas las asignaciones de este capítulo
+      const chapterAssignments = assignments.filter(
+        assignment => assignment.mangaId === mangaId && assignment.chapter === chapter
+      );
+
+      if (chapterAssignments.length === 0) {
+        setSnackbar({ 
+          open: true, 
+          message: 'No se encontraron asignaciones para este capítulo', 
+          severity: 'warning' 
+        });
+        return;
+      }
+
+      // Determinar el nuevo estado
+      const isCurrentlyUploaded = chapterAssignments.every(a => a.status === 'uploaded');
+      const newStatus = isCurrentlyUploaded ? 'completado' : 'uploaded';
+      const updateData = {
+        status: newStatus,
+        ...(newStatus === 'uploaded' 
+          ? { uploadedDate: new Date().toISOString().split('T')[0] }
+          : { uploadedDate: null }
+        )
+      };
+
+      // Actualizar todas las asignaciones del capítulo
+      const updatePromises = chapterAssignments.map(assignment =>
+        realtimeService.updateAssignment(assignment.id, updateData)
+      );
+
+      await Promise.all(updatePromises);
+      
+      setSnackbar({ 
+        open: true, 
+        message: `Capítulo marcado como ${newStatus === 'uploaded' ? 'subido' : 'completado'}`, 
+        severity: 'success' 
+      });
+    } catch (error) {
+      //  message removed for production
+      setSnackbar({ 
+        open: true, 
+        message: 'Error actualizando estado del capítulo: ' + error.message, 
+        severity: 'error' 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Función helper para determinar si un capítulo está completado
+  const isChapterCompleted = (mangaId, chapterNumber) => {
+    const chapterAssignments = assignments.filter(
+      assignment => assignment.mangaId === mangaId && assignment.chapter === chapterNumber
+    );
+    return chapterAssignments.length > 0 && 
+           chapterAssignments.every(assignment => assignment.status === 'completado' || assignment.status === 'uploaded');
+  };
+
+  // Función helper para determinar si un capítulo está subido
+  const isChapterUploaded = (mangaId, chapterNumber) => {
+    const chapterAssignments = assignments.filter(
+      assignment => assignment.mangaId === mangaId && assignment.chapter === chapterNumber
+    );
+    return chapterAssignments.length > 0 && 
+           chapterAssignments.every(assignment => assignment.status === 'uploaded');
+  };
+
+  // Función para actualizar el status del capítulo después de cambios en asignaciones
+  const updateChapterStatusAfterAssignmentChange = async (mangaId, chapterNumber) => {
+    try {
+      // Verificar si existe un capítulo independiente para este manga/capítulo
+      const independentChapters = chapters[mangaId] || [];
+      const existingChapter = independentChapters.find(
+        ch => ch.chapter == chapterNumber || ch.number == chapterNumber
+      );
+      
+      if (!existingChapter) {
+        // No hay capítulo independiente, no hacer nada
+        //  message removed for production
+        return;
+      }
+      
+      // Determinar el nuevo status basado en las asignaciones actuales
+      const newStatus = getChapterStatusFromAssignments(mangaId, chapterNumber);
+      
+      // Solo actualizar si el status ha cambiado
+      if (existingChapter.status !== newStatus) {
+        //  message removed for production
+        
+        await realtimeService.updateChapter(mangaId, chapterNumber, {
+          ...existingChapter,
+          status: newStatus
+        });
+        
+        // Actualizar el estado local
+        setChapters(prev => ({
+          ...prev,
+          [mangaId]: (prev[mangaId] || []).map(ch => 
+            (ch.chapter == chapterNumber || ch.number == chapterNumber) 
+              ? { ...ch, status: newStatus }
+              : ch
+          )
+        }));
+        
+        //  message removed for production
+      } else {
+        //  message removed for production
+      }
+    } catch (error) {
+      //  message removed for production
     }
   };
 
@@ -2209,48 +2602,125 @@ const SeriesManagement = () => {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-      {/* Header */}
-      <Box className="animate-fade-in" sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+    <Container maxWidth="xl" sx={{ 
+      mt: 4, 
+      mb: 4,
+      minHeight: '100vh',
+      background: 'radial-gradient(ellipse at top, rgba(99, 102, 241, 0.05) 0%, transparent 70%)',
+    }}>
+      {/* Header with glassmorphism effect */}
+      <Box 
+        className="animate-fade-in" 
+        sx={{ 
+          mb: 6,
+          position: 'relative',
+          overflow: 'hidden',
+          borderRadius: '24px',
+          background: 'rgba(255, 255, 255, 0.05)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          p: 4,
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%)',
+            opacity: 0.5,
+            zIndex: -1,
+          }
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 3 }}>
+          <Box
+            sx={{
+              width: 64,
+              height: 64,
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 8px 32px rgba(99, 102, 241, 0.3)',
+              animation: 'float 3s ease-in-out infinite',
+            }}
+          >
+            <MenuBookIcon sx={{ fontSize: '32px', color: 'white' }} />
+          </Box>
           <Box>
             <Typography 
               variant="h2" 
               component="h1"
               sx={{ 
-                fontWeight: 700,
-                background: 'linear-gradient(135deg, #6366f1 0%, #ec4899 100%)',
+                fontWeight: 800,
+                background: 'linear-gradient(135deg, #6366f1 0%, #ec4899 50%, #8b5cf6 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
-                mb: 2,
+                mb: 1,
+                fontSize: { xs: '2rem', md: '3rem' },
+                letterSpacing: '-0.02em',
+                textShadow: '0 0 20px rgba(99, 102, 241, 0.3)',
               }}
             >
-              {tabValue === 0 ? 'Gestión por Series' : 'Mi Panel de Trabajo'}
+              Gestión por Series
             </Typography>
             <Typography 
               variant="h6" 
-              color="textSecondary"
               sx={{ 
-                fontWeight: 400,
-                opacity: 0.8,
+                fontWeight: 500,
+                color: 'rgba(255, 255, 255, 0.8)',
+                fontSize: { xs: '1rem', md: '1.25rem' },
               }}
             >
-              {tabValue === 0 
-                ? 'Vista organizada por series mostrando todas las asignaciones' 
-                : userProfile ? `${userProfile.name} - ${getRoleDisplayName(userProfile.role)}` : 'Panel personalizado de trabajo'
-              }
+              Vista organizada por series mostrando todas las asignaciones
             </Typography>
           </Box>
-          
-          <Button
-            startIcon={<RefreshIcon />}
-            onClick={() => window.location.reload()}
-            variant="outlined"
-            sx={{ minWidth: 120 }}
-          >
-            Actualizar
-          </Button>
+        </Box>
+        
+        {/* Stats Cards */}
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 3 }}>
+          <Chip 
+            icon={<MenuBookIcon />}
+            label={`${filteredMangas.length} Series Activas`} 
+            sx={{
+              background: 'linear-gradient(135deg, #10b981, #059669)',
+              color: 'white',
+              fontWeight: 600,
+              px: 2,
+              py: 1,
+              '& .MuiChip-icon': { color: 'white' },
+              boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)',
+            }}
+          />
+          <Chip 
+            icon={<AssignmentIcon />}
+            label={`${assignments.length} Asignaciones Totales`} 
+            sx={{
+              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              color: 'white',
+              fontWeight: 600,
+              px: 2,
+              py: 1,
+              '& .MuiChip-icon': { color: 'white' },
+              boxShadow: '0 4px 16px rgba(99, 102, 241, 0.3)',
+            }}
+          />
+          <Chip 
+            icon={<CheckCircleIcon />}
+            label={`${assignments.filter(a => a.status === 'completado').length} Completadas`} 
+            sx={{
+              background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+              color: 'white',
+              fontWeight: 600,
+              px: 2,
+              py: 1,
+              '& .MuiChip-icon': { color: 'white' },
+              boxShadow: '0 4px 16px rgba(245, 158, 11, 0.3)',
+            }}
+          />
         </Box>
       </Box>
 
@@ -2275,74 +2745,231 @@ const SeriesManagement = () => {
               fontSize: '1rem',
             }}
           />
-          {userProfile && !hasRole(ROLES.ADMIN) && (
-            <Tab 
-              label="Mi Panel de Trabajo" 
-              icon={<WorkIcon />} 
-              iconPosition="start"
-              sx={{ 
-                textTransform: 'none',
-                fontWeight: 500,
-                fontSize: '1rem',
-              }}
-            />
-          )}
         </Tabs>
       </Card>
 
-      {/* Controls */}
-      <Card sx={{ mb: 3, p: 2 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={6} md={4}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Buscar series"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por título o autor..."
-              InputProps={{
-                startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />
-              }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Estado</InputLabel>
-              <Select
-                value={statusFilter}
-                label="Estado"
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <MenuItem value="all">Todos</MenuItem>
-                <MenuItem value="active">Activo</MenuItem>
-                <MenuItem value="completed">Completado</MenuItem>
-                <MenuItem value="paused">Pausado</MenuItem>
-                <MenuItem value="cancelled">Cancelado</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={12} md={5}>
-            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-              <Chip 
-                label={`${filteredMangas.length} series`} 
-                size="small" 
-                color="primary" 
+      {/* Controls with glassmorphism */}
+      <Card 
+        sx={{ 
+          mb: 4, 
+          background: 'rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          borderRadius: '20px',
+          overflow: 'hidden',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+        }}
+      >
+        <Box sx={{ p: 3 }}>
+          <Grid container spacing={3} alignItems="center">
+            <Grid item xs={12} sm={6} md={5}>
+              <TextField
+                fullWidth
+                size="medium"
+                label="Buscar series"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por título o autor..."
+                InputProps={{
+                  startAdornment: (
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '12px',
+                        background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        mr: 2,
+                        boxShadow: '0 4px 16px rgba(99, 102, 241, 0.3)',
+                      }}
+                    >
+                      <SearchIcon sx={{ color: 'white', fontSize: '18px' }} />
+                    </Box>
+                  ),
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '16px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    height: '56px',
+                    '&:hover': {
+                      border: '1px solid rgba(99, 102, 241, 0.3)',
+                      background: 'rgba(255, 255, 255, 0.08)',
+                    },
+                    '&.Mui-focused': {
+                      border: '2px solid rgba(99, 102, 241, 0.5)',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      boxShadow: '0 0 20px rgba(99, 102, 241, 0.2)',
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    fontWeight: 500,
+                  },
+                  '& .MuiOutlinedInput-input': {
+                    color: 'white',
+                    fontWeight: 500,
+                  },
+                }}
               />
-              <Chip 
-                label={`${assignments.length} asignaciones totales`} 
-                size="small" 
-                color="secondary" 
-              />
-            </Box>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="medium">
+                <InputLabel 
+                  sx={{ 
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    fontWeight: 500,
+                    '&.Mui-focused': {
+                      color: '#6366f1',
+                    },
+                  }}
+                >
+                  Estado
+                </InputLabel>
+                <Select
+                  value={statusFilter}
+                  label="Estado"
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  sx={{
+                    borderRadius: '16px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    height: '56px',
+                    color: 'white',
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      border: '1px solid rgba(99, 102, 241, 0.3)',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      border: '2px solid rgba(99, 102, 241, 0.5)',
+                      boxShadow: '0 0 20px rgba(99, 102, 241, 0.2)',
+                    },
+                    '& .MuiSelect-icon': {
+                      color: 'rgba(255, 255, 255, 0.7)',
+                    },
+                  }}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        background: 'rgba(15, 15, 25, 0.95)',
+                        backdropFilter: 'blur(20px)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '12px',
+                        mt: 1,
+                        '& .MuiMenuItem-root': {
+                          color: 'white',
+                          '&:hover': {
+                            background: 'rgba(99, 102, 241, 0.2)',
+                          },
+                          '&.Mui-selected': {
+                            background: 'rgba(99, 102, 241, 0.3)',
+                            '&:hover': {
+                              background: 'rgba(99, 102, 241, 0.4)',
+                            },
+                          },
+                        },
+                      },
+                    },
+                  }}
+                >
+                  <MenuItem value="all">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <FilterIcon sx={{ fontSize: '16px' }} />
+                      Todos los Estados
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="active">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CheckCircleIcon sx={{ fontSize: '16px', color: '#10b981' }} />
+                      Activo
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="completed">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <BookIcon sx={{ fontSize: '16px', color: '#6366f1' }} />
+                      Completado
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="paused">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <ScheduleIcon sx={{ fontSize: '16px', color: '#f59e0b' }} />
+                      Pausado
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="cancelled">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CancelIcon sx={{ fontSize: '16px', color: '#ef4444' }} />
+                      Cancelado
+                    </Box>
+                  </MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} md={4}>
+              <Box sx={{ display: 'flex', gap: 2, justifyContent: { xs: 'center', md: 'flex-end' }, flexWrap: 'wrap' }}>
+                <Box
+                  sx={{
+                    px: 3,
+                    py: 1.5,
+                    borderRadius: '16px',
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.1))',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: '0 4px 16px rgba(16, 185, 129, 0.2)',
+                  }}
+                >
+                  <MenuBookIcon sx={{ color: '#10b981', fontSize: '20px' }} />
+                  <Box>
+                    <Typography variant="body2" sx={{ color: '#10b981', fontWeight: 700, fontSize: '1.1rem' }}>
+                      {filteredMangas.length}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(16, 185, 129, 0.8)', fontWeight: 500 }}>
+                      Series
+                    </Typography>
+                  </Box>
+                </Box>
+                
+                <Box
+                  sx={{
+                    px: 3,
+                    py: 1.5,
+                    borderRadius: '16px',
+                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.1))',
+                    border: '1px solid rgba(99, 102, 241, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: '0 4px 16px rgba(99, 102, 241, 0.2)',
+                  }}
+                >
+                  <AssignmentIcon sx={{ color: '#6366f1', fontSize: '20px' }} />
+                  <Box>
+                    <Typography variant="body2" sx={{ color: '#6366f1', fontWeight: 700, fontSize: '1.1rem' }}>
+                      {assignments.length}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(99, 102, 241, 0.8)', fontWeight: 500 }}>
+                      Asignaciones
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+            </Grid>
           </Grid>
-        </Grid>
+        </Box>
       </Card>
 
-      {/* Content based on selected tab */}
-      {tabValue === 0 ? (
-        // Series Management Tab
-        filteredMangas.length === 0 ? (
+      {/* Content - Series Management */}
+      {filteredMangas.length === 0 ? (
           <Card sx={{ p: 4, textAlign: 'center' }}>
             <MenuBookIcon sx={{ fontSize: '4rem', color: 'text.secondary', mb: 2 }} />
             <Typography variant="h6" color="text.secondary">
@@ -2536,6 +3163,8 @@ const SeriesManagement = () => {
                         onCreateChapter={handleCreateChapter}
                         onDeleteAssignment={handleDeleteAssignment}
                         userProfile={userProfile}
+                        onMarkUploaded={handleMarkUploaded}
+                        onMarkNotUploaded={handleMarkNotUploaded}
                       />
                     </Box>
                   </Collapse>
@@ -2543,123 +3172,7 @@ const SeriesManagement = () => {
               </Card>
             );
           })
-        )
-      ) : (
-        // Mi Panel de Trabajo Tab
-        <>
-          {/* Información del usuario simplificada */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-            <Avatar 
-              src={userProfile?.profileImage || userProfile?.photoURL || userProfile?.avatar}
-              sx={{ 
-                width: 48, 
-                height: 48,
-                border: '2px solid #6366f1',
-              }}
-            >
-              {!(userProfile?.profileImage || userProfile?.photoURL || userProfile?.avatar) && 
-                userProfile?.name?.substring(0, 1).toUpperCase()
-              }
-            </Avatar>
-            <Typography variant="h6" fontWeight={600} sx={{ mt: 0.5 }}>
-              {userProfile?.name || 'Usuario'}
-            </Typography>
-          </Box>
-
-          {/* Mensaje de info simplificado */}
-          <Alert severity="info" sx={{ mb: 3, p: 1.5, fontSize: '0.875rem' }}>
-            <Typography variant="body2" sx={{ m: 0 }}>
-              Aquí puedes gestionar tus asignaciones actuales.
-            </Typography>
-          </Alert>
-
-          {/* Filtros para el panel de trabajo */}
-          <Card sx={{ mb: 3, p: 2 }}>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} sm={6} md={4}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Filtrar por estado</InputLabel>
-                  <Select
-                    value={staffFilter}
-                    label="Filtrar por estado"
-                    onChange={(e) => setStaffFilter(e.target.value)}
-                  >
-                    <MenuItem value="all">Todas las asignaciones</MenuItem>
-                    <MenuItem value="pending">Pendientes ({staffStats.pending})</MenuItem>
-                    <MenuItem value="in_progress">En Progreso ({staffStats.inProgress})</MenuItem>
-                    <MenuItem value="completed">Completadas ({staffStats.completed})</MenuItem>
-                    <MenuItem value="uploaded">Subidas ({staffStats.uploaded || 0})</MenuItem>
-                    <MenuItem value="overdue">Atrasadas ({staffStats.overdue})</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6} md={8}>
-                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                  <Chip 
-                    label={`${userChapterGroups.length} capítulos mostrados`}
-                    size="small" 
-                    color="primary" 
-                  />
-                  <Chip 
-                    label={`${filteredUserAssignments.length} tareas mostradas`}
-                    size="small" 
-                    color="info" 
-                  />
-                  <Chip 
-                    label={`${allUserAssignments.length} tareas totales`}
-                    size="small" 
-                    color="secondary" 
-                  />
-                </Box>
-              </Grid>
-            </Grid>
-          </Card>
-
-          {/* Estadísticas del staff simplificadas */}
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="body2" color="textSecondary">
-              Tienes {staffStats.total} asignaciones activas.
-            </Typography>
-          </Box>
-
-          {/* Lista de asignaciones del usuario simplificada */}
-          <Box>
-            <Typography variant="h5" fontWeight={600} sx={{ mb: 3 }}>
-              Mis Asignaciones
-            </Typography>
-            
-            {userChapterGroups.length === 0 ? (
-              <Card sx={{ textAlign: 'center', py: 8 }}>
-                <AssignmentIcon sx={{ fontSize: '4rem', color: 'text.secondary', mb: 2 }} />
-                <Typography variant="h6" color="textSecondary">
-                  {staffFilter === 'all' ? 'No tienes asignaciones actualmente' : `No tienes asignaciones ${staffFilter === 'pending' ? 'pendientes' : staffFilter === 'completed' ? 'completadas' : staffFilter === 'overdue' ? 'atrasadas' : staffFilter === 'uploaded' ? 'subidas' : 'en progreso'} actualmente`}
-                </Typography>
-                <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                  {staffFilter === 'all' ? 'Las nuevas asignaciones aparecerán aquí cuando te sean otorgadas' : 'Cambia el filtro para ver otras asignaciones'}
-                </Typography>
-              </Card>
-            ) : (
-              <Box>
-                {userChapterGroups.map((chapterGroup, index) => (
-                  <Box
-                    key={`${chapterGroup.mangaId}-${chapterGroup.chapter}`}
-                    sx={{
-                      animation: `fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.1}s both`,
-                    }}
-                  >
-                    <ChapterCard
-                      chapterGroup={chapterGroup}
-                      userRole={userProfile?.role}
-                      onMarkComplete={handleMarkComplete}
-                      onMarkUploaded={handleMarkUploaded}
-                    />
-                  </Box>
-                ))}
-              </Box>
-            )}
-          </Box>
-        </>
-      )}
+        )}
 
       {/* Chapter Dialog */}
       <ChapterDialog

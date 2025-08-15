@@ -62,11 +62,14 @@ import {
   FilterList,
   Clear,
   Person,
-  Book
+  Book,
+  Refresh,
+  Sync
 } from '@mui/icons-material';
 import { realtimeService } from '../services/realtimeService';
 import { useAuth, ROLES } from '../contexts/AuthContext';
 import { getUniqueUsers } from '../utils/cleanDuplicateUsers';
+import useAssignmentsSync from '../hooks/useAssignmentsSync';
 import toast from 'react-hot-toast';
 
 // Importar componentes adicionales para el nuevo diálogo
@@ -74,9 +77,20 @@ import { Autocomplete } from '@mui/material';
 
 const Assignments = () => {
   const { userProfile, hasRole } = useAuth();
-  const [assignments, setAssignments] = useState([]);
   const [mangas, setMangas] = useState([]);
   const [users, setUsers] = useState([]);
+  
+  // Usar hook personalizado para suscripción a asignaciones
+  const userFilter = (!hasRole(ROLES.ADMIN) && !hasRole(ROLES.JEFE_EDITOR) && !hasRole(ROLES.JEFE_TRADUCTOR)) 
+    ? userProfile?.uid : null;
+  
+  const { 
+    assignments, 
+    loading: assignmentsLoading, 
+    error: assignmentsError,
+    forceRefresh,
+    debugInfo
+  } = useAssignmentsSync(userFilter, 'assignments-page');
   const [openDialog, setOpenDialog] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, type: null, data: null });
@@ -86,14 +100,15 @@ const Assignments = () => {
   const [filters, setFilters] = useState({
     manga: '',
     user: '',
-    status: '',
+    status: 'pendiente',
     search: '',
     week: ''
   });
+  const [syncLoading, setSyncLoading] = useState(false);
   const [formData, setFormData] = useState({
     mangaId: '',
     chapter: '',
-    tasks: ['traduccion'], // Array de tareas
+    tasks: [], // Array de tareas - sin selección por defecto
     assignedTo: '',
     driveLink: '',
     dueDate: '',
@@ -105,6 +120,15 @@ const Assignments = () => {
     open: false, 
     assignment: null, 
     manga: null
+  });
+
+  // Estado para el diálogo de error de capítulo completado
+  const [chapterCompletedDialog, setChapterCompletedDialog] = useState({
+    open: false,
+    mangaTitle: '',
+    chapter: '',
+    reason: '',
+    chapterData: null
   });
 
   // Estado para el formulario del nuevo diálogo estilo SeriesManagement
@@ -126,19 +150,184 @@ const Assignments = () => {
     type: 'Typesetting'
   };
 
+  // Mapeo entre los nombres de tareas del AdminPanel y los del componente Assignments
+  const ADMIN_TO_ASSIGNMENT_TASK_MAP = {
+    traduccion: 'traduccion',
+    edicion: 'proofreading',
+    limpieza: 'cleanRedrawer',
+    typesetting: 'type'
+  };
+
+  // Función para obtener las tareas permitidas para un manga
+  const getAvailableTasksForManga = (mangaId) => {
+    const manga = mangas.find(m => m.id === mangaId);
+    if (!manga) return Object.keys(TASK_TYPES);
+    
+    // Si es un manga joint y tiene tareas específicas configuradas
+    if (manga.isJoint && manga.availableTasks && manga.availableTasks.length > 0) {
+      // Convertir las tareas del AdminPanel a las tareas del componente Assignments
+      return manga.availableTasks
+        .map(adminTask => ADMIN_TO_ASSIGNMENT_TASK_MAP[adminTask])
+        .filter(task => task); // Filtrar tareas undefined
+    }
+    
+    // Si no es joint o no tiene restricciones, devolver todas las tareas
+    return Object.keys(TASK_TYPES);
+  };
+
+  // Función para verificar si un capítulo ya está completado/publicado
+  const checkIfChapterCompleted = async (mangaId, chapterNumber) => {
+    try {
+      //  message removed for production
+      
+      // Obtener los capítulos del manga
+      const chapters = await realtimeService.getChapters(mangaId);
+      //  message removed for production
+      
+      // Buscar el capítulo específico
+      const chapter = chapters.find(ch => {
+        const chNum = parseFloat(ch.chapter || ch.number);
+        const targetNum = parseFloat(chapterNumber);
+        return chNum === targetNum;
+      });
+      
+      if (!chapter) {
+        //  message removed for production
+        return { isCompleted: false, reason: null };
+      }
+      
+      // Debug message removed for production
+      
+      // Verificar los diferentes indicadores de que el capítulo está completado/publicado
+      const checks = {
+        // Fechas de subida
+        hasValidUploadDate: chapter.fechaSubida && 
+                           typeof chapter.fechaSubida === 'string' && 
+                           chapter.fechaSubida.trim() !== '' &&
+                           chapter.fechaSubida !== 'No especificada',
+        hasUploadDate: chapter.uploadDate && 
+                      typeof chapter.uploadDate === 'string' &&
+                      chapter.uploadDate.trim() !== '',
+        hasPublishDate: chapter.publishDate && 
+                       typeof chapter.publishDate === 'string' &&
+                       chapter.publishDate.trim() !== '',
+        
+        // Links y URLs
+        hasValidLink: chapter.linkCapitulo && 
+                     typeof chapter.linkCapitulo === 'string' && 
+                     chapter.linkCapitulo.trim() !== '',
+        hasUrl: chapter.url && 
+               typeof chapter.url === 'string' && 
+               chapter.url.trim() !== '',
+        
+        // Estados explícitos
+        hasUploadedStatus: chapter.status && 
+                          ['uploaded', 'publicado', 'completado', 'subido', 'published', 'complete', 'listo'].includes(chapter.status.toLowerCase()),
+        isUploadedFlag: chapter.uploaded === true || chapter.uploaded === 'true',
+        isMarkedAsPublished: chapter.published === true || chapter.published === 'true',
+        isMarkedAsCompleted: chapter.completed === true || chapter.completed === 'true',
+        
+        // Estados adicionales que podrían indicar completado
+        hasReleaseDate: chapter.releaseDate && 
+                       typeof chapter.releaseDate === 'string' &&
+                       chapter.releaseDate.trim() !== '',
+        isActive: chapter.active === true || chapter.active === 'true',
+        isAvailable: chapter.available === true || chapter.available === 'true',
+        
+        // Verificar si tiene progreso completo (100%)
+        hasCompleteProgress: chapter.progress === 100 || chapter.progress === '100',
+        
+        // Estados específicos del sistema
+        isInGreen: chapter.color === 'green' || chapter.state === 'green' || chapter.status === 'green',
+        isFinished: chapter.finished === true || chapter.finished === 'true',
+        isDone: chapter.done === true || chapter.done === 'true'
+      };
+      
+      //  message removed for production
+      
+      const isCompleted = Object.values(checks).some(check => check);
+      
+      //  message removed for production
+      
+      // Verificación adicional: revisar si todas las asignaciones de este capítulo ya están completadas
+      let allAssignmentsCompleted = false;
+      let assignmentCompletionReason = '';
+      
+      try {
+        //  message removed for production
+        
+        // Obtener todas las asignaciones de este manga y capítulo
+        const existingAssignments = assignments.filter(a => 
+          a.mangaId === mangaId && 
+          a.chapter.toString() === chapterNumber.toString()
+        );
+        
+        //  message removed for production
+        
+        if (existingAssignments.length > 0) {
+          // Debug message removed for production));
+          
+          // Verificar si todas las asignaciones están completadas
+          const completedAssignments = existingAssignments.filter(a => a.status === 'completado');
+          const totalAssignments = existingAssignments.length;
+          
+          //  message removed for production
+          
+          if (completedAssignments.length === totalAssignments && totalAssignments > 0) {
+            allAssignmentsCompleted = true;
+            const taskTypes = existingAssignments.map(a => TASK_TYPES[a.type] || a.type).join(', ');
+            assignmentCompletionReason = `Todas las asignaciones del capítulo ya están completadas (${taskTypes})`;
+            //  message removed for production
+          }
+        }
+      } catch (error) {
+        //  message removed for production
+      }
+      
+      const finalIsCompleted = isCompleted || allAssignmentsCompleted;
+      //  message removed for production
+      
+      if (finalIsCompleted) {
+        // Determinar la razón específica
+        let reason = 'El capítulo ya está ';
+        
+        if (checks.hasValidUploadDate || checks.hasUploadDate) {
+          reason += 'subido con fecha';
+        } else if (checks.hasValidLink || checks.hasUrl) {
+          reason += 'publicado con enlace';
+        } else if (checks.hasUploadedStatus) {
+          reason += `marcado como "${chapter.status}"`;
+        } else if (checks.isMarkedAsPublished) {
+          reason += 'marcado como publicado';
+        } else if (checks.isMarkedAsCompleted) {
+          reason += 'marcado como completado';
+        } else if (checks.hasCompleteProgress) {
+          reason += 'completado al 100%';
+        } else if (checks.isInGreen) {
+          reason += 'marcado en verde (completado)';
+        } else if (checks.isFinished || checks.isDone) {
+          reason += 'marcado como finalizado';
+        } else {
+          reason += 'completado';
+        }
+        
+        //  message removed for production
+        return { isCompleted: true, reason, chapterData: chapter };
+      }
+      
+      //  message removed for production
+      return { isCompleted: false, reason: null };
+    } catch (error) {
+      //  message removed for production
+      return { isCompleted: false, reason: null };
+    }
+  };
+
+  // Configurar otras suscripciones (mangas y usuarios)
   useEffect(() => {
     if (!userProfile) return;
     
     try {
-      // Obtener asignaciones usando Realtime Database
-      const userFilter = (!hasRole(ROLES.JEFE_EDITOR) && !hasRole(ROLES.JEFE_TRADUCTOR)) 
-        ? userProfile?.uid : null;
-      
-      const unsubscribeAssignments = realtimeService.subscribeToAssignments(
-        setAssignments, 
-        userFilter
-      );
-
       // Obtener mangas
       const unsubscribeMangas = realtimeService.subscribeToMangas(setMangas);
 
@@ -146,14 +335,13 @@ const Assignments = () => {
       const unsubscribeUsers = realtimeService.subscribeToUsers(setUsers);
 
       return () => {
-        if (unsubscribeAssignments) unsubscribeAssignments();
         if (unsubscribeMangas) unsubscribeMangas();
         if (unsubscribeUsers) unsubscribeUsers();
       };
     } catch (error) {
-      console.error('Error setting up subscriptions:', error);
+      //  message removed for production
     }
-  }, [userProfile, hasRole]);
+  }, [userProfile]);
 
   // Función para corregir automáticamente nombres incorrectos
   const fixIncorrectUserNames = async () => {
@@ -165,7 +353,7 @@ const Assignments = () => {
     );
 
     if (assignmentsToFix.length > 0) {
-      console.log('🔧 Corrigiendo', assignmentsToFix.length, 'asignaciones con nombres incorrectos');
+      //  message removed for production
       
       for (const assignment of assignmentsToFix) {
         const correctUser = users.find(u => (u.uid || u.id) === assignment.assignedTo);
@@ -173,11 +361,64 @@ const Assignments = () => {
           await realtimeService.updateAssignment(assignment.id, {
             assignedToName: correctUser.name
           });
-          console.log('✅ Corregido:', assignment.id, '->', correctUser.name);
+          //  message removed for production
         }
       }
     }
   };
+
+  // Función para sincronizar estados de asignaciones con capítulos publicados
+  const handleSyncAssignments = async () => {
+    if (syncLoading) return;
+    
+    setSyncLoading(true);
+    try {
+      //  message removed for production
+      const result = await realtimeService.syncAssignmentsWithPublishedChapters();
+      
+      if (result.updated > 0) {
+        toast.success(
+          `✅ ¡Sincronización completada!\n${result.updated}/${result.total} asignaciones actualizadas`, 
+          { duration: 4000 }
+        );
+        
+        // Mostrar detalles de las actualizaciones
+        if (result.updates && result.updates.length > 0) {
+          //  message removed for production
+          result.updates.forEach(update => {
+            //  message removed for production
+          });
+        }
+      } else {
+        toast.success('✨ Todas las asignaciones ya están sincronizadas', { duration: 2000 });
+      }
+      
+      // Forzar actualización de la vista
+      setTimeout(() => {
+        forceRefresh();
+      }, 500);
+      
+    } catch (error) {
+      //  message removed for production
+      toast.error('Error al sincronizar asignaciones: ' + (error.message || 'Error desconocido'));
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  // Ejecutar sincronización automática al cargar la página
+  useEffect(() => {
+    if (assignments.length > 0 && users.length > 0 && mangas.length > 0) {
+      //  message removed for production
+      // Ejecutar sincronización automática cada vez que se carga la página
+      const timeoutId = setTimeout(() => {
+        handleSyncAssignments();
+      }, 1500); // Esperar 1.5 segundos para que todo esté cargado
+      
+      // Cleanup en caso de que el componente se desmonte antes
+      return () => clearTimeout(timeoutId);
+    }
+  }, [assignments.length, users.length, mangas.length]);
 
   // Ejecutar corrección cuando ambos datos estén cargados
   useEffect(() => {
@@ -223,7 +464,7 @@ const Assignments = () => {
       setFormData({
         mangaId: '',
         chapter: '',
-        tasks: ['traduccion'],
+        tasks: [], // Sin selección automática de tareas
         assignedTo: '',
         driveLink: '',
         dueDate: '',
@@ -240,6 +481,42 @@ const Assignments = () => {
 
   const handleSubmit = async () => {
     try {
+      // Validaciones básicas
+      if (!formData.mangaId || !formData.chapter) {
+        toast.error('Por favor completa el manga y el capítulo');
+        return;
+      }
+
+      // Validar que se haya seleccionado al menos una tarea
+      if (!formData.tasks || formData.tasks.length === 0) {
+        toast.error('Por favor selecciona al menos una tarea');
+        return;
+      }
+
+      // Validar que las tareas seleccionadas sean permitidas para el manga joint
+      const availableTasks = getAvailableTasksForManga(formData.mangaId);
+      const invalidTasks = formData.tasks.filter(task => !availableTasks.includes(task));
+      if (invalidTasks.length > 0) {
+        const invalidTaskNames = invalidTasks.map(task => TASK_TYPES[task]).join(', ');
+        toast.error(`Las siguientes tareas no están disponibles para este manga: ${invalidTaskNames}`);
+        return;
+      }
+
+      // Validar que el capítulo no esté ya completado/publicado
+      const chapterStatus = await checkIfChapterCompleted(formData.mangaId, formData.chapter);
+      if (chapterStatus.isCompleted) {
+        toast.error(
+          `❌ No se puede crear/editar esta asignación: ${chapterStatus.reason}`,
+          {
+            duration: 5000,
+            style: {
+              maxWidth: '500px',
+            }
+          }
+        );
+        return;
+      }
+
       const manga = mangas.find(m => m.id === formData.mangaId);
       // Buscar usuario por uid o id para manejar ambos casos
       const assignedUser = users.find(u => (u.uid || u.id) === formData.assignedTo);
@@ -265,7 +542,7 @@ const Assignments = () => {
 
       handleCloseDialog();
     } catch (error) {
-      console.error('Error al guardar asignación:', error);
+      //  message removed for production
       toast.error('Error al guardar la asignación');
     }
   };
@@ -279,7 +556,7 @@ const Assignments = () => {
       });
       toast.success('Progreso actualizado');
     } catch (error) {
-      console.error('Error al actualizar progreso:', error);
+      //  message removed for production
       toast.error('Error al actualizar el progreso');
     }
   };
@@ -332,14 +609,29 @@ const Assignments = () => {
 
   const handleMarkAsCompleted = async (assignmentId) => {
     try {
+      // Encontrar la asignación para mostrar información más detallada
+      const assignment = assignments.find(a => a.id === assignmentId);
+      const assignmentInfo = assignment 
+        ? `${assignment.mangaTitle} Cap.${assignment.chapter} - ${TASK_TYPES[assignment.type] || assignment.type}`
+        : 'Asignación';
+      
       await realtimeService.updateAssignment(assignmentId, {
         status: 'completado',
-        progress: 100
+        progress: 100,
+        completedDate: new Date().toISOString(),
+        completedBy: userProfile.uid
       });
-      toast.success('Asignación marcada como completada');
+      
+      toast.success(
+        `✅ Completada: ${assignmentInfo}`,
+        {
+          duration: 3000,
+          icon: '🎉'
+        }
+      );
     } catch (error) {
-      console.error('Error al marcar como completada:', error);
-      toast.error('Error al marcar como completada');
+      //  message removed for production
+      toast.error(`❌ Error al marcar como completada: ${error.message || 'Error desconocido'}`);
     }
   };
 
@@ -447,7 +739,7 @@ const Assignments = () => {
       toast.success('Asignación eliminada exitosamente');
       setDeleteDialog({ open: false, type: null, data: null });
     } catch (error) {
-      console.error('Error al eliminar asignación:', error);
+      //  message removed for production
       toast.error('Error al eliminar la asignación');
     }
   };
@@ -462,7 +754,7 @@ const Assignments = () => {
       toast.success(`${group.assignments.length} asignaciones eliminadas exitosamente`);
       setDeleteDialog({ open: false, type: null, data: null });
     } catch (error) {
-      console.error('Error al eliminar grupo de asignaciones:', error);
+      //  message removed for production
       toast.error('Error al eliminar las asignaciones');
     }
   };
@@ -619,7 +911,7 @@ const Assignments = () => {
       mangaId: '',
       mangaTitle: '',
       chapter: '',
-      tasks: ['traduccion'], // Usar array de tareas
+      tasks: [], // Sin preselección inicial, se ajustará al seleccionar manga
       assignedTo: '',
       dueDate: '',
       notes: '',
@@ -643,6 +935,30 @@ const Assignments = () => {
       // Validar que se haya seleccionado al menos una tarea
       if (!newAssignmentForm.tasks || newAssignmentForm.tasks.length === 0) {
         toast.error('Por favor selecciona al menos una tarea');
+        return;
+      }
+
+      // Validar que las tareas seleccionadas sean permitidas para el manga joint
+      const availableTasks = getAvailableTasksForManga(newAssignmentForm.mangaId);
+      const invalidTasks = newAssignmentForm.tasks.filter(task => !availableTasks.includes(task));
+      if (invalidTasks.length > 0) {
+        const invalidTaskNames = invalidTasks.map(task => TASK_TYPES[task]).join(', ');
+        toast.error(`Las siguientes tareas no están disponibles para este manga: ${invalidTaskNames}`);
+        return;
+      }
+
+      // Validar que el capítulo no esté ya completado/publicado
+      const chapterStatus = await checkIfChapterCompleted(newAssignmentForm.mangaId, newAssignmentForm.chapter);
+      if (chapterStatus.isCompleted) {
+        toast.error(
+          `❌ No se puede crear esta asignación: ${chapterStatus.reason}`,
+          {
+            duration: 5000,
+            style: {
+              maxWidth: '500px',
+            }
+          }
+        );
         return;
       }
 
@@ -689,7 +1005,7 @@ const Assignments = () => {
       toast.success(`${taskCount} asignación${taskCount > 1 ? 'es' : ''} creada${taskCount > 1 ? 's' : ''} exitosamente (${taskNames})`);
       handleCloseAssignmentDialog();
     } catch (error) {
-      console.error('Error al crear asignación:', error);
+      //  message removed for production
       toast.error('Error al crear la asignación');
     }
   };
@@ -741,25 +1057,140 @@ const Assignments = () => {
           <Typography variant="body1" color="text.secondary">
             Gestiona todas las asignaciones de traducción y edición
           </Typography>
+          {assignmentsLoading && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+              <Sync sx={{ color: 'primary.main', fontSize: '1rem' }} className="rotating" />
+              <Typography variant="body2" color="primary.main">
+                Sincronizando datos...
+              </Typography>
+            </Box>
+          )}
         </Box>
-        {(hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR)) && (
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => handleOpenAssignmentDialog()}
-            sx={{
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-              boxShadow: '0 8px 32px rgba(99, 102, 241, 0.3)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #5b21b6, #7c3aed)',
-                transform: 'translateY(-2px)',
-                boxShadow: '0 12px 40px rgba(99, 102, 241, 0.4)',
-              }
-            }}
-          >
-            Nueva Asignación
-          </Button>
-        )}
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          {/* Botón de sincronización */}
+          <Tooltip title="Sincronizar asignaciones con capítulos publicados">
+            <IconButton
+              onClick={handleSyncAssignments}
+              disabled={syncLoading || assignmentsLoading}
+              sx={{
+                backgroundColor: syncLoading ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.1)',
+                color: '#6366f1',
+                '&:hover': {
+                  backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                  transform: syncLoading ? 'none' : 'scale(1.05)'
+                },
+                '&:disabled': {
+                  backgroundColor: 'rgba(107, 114, 128, 0.1)',
+                  color: '#6b7280'
+                },
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <Sync 
+                sx={{ 
+                  fontSize: '1.2rem',
+                  animation: syncLoading ? 'spin 1s linear infinite' : 'none',
+                  '@keyframes spin': {
+                    '0%': { transform: 'rotate(0deg)' },
+                    '100%': { transform: 'rotate(360deg)' }
+                  }
+                }} 
+              />
+            </IconButton>
+          </Tooltip>
+          
+          {/* Botón de refresh */}
+          <Tooltip title="Forzar actualización de asignaciones">
+            <IconButton
+              onClick={() => {
+                forceRefresh();
+                toast.success('Actualizando asignaciones...');
+              }}
+              disabled={assignmentsLoading}
+              sx={{
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                color: '#10b981',
+                '&:hover': {
+                  backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                  transform: 'scale(1.05)'
+                },
+                '&:disabled': {
+                  backgroundColor: 'rgba(107, 114, 128, 0.1)',
+                  color: '#6b7280'
+                },
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <Refresh sx={{ fontSize: '1.2rem' }} />
+            </IconButton>
+          </Tooltip>
+          
+          {/* Botón de debug para test manual */}
+          {process.env.NODE_ENV === 'development' && (
+            <Tooltip title="Test manual sincronización con logs detallados (solo desarrollo)">
+              <IconButton
+                onClick={async () => {
+                  // Debug console cleared for production
+                  //  message removed for production
+                  //  message removed for production
+                  //  message removed for production
+                  
+                  // Mostrar estado actual de datos
+                  //  message removed for production
+                  //  message removed for production
+                  //  message removed for production
+                  //  message removed for production
+                  
+                  if (assignments.length > 0) {
+                    //  message removed for production
+                    assignments.forEach((assignment, idx) => {
+                      //  message removed for production
+                    });
+                  }
+                  
+                  //  message removed for production
+                  await handleSyncAssignments();
+                  //  message removed for production
+                }}
+                disabled={syncLoading || assignmentsLoading}
+                sx={{
+                  backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                  color: '#ec4899',
+                  '&:hover': {
+                    backgroundColor: 'rgba(236, 72, 153, 0.2)',
+                    transform: 'scale(1.05)'
+                  },
+                  '&:disabled': {
+                    backgroundColor: 'rgba(107, 114, 128, 0.1)',
+                    color: '#6b7280'
+                  },
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <Search sx={{ fontSize: '1.2rem' }} />
+              </IconButton>
+            </Tooltip>
+          )}
+          
+          {(hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR)) && (
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => handleOpenAssignmentDialog()}
+              sx={{
+                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                boxShadow: '0 8px 32px rgba(99, 102, 241, 0.3)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #5b21b6, #7c3aed)',
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 12px 40px rgba(99, 102, 241, 0.4)',
+                }
+              }}
+            >
+              Nueva Asignación
+            </Button>
+          )}
+        </Box>
       </Box>
 
       {/* Filtros */}
@@ -1150,7 +1581,7 @@ const Assignments = () => {
 
                   {/* Actions */}
                   <Box sx={{ display: 'flex', gap: 1, justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                       {group.assignments.map((assignment) => (
                         canManageAssignment(assignment) && (
                           <Tooltip key={assignment.id} title="Editar">
@@ -1167,6 +1598,32 @@ const Assignments = () => {
                           </Tooltip>
                         )
                       ))}
+                      
+                      {/* Botón para marcar todas las asignaciones pendientes como completadas */}
+                      {canMarkAsCompleted() && group.assignments.some(a => a.status !== 'completado') && (
+                        <Tooltip title="Marcar todas como completadas">
+                          <IconButton
+                            size="small"
+                            onClick={async () => {
+                              const pendingAssignments = group.assignments.filter(a => a.status !== 'completado');
+                              for (const assignment of pendingAssignments) {
+                                await handleMarkAsCompleted(assignment.id);
+                              }
+                              toast.success(`${pendingAssignments.length} asignación(es) marcada(s) como completada(s)`);
+                            }}
+                            sx={{
+                              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                              color: '#10b981',
+                              '&:hover': { 
+                                backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                                transform: 'scale(1.05)'
+                              }
+                            }}
+                          >
+                            <CheckCircle sx={{ fontSize: '1rem' }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </Box>
                     
                     <Box sx={{ display: 'flex', gap: 1 }}>
@@ -1303,12 +1760,17 @@ const Assignments = () => {
                     </Box>
                   )}
                 >
-                  {Object.entries(TASK_TYPES).map(([key, value]) => (
-                    <MenuItem key={key} value={key}>
-                      <Checkbox checked={formData.tasks.indexOf(key) > -1} />
-                      {value}
-                    </MenuItem>
-                  ))}
+                  {(() => {
+                    const availableTasks = getAvailableTasksForManga(formData.mangaId);
+                    return Object.entries(TASK_TYPES)
+                      .filter(([key]) => availableTasks.includes(key))
+                      .map(([key, value]) => (
+                        <MenuItem key={key} value={key}>
+                          <Checkbox checked={formData.tasks.indexOf(key) > -1} />
+                          {value}
+                        </MenuItem>
+                      ));
+                  })()}
                 </Select>
               </FormControl>
             </Grid>
@@ -1823,10 +2285,29 @@ const Assignments = () => {
                 value={newAssignmentForm.mangaId}
                 onChange={async (e) => {
                   const manga = mangas.find(m => m.id === e.target.value);
+                  
+                  // Obtener tareas disponibles para el manga seleccionado
+                  const availableTasks = getAvailableTasksForManga(e.target.value);
+                  
+                  // Filtrar tareas actualmente seleccionadas que sean válidas para el nuevo manga
+                  const validSelectedTasks = newAssignmentForm.tasks.filter(task => 
+                    availableTasks.includes(task)
+                  );
+                  
+                  // Si no hay tareas válidas seleccionadas, preseleccionar una tarea válida
+                  let tasksToSet = validSelectedTasks;
+                  if (validSelectedTasks.length === 0 && availableTasks.length > 0) {
+                    // Preseleccionar 'traduccion' si está disponible, sino la primera disponible
+                    tasksToSet = availableTasks.includes('traduccion') 
+                      ? ['traduccion'] 
+                      : [availableTasks[0]];
+                  }
+                  
                   setNewAssignmentForm({
                     ...newAssignmentForm,
                     mangaId: e.target.value,
-                    mangaTitle: manga?.title || ''
+                    mangaTitle: manga?.title || '',
+                    tasks: tasksToSet // Actualizar tareas dinámicamente
                   });
                   
                   // Auto-cargar el link de Drive del capítulo si hay un capítulo seleccionado
@@ -1840,7 +2321,7 @@ const Assignments = () => {
                         driveLink: (chapter && chapter.driveLink) ? chapter.driveLink : ''
                       }));
                     } catch (error) {
-                      console.error('Error loading chapter drive link:', error);
+                      //  message removed for production
                       // En caso de error, limpiar el driveLink
                       setNewAssignmentForm(prev => ({
                         ...prev,
@@ -1882,6 +2363,23 @@ const Assignments = () => {
                     chapter: chapterNumber
                   });
                   
+                  // Validar si el capítulo ya está completado
+                  if (chapterNumber && newAssignmentForm.mangaId) {
+                    const chapterStatus = await checkIfChapterCompleted(newAssignmentForm.mangaId, chapterNumber);
+                    if (chapterStatus.isCompleted) {
+                      // Mostrar diálogo de error personalizado
+                      const manga = mangas.find(m => m.id === newAssignmentForm.mangaId);
+                      setChapterCompletedDialog({
+                        open: true,
+                        mangaTitle: manga?.title || 'Manga desconocido',
+                        chapter: chapterNumber,
+                        reason: chapterStatus.reason,
+                        chapterData: chapterStatus.chapterData
+                      });
+                      return;
+                    }
+                  }
+                  
                   // Auto-cargar el link de Drive del capítulo si existe
                   if (chapterNumber && newAssignmentForm.mangaId) {
                     try {
@@ -1893,7 +2391,7 @@ const Assignments = () => {
                         driveLink: (chapter && chapter.driveLink) ? chapter.driveLink : ''
                       }));
                     } catch (error) {
-                      console.error('Error loading chapter drive link:', error);
+                      //  message removed for production
                       // En caso de error, limpiar el driveLink
                       setNewAssignmentForm(prev => ({
                         ...prev,
@@ -1939,14 +2437,36 @@ const Assignments = () => {
                     </Box>
                   )}
                 >
-                  {Object.entries(TASK_TYPES).map(([key, value]) => (
-                    <MenuItem key={key} value={key}>
-                      <Checkbox checked={newAssignmentForm.tasks.indexOf(key) > -1} />
-                      {value}
-                    </MenuItem>
-                  ))}
+                  {(() => {
+                    const availableTasks = getAvailableTasksForManga(newAssignmentForm.mangaId);
+                    return Object.entries(TASK_TYPES)
+                      .filter(([key]) => availableTasks.includes(key))
+                      .map(([key, value]) => (
+                        <MenuItem key={key} value={key}>
+                          <Checkbox checked={newAssignmentForm.tasks.indexOf(key) > -1} />
+                          {value}
+                        </MenuItem>
+                      ));
+                  })()}
                 </Select>
               </FormControl>
+              {(() => {
+                const selectedManga = mangas.find(m => m.id === newAssignmentForm.mangaId);
+                if (selectedManga?.isJoint && selectedManga?.availableTasks) {
+                  const availableTasksCount = getAvailableTasksForManga(newAssignmentForm.mangaId).length;
+                  const totalTasks = Object.keys(TASK_TYPES).length;
+                  if (availableTasksCount < totalTasks) {
+                    return (
+                      <Alert severity="info" sx={{ mt: 1, fontSize: '0.875rem' }}>
+                        <Typography variant="caption">
+                          🤝 <strong>Proyecto Joint:</strong> Solo tareas específicas disponibles ({availableTasksCount}/{totalTasks})
+                        </Typography>
+                      </Alert>
+                    );
+                  }
+                }
+                return null;
+              })()}
             </Grid>
             
             {/* Usuario asignado */}
@@ -2075,6 +2595,149 @@ const Assignments = () => {
             }}
           >
             Crear Asignación
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo de error para capítulo completado */}
+      <Dialog
+        open={chapterCompletedDialog.open}
+        onClose={() => {
+          setChapterCompletedDialog({ open: false, mangaTitle: '', chapter: '', reason: '', chapterData: null });
+          // Limpiar el campo capítulo para que el usuario pueda intentar con otro
+          setNewAssignmentForm(prev => ({ ...prev, chapter: '' }));
+        }}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            background: (theme) => theme.palette.mode === 'dark' 
+              ? 'rgba(30, 30, 40, 0.98)' 
+              : 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(20px)',
+            border: '2px solid #ef4444',
+            borderRadius: 3
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%)',
+          borderBottom: '1px solid rgba(239, 68, 68, 0.2)',
+          color: 'error.main'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Warning sx={{ color: 'error.main', fontSize: '2rem' }} />
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 700, color: 'error.main' }}>
+                No se puede asignar este capítulo
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                El capítulo ya está completado
+              </Typography>
+            </Box>
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 3 }}>
+          <Alert severity="error" sx={{ mb: 3 }}>
+            <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+              {chapterCompletedDialog.reason}
+            </Typography>
+          </Alert>
+          
+          <Card sx={{ 
+            background: 'rgba(239, 68, 68, 0.05)',
+            border: '1px solid rgba(239, 68, 68, 0.2)',
+            mb: 2
+          }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Book sx={{ color: 'primary.main' }} />
+                Detalles del Capítulo
+              </Typography>
+              
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary">Manga:</Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {chapterCompletedDialog.mangaTitle}
+                  </Typography>
+                </Grid>
+                
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary">Número de Capítulo:</Typography>
+                  <Chip 
+                    label={`Capítulo ${chapterCompletedDialog.chapter}`}
+                    size="small"
+                    sx={{
+                      background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                      color: 'white',
+                      fontWeight: 500
+                    }}
+                  />
+                </Grid>
+                
+                {chapterCompletedDialog.chapterData?.fechaSubida && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="text.secondary">Fecha de Subida:</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                      {chapterCompletedDialog.chapterData.fechaSubida}
+                    </Typography>
+                  </Grid>
+                )}
+                
+                {chapterCompletedDialog.chapterData?.linkCapitulo && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="text.secondary">Enlace del Capítulo:</Typography>
+                    <Button
+                      size="small"
+                      startIcon={<LinkIcon />}
+                      onClick={() => window.open(chapterCompletedDialog.chapterData.linkCapitulo, '_blank')}
+                      sx={{ mt: 0.5 }}
+                    >
+                      Ver Capítulo
+                    </Button>
+                  </Grid>
+                )}
+                
+                {chapterCompletedDialog.chapterData?.status && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="text.secondary">Estado:</Typography>
+                    <Chip 
+                      label={chapterCompletedDialog.chapterData.status}
+                      size="small"
+                      color="success"
+                      sx={{ mt: 0.5 }}
+                    />
+                  </Grid>
+                )}
+              </Grid>
+            </CardContent>
+          </Card>
+          
+          <Alert severity="info" icon={<Assignment />}>
+            <Typography variant="body2">
+              <strong>Sugerencia:</strong> Intenta con un capítulo diferente que aún no haya sido completado o publicado.
+            </Typography>
+          </Alert>
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 3, borderTop: '1px solid rgba(239, 68, 68, 0.1)' }}>
+          <Button 
+            onClick={() => {
+              setChapterCompletedDialog({ open: false, mangaTitle: '', chapter: '', reason: '', chapterData: null });
+              // Limpiar el campo capítulo para que el usuario pueda intentar con otro
+              setNewAssignmentForm(prev => ({ ...prev, chapter: '' }));
+            }}
+            variant="contained"
+            sx={{
+              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #5b21b6, #7c3aed)'
+              }
+            }}
+          >
+            Entendido
           </Button>
         </DialogActions>
       </Dialog>

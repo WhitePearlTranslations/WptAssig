@@ -162,7 +162,7 @@ const Profile = () => {
 
       setEditing(false);
     } catch (error) {
-      console.error('Error al actualizar perfil:', error);
+      //  message removed for production
       if (error.code === 'auth/wrong-password') {
         toast.error('Contraseña actual incorrecta');
       } else {

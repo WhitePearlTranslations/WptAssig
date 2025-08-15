@@ -7,12 +7,12 @@ import { realtimeService } from '../services/realtimeService';
  * - 'typesetting' -> 'type'
  */
 export const migrateAssignmentTypes = async () => {
-  console.log('🔄 Iniciando migración de tipos de tareas...');
+  //  message removed for production
   
   try {
     // Obtener todas las asignaciones
     const allAssignments = await realtimeService.getAllAssignments();
-    console.log(`📋 Encontradas ${allAssignments.length} asignaciones para revisar`);
+    //  message removed for production
 
     let migrationsNeeded = 0;
     let migrationsCompleted = 0;
@@ -30,7 +30,7 @@ export const migrateAssignmentTypes = async () => {
       if (assignment.type && migrationMap[assignment.type]) {
         updates.type = migrationMap[assignment.type];
         needsUpdate = true;
-        console.log(`📝 Actualizando asignación ${assignment.id}: type '${assignment.type}' -> '${migrationMap[assignment.type]}'`);
+        //  message removed for production
       }
 
       // Revisar campo 'tasks' (array)
@@ -41,7 +41,7 @@ export const migrateAssignmentTypes = async () => {
         if (JSON.stringify(updatedTasks) !== JSON.stringify(assignment.tasks)) {
           updates.tasks = updatedTasks;
           needsUpdate = true;
-          console.log(`📝 Actualizando asignación ${assignment.id}: tasks [${assignment.tasks.join(', ')}] -> [${updatedTasks.join(', ')}]`);
+          //  message removed for production
         }
       }
 
@@ -50,21 +50,21 @@ export const migrateAssignmentTypes = async () => {
         try {
           await realtimeService.updateAssignment(assignment.id, updates);
           migrationsCompleted++;
-          console.log(`✅ Asignación ${assignment.id} actualizada correctamente`);
+          //  message removed for production
         } catch (error) {
-          console.error(`❌ Error actualizando asignación ${assignment.id}:`, error);
+          //  message removed for production
         }
       }
     }
 
-    console.log(`\n📊 Migración completada:`);
-    console.log(`   • Asignaciones revisadas: ${allAssignments.length}`);
-    console.log(`   • Migraciones necesarias: ${migrationsNeeded}`);
-    console.log(`   • Migraciones exitosas: ${migrationsCompleted}`);
-    console.log(`   • Errores: ${migrationsNeeded - migrationsCompleted}`);
+    //  message removed for production
+    //  message removed for production
+    //  message removed for production
+    //  message removed for production
+    //  message removed for production
 
     if (migrationsCompleted > 0) {
-      console.log('🎉 Migración completada exitosamente!');
+      //  message removed for production
       return {
         success: true,
         total: allAssignments.length,
@@ -72,7 +72,7 @@ export const migrateAssignmentTypes = async () => {
         errors: migrationsNeeded - migrationsCompleted
       };
     } else if (migrationsNeeded === 0) {
-      console.log('ℹ️ No se encontraron asignaciones que requieran migración');
+      //  message removed for production
       return {
         success: true,
         total: allAssignments.length,
@@ -81,7 +81,7 @@ export const migrateAssignmentTypes = async () => {
         message: 'No se requiere migración'
       };
     } else {
-      console.log('⚠️ Hubo errores durante la migración');
+      //  message removed for production
       return {
         success: false,
         total: allAssignments.length,
@@ -91,7 +91,7 @@ export const migrateAssignmentTypes = async () => {
     }
 
   } catch (error) {
-    console.error('❌ Error durante la migración:', error);
+    //  message removed for production
     return {
       success: false,
       error: error.message
@@ -132,7 +132,7 @@ export const checkMigrationNeeded = async () => {
       requiresMigration: needsMigration > 0
     };
   } catch (error) {
-    console.error('Error checking migration status:', error);
+    //  message removed for production
     return {
       error: error.message
     };

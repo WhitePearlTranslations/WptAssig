@@ -1,14 +1,60 @@
-import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
 import { ref, set, update, remove, get } from 'firebase/database';
 import { auth, realtimeDb } from './firebase';
 import { ROLES } from '../contexts/AuthContext';
 
+// Crear usuario usando Firebase Auth REST API para evitar cerrar sesión del admin
+const createUserWithRestAPI = async (email, password) => {
+  try {
+    // Obtener la clave API de Firebase desde la configuración
+    const apiKey = process.env.REACT_APP_FIREBASE_API_KEY;
+    if (!apiKey) {
+      throw new Error('Clave API de Firebase no encontrada en variables de entorno');
+    }
+
+    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: email,
+        password: password,
+        returnSecureToken: true
+      })
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error?.message || 'Error creando usuario en Firebase Auth');
+    }
+
+    return {
+      uid: data.localId,
+      email: data.email,
+      idToken: data.idToken
+    };
+  } catch (error) {
+    // Error en REST API - removido para producción
+    throw error;
+  }
+};
+
 // Crear un nuevo usuario con rol específico
 export const createUserAccount = async ({ name, email, password, role }) => {
   try {
-    // 1. Crear cuenta en Firebase Auth
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
+    // Verificar que el administrador esté autenticado
+    const currentAdmin = auth.currentUser;
+    if (!currentAdmin) {
+      throw new Error('No hay usuario administrador autenticado');
+    }
+    
+    // Iniciando creación de usuario
+    
+    // 1. Crear cuenta en Firebase Auth usando REST API (no afecta la sesión actual)
+    const newUser = await createUserWithRestAPI(email, password);
+    // Usuario creado en Auth
 
     // 2. Crear perfil en Realtime Database
     const userProfile = {
@@ -18,21 +64,25 @@ export const createUserAccount = async ({ name, email, password, role }) => {
       status: 'active',
       createdAt: new Date().toISOString().split('T')[0],
       lastActive: 'Nunca',
-      createdBy: auth.currentUser?.uid, // Quien lo creó
+      createdBy: currentAdmin.uid,
     };
 
-    await set(ref(realtimeDb, `users/${user.uid}`), userProfile);
+    await set(ref(realtimeDb, `users/${newUser.uid}`), userProfile);
+    // Perfil de usuario creado en DB
 
     // 3. Enviar email de reset para que el usuario configure su contraseña
+    // Usamos la instancia principal de auth que sigue siendo del admin
     await sendPasswordResetEmail(auth, email);
+    // Email de reset enviado
 
     return {
       success: true,
-      user: { uid: user.uid, ...userProfile },
-      message: 'Usuario creado exitosamente. Se ha enviado un email para configurar la contraseña.'
+      user: { uid: newUser.uid, ...userProfile },
+      message: 'Usuario creado exitosamente. Se ha enviado un email para configurar la contraseña.',
+      requiresReauth: false // ¡Ya no requiere reautenticación!
     };
   } catch (error) {
-    console.error('Error creando usuario:', error);
+    // Error creando usuario - removido para producción
     return {
       success: false,
       error: error.message
@@ -54,7 +104,7 @@ export const updateUserRole = async (userId, newRole) => {
       message: 'Rol actualizado exitosamente'
     };
   } catch (error) {
-    console.error('Error actualizando rol:', error);
+    // Error actualizando rol - removido para producción
     return {
       success: false,
       error: error.message
@@ -76,7 +126,7 @@ export const toggleUserStatus = async (userId, status) => {
       message: `Usuario ${status === 'active' ? 'activado' : 'desactivado'} exitosamente`
     };
   } catch (error) {
-    console.error('Error actualizando estado:', error);
+    // Error actualizando estado - removido para producción
     return {
       success: false,
       error: error.message
@@ -143,7 +193,7 @@ export const updateUserStatus = async (userId, newStatus) => {
     };
 
   } catch (error) {
-    console.error('Error actualizando estado del usuario:', error);
+    // Error actualizando estado del usuario - removido para producción
     return {
       success: false,
       error: 'Error interno del servidor: ' + error.message
@@ -209,7 +259,7 @@ export const getAllUsers = async () => {
           users: users
         };
       } catch (dbError) {
-        console.warn('Error accediendo a la base de datos completa, usando datos mock:', dbError);
+        // Error accediendo a la base de datos completa, usando datos mock
         // Fallback a datos mock si las reglas de FB son muy restrictivas
         return {
           success: true,
@@ -245,7 +295,7 @@ export const getAllUsers = async () => {
     };
 
   } catch (error) {
-    console.error('Error obteniendo usuarios:', error);
+    // Error obteniendo usuarios - removido para producción
     return {
       success: false,
       error: error.message
@@ -253,21 +303,151 @@ export const getAllUsers = async () => {
   }
 };
 
-// Eliminar usuario (solo desactiva, no elimina realmente)
+// Función auxiliar para eliminar usuario de Firebase Authentication via worker
+const deleteUserFromAuth = async (userId) => {
+  try {
+    // Variables de entorno disponibles
+    
+    // Obtener la URL base del worker desde una variable de entorno
+    const workerUrl = process.env.REACT_APP_WORKER_URL || 'https://wpt-config-api.whitepearltranslations.workers.dev';
+    
+    // Token de administrador para seguridad adicional
+    const adminToken = process.env.REACT_APP_ADMIN_DELETE_TOKEN || 'wpt-admin-delete-2024-secure';
+    
+    // Llamando worker
+    
+    const response = await fetch(`${workerUrl}/admin/delete-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId: userId,
+        adminToken: adminToken
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(result.error || 'Error eliminando usuario de Authentication');
+    }
+    
+    return result;
+    
+  } catch (error) {
+    // Error eliminando de Authentication (usuario podría no existir en Auth)
+    // No fallar completamente si no se puede eliminar de Auth
+    // El usuario podría no existir en Authentication pero sí en Realtime Database
+    return {
+      success: false,
+      error: error.message,
+      warning: 'No se pudo eliminar de Authentication, pero continuando con limpieza de datos'
+    };
+  }
+};
+
+// Eliminar usuario completamente junto con todas sus asignaciones
 export const deleteUser = async (userId) => {
   try {
-    await update(ref(realtimeDb, `users/${userId}`), {
-      status: 'deleted',
-      deletedAt: new Date().toISOString(),
-      deletedBy: auth.currentUser?.uid
-    });
-
+    // Iniciando eliminación completa del usuario
+    
+    // 1. Buscar todas las asignaciones del usuario
+    const assignmentsRef = ref(realtimeDb, 'assignments');
+    const assignmentsSnapshot = await get(assignmentsRef);
+    
+    const assignmentsToDelete = [];
+    if (assignmentsSnapshot.exists()) {
+      assignmentsSnapshot.forEach((childSnapshot) => {
+        const assignment = childSnapshot.val();
+        if (assignment.assignedTo === userId) {
+          assignmentsToDelete.push(childSnapshot.key);
+        }
+      });
+    }
+    
+    // Encontradas asignaciones para eliminar
+    
+    // 2. Eliminar todas las asignaciones del usuario
+    const deletePromises = [];
+    
+    for (const assignmentId of assignmentsToDelete) {
+      // Eliminando asignación
+      deletePromises.push(remove(ref(realtimeDb, `assignments/${assignmentId}`)));
+    }
+    
+    // 3. Buscar y eliminar asignaciones compartidas relacionadas
+    const sharedAssignmentsRef = ref(realtimeDb, 'sharedAssignments');
+    const sharedSnapshot = await get(sharedAssignmentsRef);
+    
+    if (sharedSnapshot.exists()) {
+      sharedSnapshot.forEach((childSnapshot) => {
+        const sharedAssignment = childSnapshot.val();
+        if (assignmentsToDelete.includes(sharedAssignment.assignmentId)) {
+          // Eliminando asignación compartida
+          deletePromises.push(remove(ref(realtimeDb, `sharedAssignments/${childSnapshot.key}`)));
+        }
+      });
+    }
+    
+    // 4. Eliminar progreso de upload del usuario
+    // Eliminando progreso de upload del usuario
+    deletePromises.push(remove(ref(realtimeDb, `uploadProgress/${userId}`)));
+    
+    // 5. Buscar y eliminar reportes de upload del usuario
+    const uploadReportsRef = ref(realtimeDb, 'uploadReports');
+    const reportsSnapshot = await get(uploadReportsRef);
+    
+    if (reportsSnapshot.exists()) {
+      reportsSnapshot.forEach((childSnapshot) => {
+        const report = childSnapshot.val();
+        if (report.uploaderId === userId) {
+          // Eliminando reporte de upload
+          deletePromises.push(remove(ref(realtimeDb, `uploadReports/${childSnapshot.key}`)));
+        }
+      });
+    }
+    
+    // 6. Eliminar el registro del usuario
+    // Eliminando registro del usuario
+    deletePromises.push(remove(ref(realtimeDb, `users/${userId}`)));
+    
+    // 7. Si es usuario fantasma, eliminar también de ghostUsers
+    const ghostUserRef = ref(realtimeDb, `ghostUsers/${userId}`);
+    const ghostUserSnapshot = await get(ghostUserRef);
+    if (ghostUserSnapshot.exists()) {
+      // Eliminando usuario fantasma
+      deletePromises.push(remove(ghostUserRef));
+    }
+    
+    // Ejecutar todas las eliminaciones de la base de datos
+    await Promise.all(deletePromises);
+    
+    // Datos del usuario eliminados de la base de datos
+    
+    // 8. Intentar eliminar el usuario de Firebase Authentication
+    // Intentando eliminar usuario de Firebase Authentication
+    const authResult = await deleteUserFromAuth(userId);
+    
+    let finalMessage = `Usuario eliminado exitosamente. Se eliminaron ${assignmentsToDelete.length} asignaciones relacionadas.`;
+    
+    if (authResult.success) {
+      finalMessage += ' También se eliminó de Firebase Authentication.';
+    } else if (authResult.warning) {
+      finalMessage += ` Advertencia: ${authResult.warning}`;
+    }
+    
+    // Usuario y todos los datos relacionados procesados exitosamente
+    
     return {
       success: true,
-      message: 'Usuario eliminado exitosamente'
+      message: finalMessage,
+      deletedAssignments: assignmentsToDelete.length,
+      authDeletion: authResult
     };
+    
   } catch (error) {
-    console.error('Error eliminando usuario:', error);
+    // Error eliminando usuario - removido para producción
     return {
       success: false,
       error: error.message
@@ -366,7 +546,7 @@ export const updateUserProfile = async (userId, updateData) => {
     };
 
   } catch (error) {
-    console.error('Error actualizando perfil de usuario:', error);
+    // Error actualizando perfil de usuario - removido para producción
     return {
       success: false,
       error: 'Error interno del servidor: ' + error.message
@@ -414,7 +594,7 @@ export const createGhostUser = async ({ name, email, role, isGhost = true }) => 
       message: 'Usuario fantasma creado exitosamente. Este usuario aparecerá en el historial pero no podrá iniciar sesión.'
     };
   } catch (error) {
-    console.error('Error creando usuario fantasma:', error);
+    // Error creando usuario fantasma - removido para producción
     return {
       success: false,
       error: 'Error al crear usuario fantasma: ' + error.message
@@ -445,7 +625,7 @@ export const getAllGhostUsers = async () => {
       };
     }
   } catch (error) {
-    console.error('Error obteniendo usuarios fantasma:', error);
+    // Error obteniendo usuarios fantasma - removido para producción
     return {
       success: false,
       error: error.message
@@ -462,7 +642,7 @@ export const resetUserPassword = async (email) => {
       message: 'Email de reset enviado exitosamente'
     };
   } catch (error) {
-    console.error('Error enviando reset:', error);
+    // Error enviando reset - removido para producción
     return {
       success: false,
       error: error.message

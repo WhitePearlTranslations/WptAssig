@@ -345,7 +345,7 @@ const SeriesAssignmentManager = () => {
 
   const handleSaveAssignment = (assignmentData) => {
     // Aquí puedes manejar la lógica para guardar la asignación
-    console.log('Guardando asignación:', assignmentData);
+    //  message removed for production
     
     // Cerrar el diálogo
     handleCloseAssignment();
@@ -356,7 +356,7 @@ const SeriesAssignmentManager = () => {
 
   const handleOpenChapterDialog = (data) => {
     // Manejar creación de nuevo capítulo
-    console.log('Abriendo diálogo para nuevo capítulo:', data);
+    //  message removed for production
     setSelectedChapter({ seriesId: data.seriesId, manga: '', chapter: '' });
     setAssignmentDialogOpen(true);
   };

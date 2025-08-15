@@ -4,7 +4,7 @@
  */
 
 // URL del Cloudflare Worker - actualiza esto con tu dominio real
-const WORKER_URL = process.env.REACT_APP_WORKER_URL || 'https://wpt-config-api.your-account.workers.dev';
+const WORKER_URL = process.env.REACT_APP_WORKER_URL || 'https://wpt-config-api.whitepearltranslations.workers.dev';
 
 // Cache para la configuración
 let configCache = null;
@@ -18,18 +18,18 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos en milisegundos
 export async function getFirebaseConfig() {
   // En desarrollo, usar directamente la configuración local para evitar CORS
   if (process.env.NODE_ENV === 'development') {
-    console.log('🔥 Modo desarrollo: usando configuración local');
+    //  message removed for production
     return getFallbackConfig();
   }
 
   // Verificar si tenemos configuración en cache válida
   if (configCache && cacheTimestamp && (Date.now() - cacheTimestamp < CACHE_DURATION)) {
-    console.log('🔥 Usando configuración desde cache');
+    //  message removed for production
     return configCache;
   }
 
   try {
-    console.log('🌐 Obteniendo configuración desde Cloudflare Worker...');
+    //  message removed for production
     
     const response = await fetch(`${WORKER_URL}/firebase-config`, {
       method: 'GET',
@@ -73,14 +73,14 @@ export async function getFirebaseConfig() {
     configCache = data.config;
     cacheTimestamp = Date.now();
 
-    console.log('🔥 Configuración obtenida exitosamente desde Worker');
+    //  message removed for production
     return configCache;
 
   } catch (error) {
-    console.error('❌ Error obteniendo configuración desde Worker:', error);
+    //  message removed for production
     
     // Fallback: intentar usar variables de entorno locales
-    console.warn('⚠️ Usando fallback a variables de entorno locales...');
+    //  message removed for production
     return getFallbackConfig();
   }
 }
@@ -110,7 +110,7 @@ function getFallbackConfig() {
     throw new Error(`Configuración de fallback incompleta. Faltan: ${missingKeys.join(', ')}`);
   }
 
-  console.warn('🔥 Usando configuración de fallback desde .env local');
+  //  message removed for production
   return fallbackConfig;
 }
 
@@ -138,7 +138,7 @@ export async function getServiceHealth() {
     };
 
   } catch (error) {
-    console.error('❌ Error verificando estado del Worker:', error);
+    //  message removed for production
     return {
       status: 'error',
       error: error.message,
@@ -153,5 +153,5 @@ export async function getServiceHealth() {
 export function clearConfigCache() {
   configCache = null;
   cacheTimestamp = null;
-  console.log('🗑️ Cache de configuración limpiado');
+  //  message removed for production
 }

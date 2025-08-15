@@ -9,14 +9,14 @@ const ADMIN_UID = '7HIHfawVZtYBnUgIsvuspXY9DCw1';
 
 export const setupSuperAdmin = async () => {
   try {
-    console.log('🔧 Configurando superusuario...');
+    //  message removed for production
     
     // Verificar si ya existe
     const adminRef = ref(realtimeDb, `users/${ADMIN_UID}`);
     const snapshot = await get(adminRef);
     
     if (snapshot.exists()) {
-      console.log('✅ El superusuario ya existe:', snapshot.val());
+      //  message removed for production
       
       // Asegurarse de que tiene rol de admin
       const currentData = snapshot.val();
@@ -26,7 +26,7 @@ export const setupSuperAdmin = async () => {
           role: ROLES.ADMIN,
           updatedAt: new Date().toISOString(),
         });
-        console.log('🔄 Rol actualizado a ADMIN');
+        //  message removed for production
       }
       
       return { success: true, message: 'Superusuario configurado correctamente' };
@@ -53,8 +53,8 @@ export const setupSuperAdmin = async () => {
 
     await set(adminRef, adminProfile);
     
-    console.log('✅ Superusuario creado exitosamente!');
-    console.log('📋 Perfil:', adminProfile);
+    //  message removed for production
+    //  message removed for production
     
     return {
       success: true,
@@ -63,7 +63,7 @@ export const setupSuperAdmin = async () => {
     };
 
   } catch (error) {
-    console.error('❌ Error configurando superusuario:', error);
+    //  message removed for production
     return {
       success: false,
       error: error.message
@@ -76,6 +76,6 @@ window.setupSuperAdmin = setupSuperAdmin;
 
 // Auto-ejecutar si se llama directamente
 if (typeof window !== 'undefined' && window.location) {
-  console.log('🚀 Script de configuración de superusuario cargado');
-  console.log('💡 Ejecuta: setupSuperAdmin() en la consola para configurar');
+  //  message removed for production
+  //  message removed for production
 }

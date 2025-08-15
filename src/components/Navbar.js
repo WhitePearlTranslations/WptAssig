@@ -9,7 +9,8 @@ import {
   MenuItem,
   Avatar,
   IconButton,
-  Divider
+  Divider,
+  Chip
 } from '@mui/material';
 import {
   AccountCircle,
@@ -20,9 +21,12 @@ import {
   ExitToApp,
   ManageAccounts as ManageIcon,
   LibraryBooks,
-  AdminPanelSettings as AdminIcon
+  AdminPanelSettings as AdminIcon,
+  CloudUpload as UploaderIcon,
+  Settings as SettingsIcon,
+  Work as WorkIcon
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { useAuth, ROLES } from '../contexts/AuthContext';
@@ -45,7 +49,7 @@ const Navbar = () => {
       await signOut(auth);
       navigate('/login');
     } catch (error) {
-      console.error('Error al cerrar sesión:', error);
+      //  message removed for production
     }
     handleClose();
   };
@@ -60,6 +64,7 @@ const Navbar = () => {
       [ROLES.ADMIN]: 'Administrador',
       [ROLES.JEFE_EDITOR]: 'Jefe Editor',
       [ROLES.JEFE_TRADUCTOR]: 'Jefe Traductor',
+      [ROLES.UPLOADER]: 'Uploader',
       [ROLES.EDITOR]: 'Editor',
       [ROLES.TRADUCTOR]: 'Traductor'
     };
@@ -161,39 +166,83 @@ const Navbar = () => {
             Dashboard
           </Button>
 
-          <Button
-            color="inherit"
-            startIcon={<Assignment />}
-            onClick={() => navigate('/assignments')}
-            sx={{
-              borderRadius: '12px',
-              px: 2,
-              py: 1,
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              position: 'relative',
-              overflow: 'hidden',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'rgba(99, 102, 241, 0.1)',
-                opacity: 0,
-                transition: 'opacity 0.3s ease',
-              },
-              '&:hover::before': {
-                opacity: 1,
-              },
-              '&:hover': {
-                transform: 'translateY(-1px)',
-                color: '#6366f1',
-              },
-            }}
-          >
-            Asignaciones
-          </Button>
+          {/* Botón de Asignaciones solo para Administradores y Jefes */}
+          {(hasRole(ROLES.ADMIN) || hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR)) && (
+            <Button
+              color="inherit"
+              startIcon={<Assignment />}
+              onClick={() => navigate('/assignments')}
+              sx={{
+                borderRadius: '12px',
+                px: 2,
+                py: 1,
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                position: 'relative',
+                overflow: 'hidden',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'rgba(236, 72, 153, 0.1)',
+                  opacity: 0,
+                  transition: 'opacity 0.3s ease',
+                },
+                '&:hover::before': {
+                  opacity: 1,
+                },
+                '&:hover': {
+                  transform: 'translateY(-1px)',
+                  color: '#ec4899',
+                },
+              }}
+            >
+              Asignaciones
+            </Button>
+          )}
+
+          {/* Botón de Mis Trabajos para roles con acceso */}
+          {(userProfile?.role === ROLES.ADMIN || 
+            userProfile?.role === ROLES.JEFE_EDITOR || 
+            userProfile?.role === ROLES.JEFE_TRADUCTOR || 
+            userProfile?.role === ROLES.EDITOR || 
+            userProfile?.role === ROLES.TRADUCTOR) && (
+            <Button
+              color="inherit"
+              startIcon={<WorkIcon />}
+              onClick={() => navigate('/myworks')}
+              sx={{
+                borderRadius: '12px',
+                px: 2,
+                py: 1,
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                position: 'relative',
+                overflow: 'hidden',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'rgba(34, 197, 94, 0.1)',
+                  opacity: 0,
+                  transition: 'opacity 0.3s ease',
+                },
+                '&:hover::before': {
+                  opacity: 1,
+                },
+                '&:hover': {
+                  transform: 'translateY(-1px)',
+                  color: '#22c55e',
+                },
+              }}
+            >
+              Mis Trabajos
+            </Button>
+          )}
 
           <Button
             color="inherit"
@@ -228,6 +277,43 @@ const Navbar = () => {
           >
             Series
           </Button>
+
+          {/* Botón de Subidas para Uploaders y Administradores */}
+          {(userProfile?.role === ROLES.UPLOADER || userProfile?.role === ROLES.ADMIN || userProfile?.role === 'administrador') && (
+            <Button
+              color="inherit"
+              startIcon={<UploaderIcon />}
+              onClick={() => navigate('/uploads')}
+              sx={{
+                borderRadius: '12px',
+                px: 2,
+                py: 1,
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                position: 'relative',
+                overflow: 'hidden',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'rgba(139, 92, 246, 0.1)',
+                  opacity: 0,
+                  transition: 'opacity 0.3s ease',
+                },
+                '&:hover::before': {
+                  opacity: 1,
+                },
+                '&:hover': {
+                  transform: 'translateY(-1px)',
+                  color: '#8b5cf6',
+                },
+              }}
+            >
+              Subidas
+            </Button>
+          )}
 
 
           <IconButton
@@ -303,13 +389,30 @@ const Navbar = () => {
             }}
           >
             <MenuItem disabled>
-              <Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, py: 1 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
                   {userProfile?.name || currentUser?.email}
                 </Typography>
-                <Typography variant="caption" color="textSecondary">
-                  {getRoleDisplayName(userProfile?.role)}
-                </Typography>
+                <Chip
+                  label={getRoleDisplayName(userProfile?.role)}
+                  size="small"
+                  sx={{
+                    background: hasRole(ROLES.ADMIN) 
+                      ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                      : hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR)
+                      ? 'linear-gradient(135deg, #f59e0b, #d97706)'
+                      : hasRole(ROLES.UPLOADER)
+                      ? 'linear-gradient(135deg, #8b5cf6, #7c3aed)'
+                      : 'linear-gradient(135deg, #22c55e, #16a34a)',
+                    color: 'white',
+                    fontWeight: 500,
+                    fontSize: '0.75rem',
+                    height: '24px',
+                    '& .MuiChip-label': {
+                      px: 1
+                    }
+                  }}
+                />
               </Box>
             </MenuItem>
             <Divider />

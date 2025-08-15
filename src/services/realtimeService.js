@@ -34,7 +34,7 @@ export const realtimeService = {
       });
       return userData.uid;
     } catch (error) {
-      console.error('Error creating user:', error);
+      //  message removed for production
       throw error;
     }
   },
@@ -47,7 +47,7 @@ export const realtimeService = {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating user:', error);
+      //  message removed for production
       throw error;
     }
   },
@@ -57,7 +57,7 @@ export const realtimeService = {
       const userRef = ref(realtimeDb, `users/${userId}`);
       await remove(userRef);
     } catch (error) {
-      console.error('Error deleting user:', error);
+      //  message removed for production
       throw error;
     }
   },
@@ -78,23 +78,23 @@ export const realtimeService = {
       }
       return [];
     } catch (error) {
-      console.error('Error getting users:', error);
+      //  message removed for production
       throw error;
     }
   },
 
   subscribeToUsers: (callback) => {
-    console.log('Setting up users subscription...');
+    //  message removed for production
     const usersRef = ref(realtimeDb, 'users');
-    console.log('Users ref created:', usersRef);
+    //  message removed for production
     
     const unsubscribe = onValue(usersRef, (snapshot) => {
-      console.log('Users onValue callback triggered');
-      console.log('Snapshot exists:', snapshot.exists());
+      //  message removed for production
+      //  message removed for production
       
       const users = [];
       if (snapshot.exists()) {
-        console.log('Processing users snapshot...');
+        //  message removed for production
         snapshot.forEach((childSnapshot) => {
           const userData = {
             id: childSnapshot.key,
@@ -102,16 +102,16 @@ export const realtimeService = {
             ...childSnapshot.val()
           };
           users.push(userData);
-          console.log('Added user:', userData);
+          //  message removed for production
         });
       } else {
-        console.log('No users found in database');
+        //  message removed for production
       }
       
-      console.log('Final users array:', users);
+      //  message removed for production
       callback(users);
     }, (error) => {
-      console.error('Error in users subscription:', error);
+      //  message removed for production
       callback([]);
     });
     
@@ -131,7 +131,7 @@ export const realtimeService = {
       });
       return newMangaRef.key;
     } catch (error) {
-      console.error('Error creating manga:', error);
+      //  message removed for production
       throw error;
     }
   },
@@ -144,7 +144,7 @@ export const realtimeService = {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating manga:', error);
+      //  message removed for production
       throw error;
     }
   },
@@ -165,7 +165,7 @@ export const realtimeService = {
       }
       return [];
     } catch (error) {
-      console.error('Error getting mangas:', error);
+      //  message removed for production
       throw error;
     }
   },
@@ -212,7 +212,7 @@ export const realtimeService = {
       
       return { id: newAssignmentRef.key, shareableId };
     } catch (error) {
-      console.error('Error creating assignment:', error);
+      //  message removed for production
       throw error;
     }
   },
@@ -224,8 +224,13 @@ export const realtimeService = {
         ...updateData,
         updatedAt: serverTimestamp()
       });
+      
+      // Añadir un pequeño retraso para asegurar que la actualización se propague
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      //  message removed for production
     } catch (error) {
-      console.error('Error updating assignment:', error);
+      //  message removed for production
       throw error;
     }
   },
@@ -244,7 +249,7 @@ export const realtimeService = {
         await realtimeService.updateMangaChapterCount(assignmentData.mangaId);
       }
     } catch (error) {
-      console.error('Error deleting assignment:', error);
+      //  message removed for production
       throw error;
     }
   },
@@ -265,7 +270,7 @@ export const realtimeService = {
       }
       return [];
     } catch (error) {
-      console.error('Error getting assignments:', error);
+      //  message removed for production
       throw error;
     }
   },
@@ -289,14 +294,16 @@ export const realtimeService = {
       }
       return [];
     } catch (error) {
-      console.error('Error getting user assignments:', error);
+      //  message removed for production
       throw error;
     }
   },
 
   subscribeToAssignments: (callback, userFilter = null) => {
+    //  message removed for production
     const assignmentsRef = ref(realtimeDb, 'assignments');
     const unsubscribe = onValue(assignmentsRef, (snapshot) => {
+      //  message removed for production
       const assignments = [];
       if (snapshot.exists()) {
         snapshot.forEach((childSnapshot) => {
@@ -309,9 +316,13 @@ export const realtimeService = {
           }
         });
       }
+      //  message removed for production
       callback(assignments);
+    }, (error) => {
+      //  message removed for production
+      callback([]);
     });
-    return () => off(assignmentsRef);
+    return unsubscribe;
   },
 
   // FUNCIONES ESPECIALES PARA COMPARTIR ASIGNACIONES
@@ -329,7 +340,7 @@ export const realtimeService = {
       }
       return null;
     } catch (error) {
-      console.error('Error getting shared assignment:', error);
+      //  message removed for production
       throw error;
     }
   },
@@ -350,7 +361,7 @@ export const realtimeService = {
       
       return true;
     } catch (error) {
-      console.error('Error updating shared assignment:', error);
+      //  message removed for production
       throw error;
     }
   },
@@ -418,7 +429,7 @@ export const realtimeService = {
       
       return allChapters.size;
     } catch (error) {
-      console.error('Error updating manga chapter count:', error);
+      //  message removed for production
       throw error;
     }
   },
@@ -440,7 +451,7 @@ export const realtimeService = {
       
       return chapterData.chapter;
     } catch (error) {
-      console.error('Error creating chapter:', error);
+      //  message removed for production
       throw error;
     }
   },
@@ -455,7 +466,7 @@ export const realtimeService = {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating chapter:', error);
+      //  message removed for production
       throw error;
     }
   },
@@ -469,7 +480,7 @@ export const realtimeService = {
       // Actualizar automáticamente el conteo de capítulos del manga
       await realtimeService.updateMangaChapterCount(mangaId);
     } catch (error) {
-      console.error('Error deleting chapter:', error);
+      //  message removed for production
       throw error;
     }
   },
@@ -498,7 +509,7 @@ export const realtimeService = {
       }
       return [];
     } catch (error) {
-      console.error('Error getting chapters:', error);
+      //  message removed for production
       throw error;
     }
   },
@@ -537,9 +548,302 @@ export const realtimeService = {
 
       return stats;
     } catch (error) {
-      console.error('Error getting stats:', error);
+      //  message removed for production
       throw error;
     }
+  },
+
+  // SINCRONIZACIÓN DE ESTADO DE ASIGNACIONES
+  syncAssignmentsWithPublishedChapters: async () => {
+    try {
+      //  message removed for production
+      
+      // Obtener todas las asignaciones
+      const assignmentsRef = ref(realtimeDb, 'assignments');
+      const assignmentsSnapshot = await get(assignmentsRef);
+      
+      if (!assignmentsSnapshot.exists()) {
+        //  message removed for production
+        return { updated: 0, total: 0 };
+      }
+      
+      // Primero, crear mapa de capítulos subidos desde las asignaciones
+      const uploadedChapters = new Map(); // mangaId -> Set(chapters con status 'uploaded')
+      
+      //  message removed for production
+      assignmentsSnapshot.forEach((assignmentSnapshot) => {
+        const assignment = assignmentSnapshot.val();
+        
+        // Si la asignación tiene status 'uploaded', marcar ese capítulo como publicado
+        if (assignment.status === 'uploaded' && assignment.mangaId && assignment.chapter) {
+          if (!uploadedChapters.has(assignment.mangaId)) {
+            uploadedChapters.set(assignment.mangaId, new Set());
+          }
+          uploadedChapters.get(assignment.mangaId).add(assignment.chapter.toString());
+          
+          //  message removed for production
+        }
+      });
+      
+      // Debug message removed for production
+      
+      // Obtener todos los mangas con sus capítulos
+      const mangasRef = ref(realtimeDb, 'mangas');
+      const mangasSnapshot = await get(mangasRef);
+      
+      const publishedChapters = new Map(); // mangaId -> Set(chapters publicados)
+      
+      if (mangasSnapshot.exists()) {
+        mangasSnapshot.forEach((mangaSnapshot) => {
+          const mangaId = mangaSnapshot.key;
+          const mangaData = mangaSnapshot.val();
+          
+          //  message removed for production
+          
+          if (mangaData.chapters) {
+            const publishedChaptersSet = new Set();
+            
+            // Revisar cada capítulo
+            Object.entries(mangaData.chapters).forEach(([chapterKey, chapterData]) => {
+              const decodedChapterKey = decodeChapterNumber(chapterKey);
+              const chapterNumber = chapterData.chapter || chapterData.number || decodedChapterKey;
+              
+              // Mostrar todos los campos disponibles para debug
+              // Debug message removed for production
+              
+              // Un capítulo se considera "publicado" si cumple alguna de estas condiciones:
+              // 1. Tiene fechaSubida válida y no vacía
+              const hasValidUploadDate = chapterData.fechaSubida && 
+                                        typeof chapterData.fechaSubida === 'string' && 
+                                        chapterData.fechaSubida.trim() !== '';
+              
+              // 2. Tiene linkCapitulo válido y no vacío
+              const hasValidLink = chapterData.linkCapitulo && 
+                                 typeof chapterData.linkCapitulo === 'string' && 
+                                 chapterData.linkCapitulo.trim() !== '';
+              
+              // 3. Su status indica que está subido/publicado
+              const hasUploadedStatus = chapterData.status && 
+                                      ['uploaded', 'publicado', 'completado', 'subido'].includes(chapterData.status.toLowerCase());
+              
+              // 4. La propiedad 'uploaded' es true (booleano)
+              const isUploadedFlag = chapterData.uploaded === true;
+              
+              // 5. Verificar también otros campos comunes que podrían indicar que está subido
+              const hasUploadDate = chapterData.uploadDate && chapterData.uploadDate.trim() !== '';
+              const hasPublishDate = chapterData.publishDate && chapterData.publishDate.trim() !== '';
+              const isMarkedAsPublished = chapterData.published === true;
+              const isMarkedAsCompleted = chapterData.completed === true;
+              
+              const isPublished = hasValidUploadDate || hasValidLink || hasUploadedStatus || 
+                                isUploadedFlag || hasUploadDate || hasPublishDate || 
+                                isMarkedAsPublished || isMarkedAsCompleted;
+              
+              // Log detallado de la evaluación
+              // Debug message removed for production
+              
+              if (isPublished && chapterNumber) {
+                publishedChaptersSet.add(chapterNumber.toString());
+                //  message removed for production
+              } else {
+                //  message removed for production
+              }
+            });
+            
+            if (publishedChaptersSet.size > 0) {
+              publishedChapters.set(mangaId, publishedChaptersSet);
+              //  message removed for production
+            }
+          } else {
+            //  message removed for production
+          }
+        });
+      }
+      
+      // Combinar capítulos publicados de ambas fuentes (manga chapters + uploaded assignments)
+      for (const [mangaId, uploadedChaps] of uploadedChapters.entries()) {
+        if (!publishedChapters.has(mangaId)) {
+          publishedChapters.set(mangaId, new Set());
+        }
+        // Agregar todos los capítulos subidos al conjunto de publicados
+        uploadedChaps.forEach(chapterNum => {
+          publishedChapters.get(mangaId).add(chapterNum);
+        });
+      }
+      
+      // Debug message removed for production
+      
+      let totalAssignments = 0;
+      let updatedAssignments = 0;
+      const updates = [];
+      
+      // Revisar todas las asignaciones
+      assignmentsSnapshot.forEach((assignmentSnapshot) => {
+        const assignmentId = assignmentSnapshot.key;
+        const assignment = assignmentSnapshot.val();
+        totalAssignments++;
+        
+        //  message removed for production
+        
+        // Solo procesar asignaciones que no están completadas
+        if (assignment.status !== 'completado' && assignment.mangaId && assignment.chapter) {
+          const mangaPublishedChapters = publishedChapters.get(assignment.mangaId);
+          const chapterStr = assignment.chapter.toString();
+          
+          // Debug message removed for production : 'Sin capítulos publicados');
+          
+          if (mangaPublishedChapters && mangaPublishedChapters.has(chapterStr)) {
+            // Este capítulo está publicado, marcar asignación como completada
+            //  message removed for production
+            
+            updates.push({
+              assignmentId,
+              mangaTitle: assignment.mangaTitle,
+              chapter: assignment.chapter,
+              currentStatus: assignment.status,
+              newStatus: 'completado',
+              progress: 100,
+              completedAt: new Date().toISOString(),
+              syncedBySystem: true
+            });
+            updatedAssignments++;
+          } else {
+            //  message removed for production
+          }
+        } else if (assignment.status === 'completado') {
+          //  message removed for production
+        } else {
+          //  message removed for production
+        }
+      });
+      
+      // Aplicar las actualizaciones
+      if (updates.length > 0) {
+        //  message removed for production
+        
+        for (const update of updates) {
+          await realtimeService.updateAssignment(update.assignmentId, {
+            status: update.newStatus,
+            progress: update.progress,
+            completedAt: update.completedAt,
+            syncedBySystem: update.syncedBySystem,
+            lastSyncDate: new Date().toISOString()
+          });
+          
+          //  message removed for production
+        }
+      } else {
+        //  message removed for production
+      }
+      
+      //  message removed for production
+      
+      return {
+        updated: updatedAssignments,
+        total: totalAssignments,
+        updates: updates.map(u => ({
+          manga: u.mangaTitle,
+          chapter: u.chapter,
+          status: `${u.currentStatus} → ${u.newStatus}`
+        }))
+      };
+    } catch (error) {
+      //  message removed for production
+      throw error;
+    }
+  },
+
+  // MÉTODOS GENÉRICOS PARA CUALQUIER RUTA
+  updateData: async (path, data) => {
+    try {
+      const dataRef = ref(realtimeDb, path);
+      await update(dataRef, {
+        ...data,
+        updatedAt: serverTimestamp()
+      });
+      return true;
+    } catch (error) {
+      //  message removed for production
+      throw error;
+    }
+  },
+
+  setData: async (path, data) => {
+    try {
+      const dataRef = ref(realtimeDb, path);
+      await set(dataRef, {
+        ...data,
+        updatedAt: serverTimestamp()
+      });
+      return true;
+    } catch (error) {
+      //  message removed for production
+      throw error;
+    }
+  },
+
+  getData: async (path) => {
+    try {
+      const dataRef = ref(realtimeDb, path);
+      const snapshot = await get(dataRef);
+      if (snapshot.exists()) {
+        return snapshot.val();
+      }
+      return null;
+    } catch (error) {
+      //  message removed for production
+      throw error;
+    }
+  },
+
+  deleteData: async (path) => {
+    try {
+      const dataRef = ref(realtimeDb, path);
+      await remove(dataRef);
+      return true;
+    } catch (error) {
+      //  message removed for production
+      throw error;
+    }
+  },
+
+  // Método específico para cargar reportes de uploads respetando las reglas de seguridad
+  getUploadReports: async (userRole, userId) => {
+    try {
+      const dataRef = ref(realtimeDb, 'uploadReports');
+      const snapshot = await get(dataRef);
+      
+      if (snapshot.exists()) {
+        const allReports = snapshot.val();
+        
+        // Si es administrador, devolver todos los reportes
+        if (userRole === 'admin' || userRole === 'administrador') {
+          return allReports;
+        }
+        
+        // Si es uploader u otro rol, filtrar solo sus reportes
+        const userReports = {};
+        Object.keys(allReports).forEach(key => {
+          if (allReports[key].uploaderId === userId) {
+            userReports[key] = allReports[key];
+          }
+        });
+        return userReports;
+      }
+      
+      return {};
+    } catch (error) {
+      //  message removed for production
+      // En caso de error de permisos u otros, devolver objeto vacío
+      return {};
+    }
+  },
+
+  // Método para obtener el usuario actual (útil para logs)
+  getCurrentUser: () => {
+    // Este método puede ser implementado según tu sistema de autenticación
+    // Por ahora retorna null, pero puedes integrarlo con Firebase Auth
+    return null;
   }
 };
 

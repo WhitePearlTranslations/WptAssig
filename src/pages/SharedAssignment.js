@@ -82,7 +82,7 @@ const SharedAssignment = () => {
       );
       toast.success('Progreso actualizado exitosamente');
     } catch (error) {
-      console.error('Error updating progress:', error);
+      //  message removed for production
       toast.error('Error al actualizar el progreso');
     } finally {
       setUpdating(false);

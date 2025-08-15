@@ -36,7 +36,7 @@ export const createManga = async (mangaData) => {
       message: 'Manga creado exitosamente'
     };
   } catch (error) {
-    console.error('Error creando manga:', error);
+    //  message removed for production
     return {
       success: false,
       error: error.message
@@ -83,7 +83,7 @@ const countMangaChapters = async (mangaId) => {
     
     return allChapters.size;
   } catch (error) {
-    console.error('Error contando capítulos:', error);
+    //  message removed for production
     return 0;
   }
 };
@@ -99,7 +99,7 @@ export const updateMangaChapterCount = async (mangaId) => {
     });
     return chapterCount;
   } catch (error) {
-    console.error('Error actualizando conteo de capítulos:', error);
+    //  message removed for production
     throw error;
   }
 };
@@ -157,7 +157,7 @@ export const getAllMangas = async () => {
       };
     }
   } catch (error) {
-    console.error('Error obteniendo mangas:', error);
+    //  message removed for production
     return {
       success: false,
       error: error.message
@@ -193,7 +193,7 @@ export const getMangaById = async (mangaId) => {
       };
     }
   } catch (error) {
-    console.error('Error obteniendo manga:', error);
+    //  message removed for production
     return {
       success: false,
       error: error.message
@@ -225,7 +225,7 @@ export const updateManga = async (mangaId, updateData) => {
       message: 'Manga actualizado exitosamente'
     };
   } catch (error) {
-    console.error('Error actualizando manga:', error);
+    //  message removed for production
     return {
       success: false,
       error: error.message
@@ -233,7 +233,7 @@ export const updateManga = async (mangaId, updateData) => {
   }
 };
 
-// Eliminar un manga (marca como eliminado en lugar de eliminar físicamente)
+// Eliminar un manga completamente junto con todas sus asignaciones y capítulos
 export const deleteManga = async (mangaId) => {
   try {
     if (!auth.currentUser) {
@@ -243,19 +243,61 @@ export const deleteManga = async (mangaId) => {
       };
     }
 
+    //  message removed for production
+    
+    // 1. Eliminar todas las asignaciones relacionadas con este manga
+    const assignmentsRef = ref(realtimeDb, 'assignments');
+    const assignmentsSnapshot = await get(assignmentsRef);
+    const deletedAssignments = [];
+    
+    if (assignmentsSnapshot.exists()) {
+      const assignmentsData = assignmentsSnapshot.val();
+      const deletePromises = [];
+      
+      Object.entries(assignmentsData).forEach(([assignmentId, assignment]) => {
+        if (assignment.mangaId === mangaId) {
+          deletedAssignments.push({
+            id: assignmentId,
+            chapter: assignment.chapter,
+            type: assignment.type,
+            status: assignment.status
+          });
+          const assignmentRef = ref(realtimeDb, `assignments/${assignmentId}`);
+          deletePromises.push(remove(assignmentRef));
+        }
+      });
+      
+      await Promise.all(deletePromises);
+      //  message removed for production
+    }
+    
+    // 2. Eliminar todos los capítulos independientes del manga
+    const chaptersRef = ref(realtimeDb, `chapters/${mangaId}`);
+    const chaptersSnapshot = await get(chaptersRef);
+    let deletedChapters = 0;
+    
+    if (chaptersSnapshot.exists()) {
+      await remove(chaptersRef);
+      deletedChapters = Object.keys(chaptersSnapshot.val()).length;
+      //  message removed for production
+    }
+    
+    // 3. Finalmente, eliminar el manga completamente
     const mangaRef = ref(realtimeDb, `mangas/${mangaId}`);
-    await update(mangaRef, {
-      status: 'deleted',
-      deletedAt: new Date().toISOString(),
-      deletedBy: auth.currentUser.uid
-    });
+    await remove(mangaRef);
+    //  message removed for production
 
     return {
       success: true,
-      message: 'Manga eliminado exitosamente'
+      message: `Manga eliminado exitosamente junto con ${deletedAssignments.length} asignaciones y ${deletedChapters} capítulos`,
+      details: {
+        deletedAssignments: deletedAssignments.length,
+        deletedChapters,
+        assignmentsList: deletedAssignments
+      }
     };
   } catch (error) {
-    console.error('Error eliminando manga:', error);
+    //  message removed for production
     return {
       success: false,
       error: error.message
@@ -297,7 +339,7 @@ export const changeMangaStatus = async (mangaId, newStatus) => {
       message: `Estado cambiado a ${newStatus} exitosamente`
     };
   } catch (error) {
-    console.error('Error cambiando estado:', error);
+    //  message removed for production
     return {
       success: false,
       error: error.message
@@ -343,7 +385,7 @@ export const searchMangas = async (searchTerm) => {
       };
     }
   } catch (error) {
-    console.error('Error buscando mangas:', error);
+    //  message removed for production
     return {
       success: false,
       error: error.message
@@ -391,7 +433,7 @@ export const getMangaStats = async () => {
       stats: stats
     };
   } catch (error) {
-    console.error('Error obteniendo estadísticas:', error);
+    //  message removed for production
     return {
       success: false,
       error: error.message

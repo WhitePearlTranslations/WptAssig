@@ -23,6 +23,10 @@ cloudflare-worker/.wrangler/
 # Allow .env.cloudflare (template without secrets)
 !.env.cloudflare
 
+# Firebase credentials (NEVER commit these)
+*firebase-adminsdk*.json
+wptasignacion-firebase-adminsdk-fbsvc-bbfb6ad3bb.json
+
 # Logs
 npm-debug.log*
 yarn-debug.log*

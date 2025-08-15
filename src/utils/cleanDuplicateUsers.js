@@ -6,7 +6,7 @@ import { realtimeDb } from '../services/firebase';
  * Esta función debe ser ejecutada por un administrador
  */
 export const cleanDuplicateUsers = async () => {
-  console.log('🧹 Iniciando limpieza de usuarios duplicados...');
+  //  message removed for production
   
   try {
     // 1. Obtener todos los usuarios
@@ -33,9 +33,9 @@ export const cleanDuplicateUsers = async () => {
           if (usersByName.has(key)) {
             // Usuario duplicado encontrado
             const existing = usersByName.get(key);
-            console.log(`🔍 Usuario duplicado encontrado: ${userData.name}`);
-            console.log(`  Existente: ${existing.uid} (${existing.source}) - ${existing.isGhost ? 'fantasma' : 'real'}`);
-            console.log(`  Duplicado: ${userData.uid} (${userData.source}) - ${userData.isGhost ? 'fantasma' : 'real'}`);
+            //  message removed for production
+            //  message removed for production
+            //  message removed for production
             
             // Prioridad: usuario real > usuario fantasma más reciente
             if (userData.isGhost && !existing.isGhost) {
@@ -78,22 +78,22 @@ export const cleanDuplicateUsers = async () => {
           const existing = usersByName.get(key);
           if (!existing.isGhost) {
             // Ya existe un usuario real con este nombre, eliminar el fantasma
-            console.log(`👻 Usuario fantasma obsoleto encontrado: ${ghostData.name}`);
+            //  message removed for production
             ghostsToRemove.push(ghostData);
           }
         }
       });
     }
     
-    console.log(`📊 Resumen de limpieza:`);
-    console.log(`  Total de usuarios únicos: ${usersByName.size}`);
-    console.log(`  Duplicados a eliminar: ${duplicatesToRemove.length}`);
-    console.log(`  Fantasmas obsoletos a eliminar: ${ghostsToRemove.length}`);
+    //  message removed for production
+    //  message removed for production
+    //  message removed for production
+    //  message removed for production
     
     // 2. Eliminar usuarios duplicados
     for (const duplicate of duplicatesToRemove) {
       try {
-        console.log(`🗑️ Eliminando duplicado: ${duplicate.name} (${duplicate.uid})`);
+        //  message removed for production
         await remove(ref(realtimeDb, `users/${duplicate.uid}`));
         
         // También eliminar de ghostUsers si existe ahí
@@ -101,17 +101,17 @@ export const cleanDuplicateUsers = async () => {
           await remove(ref(realtimeDb, `ghostUsers/${duplicate.uid}`));
         }
       } catch (error) {
-        console.error(`❌ Error eliminando duplicado ${duplicate.uid}:`, error);
+        //  message removed for production
       }
     }
     
     // 3. Eliminar fantasmas obsoletos
     for (const ghost of ghostsToRemove) {
       try {
-        console.log(`👻 Eliminando fantasma obsoleto: ${ghost.name} (${ghost.uid})`);
+        //  message removed for production
         await remove(ref(realtimeDb, `ghostUsers/${ghost.uid}`));
       } catch (error) {
-        console.error(`❌ Error eliminando fantasma ${ghost.uid}:`, error);
+        //  message removed for production
       }
     }
     
@@ -127,11 +127,11 @@ export const cleanDuplicateUsers = async () => {
           note: 'Usuario fantasma mantenido por historial de asignaciones'
         });
       } catch (error) {
-        console.error(`❌ Error actualizando fantasma ${ghost.uid}:`, error);
+        //  message removed for production
       }
     }
     
-    console.log('✅ Limpieza de usuarios completada exitosamente');
+    //  message removed for production
     
     return {
       success: true,
@@ -141,7 +141,7 @@ export const cleanDuplicateUsers = async () => {
     };
     
   } catch (error) {
-    console.error('❌ Error durante la limpieza de usuarios:', error);
+    //  message removed for production
     return {
       success: false,
       error: error.message
@@ -180,7 +180,7 @@ export const getUniqueUsers = (users) => {
     }
   }
   
-  console.log(`🔍 Usuarios únicos filtrados: ${uniqueUsers.length} de ${users.length} originales (${users.length - activeUsers.length} eliminados filtrados)`);
+  //  message removed for production
   return uniqueUsers;
 };
 

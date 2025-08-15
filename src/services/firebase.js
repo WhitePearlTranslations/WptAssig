@@ -20,7 +20,7 @@ let isInitialized = false;
  */
 async function initializeFirebaseAsync() {
   try {
-    console.log('🔥 Inicializando Firebase...');
+    //  message removed for production
     
     let firebaseConfig;
     let configSource = 'unknown';
@@ -30,7 +30,7 @@ async function initializeFirebaseAsync() {
       firebaseConfig = await getFirebaseConfig();
       configSource = 'Cloudflare Worker';
     } catch (workerError) {
-      console.warn('⚠️ Worker no disponible, usando configuración local:', workerError.message);
+      //  message removed for production
       
       // Fallback a configuración local desde .env
       firebaseConfig = {
@@ -67,18 +67,13 @@ async function initializeFirebaseAsync() {
     
     // Debug en desarrollo
     if (process.env.NODE_ENV === 'development') {
-      console.log('🔥 Firebase configurado correctamente:', {
-        projectId: firebaseConfig.projectId,
-        authDomain: firebaseConfig.authDomain,
-        databaseURL: firebaseConfig.databaseURL,
-        source: configSource
-      });
+      // Debug message removed for production
     }
     
     return { app, realtimeDb, db, auth, storage };
     
   } catch (error) {
-    console.error('❌ Error inicializando Firebase:', error);
+    //  message removed for production
     throw new Error(`Error de inicialización de Firebase: ${error.message}`);
   }
 }
@@ -154,5 +149,5 @@ export default app;
 
 // Inicializar Firebase automáticamente al importar el módulo
 initializeFirebaseAsync().catch(error => {
-  console.error('❌ Error en inicialización automática de Firebase:', error);
+  //  message removed for production
 });

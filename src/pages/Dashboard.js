@@ -43,7 +43,8 @@ import {
   Bar,
   PieChart,
   Pie,
-  Cell
+  Cell,
+  LabelList
 } from 'recharts';
 import { realtimeService } from '../services/realtimeService';
 import { useAuth, ROLES } from '../contexts/AuthContext';
@@ -581,10 +582,19 @@ const Dashboard = () => {
                         outerRadius={80}
                         paddingAngle={2}
                         dataKey="value"
+                        label={(entry) => entry.value}
+                        labelLine={false}
                       >
                         {typeDistribution.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
+                        <LabelList 
+                          dataKey="value" 
+                          position="inside"
+                          fill="white"
+                          fontSize={14}
+                          fontWeight={600}
+                        />
                       </Pie>
                       <Tooltip 
                         contentStyle={{

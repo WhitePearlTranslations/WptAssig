@@ -72,7 +72,7 @@ export const AuthProvider = ({ children }) => {
                   // Redirigir a login con parámetro de estado suspendido
                   window.location.href = '/login?status=suspended';
                 }).catch(error => {
-                  console.error('Error cerrando sesión:', error);
+                  //  message removed for production
                   window.location.href = '/login?status=suspended';
                 });
               });
@@ -84,7 +84,7 @@ export const AuthProvider = ({ children }) => {
                   // Redirigir a login con parámetro de estado inactivo
                   window.location.href = '/login?status=inactive';
                 }).catch(error => {
-                  console.error('Error cerrando sesión:', error);
+                  //  message removed for production
                   window.location.href = '/login?status=inactive';
                 });
               });
@@ -97,7 +97,7 @@ export const AuthProvider = ({ children }) => {
           }
           setLoading(false);
         }, (error) => {
-          console.error('Error al escuchar perfil del usuario:', error);
+          //  message removed for production
           setLoading(false);
         });
         } else {
@@ -112,7 +112,7 @@ export const AuthProvider = ({ children }) => {
         }
       });
       } catch (error) {
-        console.error('Error initializing Firebase auth:', error);
+        //  message removed for production
         setLoading(false);
       }
     };

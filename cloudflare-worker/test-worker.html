@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Worker WPT</title>
+</head>
+<body>
+    <h1>Test Worker de Eliminación de Usuarios</h1>
+    <button onclick="testWorker()">Test Worker</button>
+    <div id="result"></div>
+
+    <script>
+        async function testWorker() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                // Test 1: Health Check
+                const healthResponse = await fetch('https://wpt-config-api.whitepearltranslations.workers.dev/health');
+                const healthData = await healthResponse.json();
+                console.log('Health check:', healthData);
+                
+                // Test 2: Delete User Test (fake user)
+                const deleteResponse = await fetch('https://wpt-config-api.whitepearltranslations.workers.dev/admin/delete-user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        userId: 'test-user-123',
+                        adminToken: 'wpt-admin-delete-2024-secure'
+                    })
+                });
+                
+                const deleteData = await deleteResponse.json();
+                console.log('Delete test:', deleteData);
+                
+                resultDiv.innerHTML = `
+                    <h3>Health Check (${healthResponse.status}):</h3>
+                    <pre>${JSON.stringify(healthData, null, 2)}</pre>
+                    
+                    <h3>Delete Test (${deleteResponse.status}):</h3>
+                    <pre>${JSON.stringify(deleteData, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

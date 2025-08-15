@@ -43,6 +43,7 @@ import {
   Tooltip,
   Checkbox,
   OutlinedInput,
+  Snackbar,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -68,6 +69,10 @@ import {
   PersonOff as PersonOffIcon,
   GroupWork as GroupWorkIcon,
   PersonAdd as PersonAddIcon,
+  Close as CloseIcon,
+  CheckCircleOutline as CheckCircleOutlineIcon,
+  ErrorOutline as ErrorOutlineIcon,
+  InfoOutlined as InfoOutlinedIcon,
 } from '@mui/icons-material';
 import { useAuth, ROLES } from '../contexts/AuthContext';
 
@@ -98,6 +103,7 @@ const MangaManagement = () => {
   const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', onConfirm: null });
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const [formData, setFormData] = useState({
     title: '',
     author: '',
@@ -126,19 +132,31 @@ const MangaManagement = () => {
         const activeMangas = result.mangas.filter(manga => manga.status !== 'deleted');
         setMangas(activeMangas);
       } else {
-        console.error('Error cargando mangas:', result.error);
-        alert('Error cargando mangas: ' + result.error);
+        // Error cargando mangas
+        setSnackbar({
+          open: true,
+          message: 'Error cargando mangas: ' + result.error,
+          severity: 'error'
+        });
       }
     } catch (error) {
-      console.error('Error importando servicio:', error);
-      alert('Error inesperado al cargar mangas');
+      // Error importando servicio
+      setSnackbar({
+        open: true,
+        message: 'Error inesperado al cargar mangas',
+        severity: 'error'
+      });
     }
     setLoading(false);
   };
 
   const handleSaveManga = async () => {
     if (!formData.title || !formData.author) {
-      alert('Por favor completa al menos el título y autor del manga');
+      setSnackbar({
+        open: true,
+        message: 'Por favor completa al menos el título y autor del manga',
+        severity: 'warning'
+      });
       return;
     }
 
@@ -150,11 +168,19 @@ const MangaManagement = () => {
         const result = await updateManga(editingManga.id, formData);
         
         if (result.success) {
-          alert('Manga actualizado exitosamente');
+          setSnackbar({
+            open: true,
+            message: 'Manga actualizado exitosamente',
+            severity: 'success'
+          });
           handleCloseDialog();
           loadMangas(); // Recargar la lista
         } else {
-          alert('Error: ' + result.error);
+          setSnackbar({
+            open: true,
+            message: 'Error: ' + result.error,
+            severity: 'error'
+          });
         }
       } else {
         // Crear nuevo manga
@@ -162,16 +188,28 @@ const MangaManagement = () => {
         const result = await createManga(formData);
         
         if (result.success) {
-          alert('Manga creado exitosamente');
+          setSnackbar({
+            open: true,
+            message: 'Manga creado exitosamente',
+            severity: 'success'
+          });
           handleCloseDialog();
           loadMangas(); // Recargar la lista
         } else {
-          alert('Error: ' + result.error);
+          setSnackbar({
+            open: true,
+            message: 'Error: ' + result.error,
+            severity: 'error'
+          });
         }
       }
     } catch (error) {
-      console.error('Error guardando manga:', error);
-      alert('Error inesperado al guardar manga');
+      // Error guardando manga
+      setSnackbar({
+        open: true,
+        message: 'Error inesperado al guardar manga',
+        severity: 'error'
+      });
     }
     setLoading(false);
   };
@@ -203,14 +241,26 @@ const MangaManagement = () => {
           const result = await deleteManga(mangaId);
           
           if (result.success) {
-            alert('Manga eliminado exitosamente');
+            setSnackbar({
+              open: true,
+              message: 'Manga eliminado exitosamente',
+              severity: 'success'
+            });
             loadMangas(); // Recargar la lista
           } else {
-            alert('Error: ' + result.error);
+            setSnackbar({
+              open: true,
+              message: 'Error: ' + result.error,
+              severity: 'error'
+            });
           }
         } catch (error) {
-          console.error('Error eliminando manga:', error);
-          alert('Error inesperado al eliminar manga');
+          // Error eliminando manga
+          setSnackbar({
+            open: true,
+            message: 'Error inesperado al eliminar manga',
+            severity: 'error'
+          });
         }
         setConfirmDialog({ ...confirmDialog, open: false });
       }
@@ -225,11 +275,19 @@ const MangaManagement = () => {
       if (result.success) {
         loadMangas(); // Recargar para mostrar cambios
       } else {
-        alert('Error actualizando progreso: ' + result.error);
+        setSnackbar({
+          open: true,
+          message: 'Error actualizando progreso: ' + result.error,
+          severity: 'error'
+        });
       }
     } catch (error) {
-      console.error('Error actualizando progreso:', error);
-      alert('Error inesperado al actualizar progreso');
+      // Error actualizando progreso
+      setSnackbar({
+        open: true,
+        message: 'Error inesperado al actualizar progreso',
+        severity: 'error'
+      });
     }
   };
 
@@ -686,6 +744,23 @@ const MangaManagement = () => {
         title={confirmDialog.title}
         message={confirmDialog.message}
       />
+      
+      {/* Snackbar para notificaciones */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
@@ -704,6 +779,7 @@ const StaffManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -747,10 +823,10 @@ const StaffManagement = () => {
       if (result.success) {
         setStaff(result.users.filter(user => user.status !== 'deleted'));
       } else {
-        console.error('Error cargando usuarios:', result.error);
+        // Error cargando usuarios
       }
     } catch (error) {
-      console.error('Error importando servicio:', error);
+      // Error importando servicio
       // Fallback a datos mock si hay error
       setStaff([
         {
@@ -798,7 +874,11 @@ const StaffManagement = () => {
 
   const handleSaveStaff = async () => {
     if (!formData.name || !formData.email || !formData.password) {
-      alert('Por favor completa todos los campos requeridos');
+      setSnackbar({
+        open: true,
+        message: 'Por favor completa todos los campos requeridos',
+        severity: 'warning'
+      });
       return;
     }
 
@@ -808,15 +888,29 @@ const StaffManagement = () => {
       const result = await createUserAccount(formData);
       
       if (result.success) {
-        alert(result.message);
+        // Mostrar mensaje de éxito
+        setSnackbar({
+          open: true,
+          message: '✅ Usuario creado exitosamente. Se ha enviado un correo electrónico para configurar la contraseña.',
+          severity: 'success'
+        });
+        
         handleCloseDialog();
-        loadUsers(); // Recargar la lista
+        loadUsers(); // Recargar la lista de usuarios
       } else {
-        alert('Error: ' + result.error);
+        setSnackbar({
+          open: true,
+          message: '❌ Error creando usuario: ' + result.error,
+          severity: 'error'
+        });
       }
     } catch (error) {
-      console.error('Error creando usuario:', error);
-      alert('Error inesperado al crear usuario');
+      // Error inesperado creando usuario
+      setSnackbar({
+        open: true,
+        message: '❌ Error inesperado: ' + error.message,
+        severity: 'error'
+      });
     }
     setLoading(false);
   };
@@ -832,14 +926,13 @@ const StaffManagement = () => {
           const result = await deleteUser(staffId);
           
           if (result.success) {
-            alert(result.message);
+            // Usuario eliminado exitosamente
             loadUsers(); // Recargar la lista
           } else {
-            alert('Error: ' + result.error);
+            // Error eliminando usuario
           }
         } catch (error) {
-          console.error('Error eliminando usuario:', error);
-          alert('Error inesperado al eliminar usuario');
+          // Error inesperado eliminando usuario
         }
         setConfirmDialog({ ...confirmDialog, open: false });
       }
@@ -858,7 +951,7 @@ const StaffManagement = () => {
 
   const handleSaveEditUser = async () => {
     if (!editFormData.name || !editFormData.email || !editFormData.role) {
-      alert('Por favor completa todos los campos requeridos');
+      // Campos requeridos faltantes para actualizar usuario
       return;
     }
 
@@ -877,15 +970,14 @@ const StaffManagement = () => {
       const result = await updateUserProfile(userId, updateData);
       
       if (result.success) {
-        alert('Usuario actualizado exitosamente');
+        // Usuario actualizado exitosamente
         setEditDialog({ open: false, user: null });
         loadUsers(); // Recargar la lista
       } else {
-        alert('Error: ' + result.error);
+        // Error actualizando usuario
       }
     } catch (error) {
-      console.error('Error actualizando usuario:', error);
-      alert('Error inesperado al actualizar usuario');
+      // Error inesperado actualizando usuario
     }
     setLoading(false);
   };
@@ -913,7 +1005,7 @@ const StaffManagement = () => {
 
   const handleSaveGhostUser = async () => {
     if (!ghostFormData.name) {
-      alert('Por favor completa el nombre para el usuario fantasma');
+      // Nombre requerido para crear usuario fantasma
       return;
     }
 
@@ -923,15 +1015,14 @@ const StaffManagement = () => {
       const result = await createGhostUser(ghostFormData);
       
       if (result.success) {
-        alert('Usuario fantasma creado exitosamente');
+        // Usuario fantasma creado exitosamente
         handleCloseGhostDialog();
         loadUsers(); // Recargar la lista
       } else {
-        alert('Error: ' + result.error);
+        // Error creando usuario fantasma
       }
     } catch (error) {
-      console.error('Error creando usuario fantasma:', error);
-      alert('Error inesperado al crear usuario fantasma');
+      // Error inesperado creando usuario fantasma
     }
     setLoading(false);
   };
@@ -961,8 +1052,8 @@ const StaffManagement = () => {
 
   const handleSavePermissions = async () => {
     // TODO: Implementar guardar permisos en Firebase
-    console.log('Guardando permisos para:', permissionsDialog.user.name, permissionsData);
-    alert('Funcionalidad de permisos se implementará en la siguiente versión');
+    // Guardando permisos para usuario
+    // Funcionalidad de permisos se implementará en la siguiente versión
     setPermissionsDialog({ open: false, user: null });
   };
 
@@ -982,13 +1073,13 @@ const StaffManagement = () => {
           const result = await updateUserStatus(userId, newStatus);
           
           if (result.success) {
-            alert(`Usuario ${newStatus === 'suspended' ? 'suspendido' : 'reactivado'} exitosamente`);
+            // Usuario suspendido/reactivado exitosamente
             loadUsers(); // Recargar la lista
           } else {
-            alert('Error: ' + result.error);
+            // Error actualizando estado
           }
         } catch (error) {
-          console.error('Error actualizando estado del usuario:', error);
+          // Error inesperado actualizando estado del usuario
           // Fallback: actualizar localmente si no existe el servicio
           setStaff(prevStaff => 
             prevStaff.map(member => 
@@ -997,7 +1088,7 @@ const StaffManagement = () => {
                 : member
             )
           );
-          alert(`Usuario ${newStatus === 'suspended' ? 'suspendido' : 'reactivado'} exitosamente (modo local)`);
+          // Usuario suspendido/reactivado exitosamente (modo local)
         }
         setLoading(false);
         setConfirmDialog({ ...confirmDialog, open: false });
@@ -1452,8 +1543,18 @@ const StaffManagement = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancelar</Button>
-          <Button variant="contained" onClick={handleSaveStaff}>
-            Crear Cuenta
+          <Button 
+            variant="contained" 
+            onClick={handleSaveStaff}
+            disabled={loading || !formData.name || !formData.email || !formData.password}
+            sx={{
+              background: loading ? 'rgba(0,0,0,0.1)' : 'linear-gradient(135deg, #ec4899, #f472b6)',
+              '&:hover': {
+                background: loading ? 'rgba(0,0,0,0.1)' : 'linear-gradient(135deg, #db2777, #ec4899)',
+              },
+            }}
+          >
+            {loading ? 'Creando Usuario...' : 'Crear Cuenta'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1823,6 +1924,23 @@ const StaffManagement = () => {
         title={confirmDialog.title}
         message={confirmDialog.message}
       />
+      
+      {/* Snackbar para notificaciones */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
