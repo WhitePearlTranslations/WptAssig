@@ -327,20 +327,31 @@ const Assignments = () => {
   useEffect(() => {
     if (!userProfile) return;
     
-    try {
-      // Obtener mangas
-      const unsubscribeMangas = realtimeService.subscribeToMangas(setMangas);
+    let unsubscribeMangas = null;
+    let unsubscribeUsers = null;
+    
+    const initSubscriptions = async () => {
+      try {
+        // Obtener mangas
+        unsubscribeMangas = await realtimeService.subscribeToMangas(setMangas);
 
-      // Obtener usuarios (siempre para mostrar nombres correctamente)
-      const unsubscribeUsers = realtimeService.subscribeToUsers(setUsers);
+        // Obtener usuarios (siempre para mostrar nombres correctamente)
+        unsubscribeUsers = await realtimeService.subscribeToUsers(setUsers);
+      } catch (error) {
+        console.error('Error setting up subscriptions:', error);
+      }
+    };
 
-      return () => {
-        if (unsubscribeMangas) unsubscribeMangas();
-        if (unsubscribeUsers) unsubscribeUsers();
-      };
-    } catch (error) {
-      //  message removed for production
-    }
+    initSubscriptions();
+
+    return () => {
+      if (typeof unsubscribeMangas === 'function') {
+        unsubscribeMangas();
+      }
+      if (typeof unsubscribeUsers === 'function') {
+        unsubscribeUsers();
+      }
+    };
   }, [userProfile]);
 
   // Función para corregir automáticamente nombres incorrectos
@@ -406,19 +417,21 @@ const Assignments = () => {
     }
   };
 
-  // Ejecutar sincronización automática al cargar la página
-  useEffect(() => {
-    if (assignments.length > 0 && users.length > 0 && mangas.length > 0) {
-      //  message removed for production
-      // Ejecutar sincronización automática cada vez que se carga la página
-      const timeoutId = setTimeout(() => {
-        handleSyncAssignments();
-      }, 1500); // Esperar 1.5 segundos para que todo esté cargado
-      
-      // Cleanup en caso de que el componente se desmonte antes
-      return () => clearTimeout(timeoutId);
-    }
-  }, [assignments.length, users.length, mangas.length]);
+  // CORREGIDO: Sincronización automática deshabilitada para evitar marcado
+  // incorrecto de capítulos como completados cuando solo se completa una asignación.
+  // La sincronización ahora es solo manual mediante el botón correspondiente.
+  // 
+  // useEffect(() => {
+  //   if (assignments.length > 0 && users.length > 0 && mangas.length > 0) {
+  //     // Ejecutar sincronización automática cada vez que se carga la página
+  //     const timeoutId = setTimeout(() => {
+  //       handleSyncAssignments();
+  //     }, 1500); // Esperar 1.5 segundos para que todo esté cargado
+  //     
+  //     // Cleanup en caso de que el componente se desmonte antes
+  //     return () => clearTimeout(timeoutId);
+  //   }
+  // }, [assignments.length, users.length, mangas.length]);
 
   // Ejecutar corrección cuando ambos datos estén cargados
   useEffect(() => {

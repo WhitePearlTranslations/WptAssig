@@ -73,7 +73,7 @@ import { ASSIGNMENT_STATUS, STATUS_CONFIG, TASK_TYPES, isChiefRole, matchChiefRo
 import toast from 'react-hot-toast';
 
 // Componente para mostrar un capítulo agrupado con todas sus tareas (del SeriesManagement)
-const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, onResubmitForReview }) => {
+const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded }) => {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
 
@@ -131,11 +131,7 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
   };
 
   const canMarkUploaded = (assignment) => {
-    return userRole === 'uploader' && (
-      assignment.status === 'completed' || 
-      assignment.status === 'completado' || 
-      assignment.status === 'aprobado'
-    );
+    return userRole === 'uploader' && (assignment.status === 'completed' || assignment.status === 'completado');
   };
 
   // Determinar si alguna tarea está atrasada
@@ -145,11 +141,7 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
   );
 
   // Calcular progreso general del capítulo
-  const completedTasks = chapterGroup.assignments.filter(a => 
-    a.status === 'completed' || 
-    a.status === 'completado' || 
-    a.status === 'aprobado'
-  ).length;
+  const completedTasks = chapterGroup.assignments.filter(a => a.status === 'completed' || a.status === 'completado').length;
   const totalTasks = chapterGroup.assignments.length;
   const chapterProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
   const isChapterCompleted = completedTasks === totalTasks;
@@ -443,10 +435,10 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
               )}
               
               {/* Información de revisión/rechazo */}
-              {(selectedTask.status === 'pendiente' || selectedTask.status === 'rechazado') && selectedTask.reviewComment && (
+              {selectedTask.status === 'pendiente' && selectedTask.reviewComment && (
                 <Grid item xs={12}>
                   <Alert 
-                    severity="error" 
+                    severity="warning" 
                     sx={{ 
                       mt: 2,
                       backgroundColor: 'rgba(239, 68, 68, 0.1)',
@@ -462,7 +454,7 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
                     <Typography variant="body2" sx={{ mt: 1, color: '#374151' }}>
                       <strong>Motivo del rechazo:</strong>
                     </Typography>
-                    <Typography variant="body2" sx={{ mt: 0.5, color: '#374151', p: 2, bgcolor: 'rgba(239, 68, 68, 0.05)', borderRadius: 1, border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    <Typography variant="body2" sx={{ mt: 0.5, color: '#374151' }}>
                       {selectedTask.reviewComment}
                     </Typography>
                     {selectedTask.reviewedAt && (
@@ -470,26 +462,6 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
                         Revisado el: {new Date(selectedTask.reviewedAt).toLocaleString('es-ES')}
                       </Typography>
                     )}
-                    
-                    {/* Botón para reenviar a revisión */}
-                    <Box sx={{ mt: 2 }}>
-                      <Button
-                        variant="contained"
-                        startIcon={<Assignment />}
-                        onClick={() => {
-                          onResubmitForReview(selectedTask.id);
-                          setDetailsOpen(false);
-                        }}
-                        sx={{
-                          background: 'linear-gradient(135deg, #10b981, #059669)',
-                          '&:hover': {
-                            background: 'linear-gradient(135deg, #059669, #047857)',
-                          },
-                        }}
-                      >
-                        Reenviar a Revisión
-                      </Button>
-                    </Box>
                   </Alert>
                 </Grid>
               )}
@@ -684,7 +656,6 @@ const MyWorks = () => {
   const [staffFilter, setStaffFilter] = useState('all');
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
-  const [selectedChapterGroup, setSelectedChapterGroup] = useState(null);
   const [formData, setFormData] = useState({
     mangaId: '',
     chapter: '',
@@ -705,43 +676,25 @@ const MyWorks = () => {
   useEffect(() => {
     if (!userProfile?.uid) return;
 
-    let unsubscribeAssignments = null;
-    let unsubscribeMangas = null;
-    let unsubscribeUsers = null;
+    // Obtener solo las asignaciones del usuario actual
+    const unsubscribeAssignments = realtimeService.subscribeToAssignments(
+      setAssignments, 
+      userProfile.uid
+    );
 
-    // Initialize async subscriptions
-    const initSubscriptions = async () => {
-      try {
-        // Obtener solo las asignaciones del usuario actual
-        unsubscribeAssignments = await realtimeService.subscribeToAssignments(
-          setAssignments, 
-          userProfile.uid
-        );
+    // Obtener mangas para mostrar información completa
+    const unsubscribeMangas = realtimeService.subscribeToMangas(setMangas);
 
-        // Obtener mangas para mostrar información completa
-        unsubscribeMangas = await realtimeService.subscribeToMangas(setMangas);
-
-        // Obtener usuarios si es jefe (para poder asignar)
-        if (hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR)) {
-          unsubscribeUsers = await realtimeService.subscribeToUsers(setUsers);
-        }
-      } catch (error) {
-        console.error('Error setting up subscriptions:', error);
-      }
-    };
-
-    initSubscriptions();
+    // Obtener usuarios si es jefe (para poder asignar)
+    let unsubscribeUsers = () => {};
+    if (hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR)) {
+      unsubscribeUsers = realtimeService.subscribeToUsers(setUsers);
+    }
 
     return () => {
-      if (typeof unsubscribeAssignments === 'function') {
-        unsubscribeAssignments();
-      }
-      if (typeof unsubscribeMangas === 'function') {
-        unsubscribeMangas();
-      }
-      if (typeof unsubscribeUsers === 'function') {
-        unsubscribeUsers();
-      }
+      unsubscribeAssignments();
+      unsubscribeMangas();
+      unsubscribeUsers();
     };
   }, [userProfile]);
 
@@ -1028,66 +981,6 @@ const MyWorks = () => {
     } catch (error) {
       //  message removed for production
       toast.error(`❌ Error al marcar como subida: ${error.message || 'Error desconocido'}`);
-    }
-  };
-
-  // Función para reenviar una asignación rechazada a revisión
-  const handleResubmitForReview = async (assignmentId) => {
-    try {
-      const assignment = assignments.find(a => a.id === assignmentId);
-      const assignmentInfo = assignment 
-        ? `${assignment.mangaTitle} Cap.${assignment.chapter} - ${TASK_TYPES[assignment.type] || assignment.type}`
-        : 'Asignación';
-      
-      // Determinar si necesita aprobación o se puede marcar directamente como completado
-      const userIsChief = isChiefRole(userProfile.role);
-      const isCreatorOfAssignment = assignment.createdBy === userProfile.uid;
-      const isSelfAssignedByChief = userIsChief && assignment.assignedTo === userProfile.uid;
-      const assignmentNeedsChiefApproval = !userIsChief && !isCreatorOfAssignment && assignment.assignedTo === userProfile.uid;
-      
-      let newStatus;
-      let message;
-      
-      if (userIsChief || isCreatorOfAssignment || isSelfAssignedByChief) {
-        // Jefes, creadores de asignaciones, o jefes que se autoasignan pueden marcar directamente como completado
-        newStatus = ASSIGNMENT_STATUS.COMPLETADO;
-        message = `✅ Reenvío completado: ${assignmentInfo}`;
-      } else if (assignmentNeedsChiefApproval) {
-        // Trabajadores regulares envían para aprobación
-        newStatus = ASSIGNMENT_STATUS.PENDIENTE_APROBACION;
-        message = `📋 Reenviado para revisión: ${assignmentInfo}`;
-      } else {
-        newStatus = ASSIGNMENT_STATUS.COMPLETADO;
-        message = `✅ Reenvío completado: ${assignmentInfo}`;
-      }
-      
-      await realtimeService.updateAssignment(assignmentId, {
-        status: newStatus,
-        progress: 100,
-        completedDate: new Date().toISOString(),
-        completedBy: userProfile.uid,
-        resubmittedAt: new Date().toISOString(),
-        // Limpiar datos de rechazo previo
-        reviewComment: null,
-        reviewedAt: null,
-        reviewedBy: null,
-        reviewedByName: null,
-        ...(newStatus === ASSIGNMENT_STATUS.PENDIENTE_APROBACION && {
-          pendingApprovalSince: new Date().toISOString(),
-          reviewRequiredBy: matchChiefRoleForAssignmentType(assignment.type)
-        })
-      });
-      
-      toast.success(
-        message,
-        {
-          duration: 3000,
-          icon: newStatus === ASSIGNMENT_STATUS.PENDIENTE_APROBACION ? '📋' : '🎉'
-        }
-      );
-    } catch (error) {
-      console.error('Error al reenviar para revisión:', error);
-      toast.error(`❌ Error al reenviar: ${error.message || 'Error desconocido'}`);
     }
   };
 
@@ -1499,7 +1392,6 @@ const MyWorks = () => {
                     userRole={userProfile?.role}
                     onMarkComplete={handleMarkComplete}
                     onMarkUploaded={handleMarkUploaded}
-                    onResubmitForReview={handleResubmitForReview}
                   />
                 </Box>
               ))}
@@ -1553,7 +1445,6 @@ const MyWorks = () => {
                       onClick={() => {
                         // Abrir dialog con el primer assignment como ejemplo o mostrar resumen del capítulo
                         setSelectedTask(chapterGroup.assignments.length === 1 ? chapterGroup.assignments[0] : null);
-                        setSelectedChapterGroup(chapterGroup.assignments.length === 1 ? null : chapterGroup);
                         setDetailsOpen(true);
                       }}
                     >
@@ -1717,15 +1608,7 @@ const MyWorks = () => {
                         }
                       }}
                       onClick={() => {
-                        // Para completadas, mostrar tarea individual o resumen del grupo
-                        if (chapterGroup.assignments.length === 1) {
-                          setSelectedTask(chapterGroup.assignments[0]);
-                          setSelectedChapterGroup(null);
-                        } else {
-                          // Si hay múltiples tareas, mostrar resumen del grupo
-                          setSelectedTask(null);
-                          setSelectedChapterGroup(chapterGroup);
-                        }
+                        setSelectedTask(chapterGroup.assignments.length === 1 ? chapterGroup.assignments[0] : null);
                         setDetailsOpen(true);
                       }}
                     >
@@ -1802,15 +1685,7 @@ const MyWorks = () => {
                         }
                       }}
                       onClick={() => {
-                        // Si solo hay una tarea, seleccionarla directamente
-                        if (chapterGroup.assignments.length === 1) {
-                          setSelectedTask(chapterGroup.assignments[0]);
-                          setSelectedChapterGroup(null);
-                        } else {
-                          // Si hay múltiples tareas, mostrar todas las rechazadas del capítulo
-                          setSelectedTask(null);
-                          setSelectedChapterGroup(chapterGroup);
-                        }
+                        setSelectedTask(chapterGroup.assignments.length === 1 ? chapterGroup.assignments[0] : null);
                         setDetailsOpen(true);
                       }}
                     >
@@ -1830,23 +1705,7 @@ const MyWorks = () => {
                               size="small"
                               label={TASK_TYPES[assignment.type] || assignment.type}
                               variant="outlined"
-                              clickable
-                              sx={{ 
-                                fontSize: '0.65rem', 
-                                height: '20px', 
-                                borderColor: '#ef4444', 
-                                color: '#ef4444',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                  borderColor: '#dc2626',
-                                  color: '#dc2626'
-                                }
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation(); // Prevenir que se ejecute el onClick del Card
-                                setSelectedTask(assignment);
-                                setDetailsOpen(true);
-                              }}
+                              sx={{ fontSize: '0.65rem', height: '20px', borderColor: '#ef4444', color: '#ef4444' }}
                             />
                           ))}
                         </Box>
@@ -1953,15 +1812,7 @@ const MyWorks = () => {
                         }
                       }}
                       onClick={() => {
-                        // Para subidas, mostrar tarea individual o resumen del grupo
-                        if (chapterGroup.assignments.length === 1) {
-                          setSelectedTask(chapterGroup.assignments[0]);
-                          setSelectedChapterGroup(null);
-                        } else {
-                          // Si hay múltiples tareas, mostrar resumen del grupo
-                          setSelectedTask(null);
-                          setSelectedChapterGroup(chapterGroup);
-                        }
+                        setSelectedTask(chapterGroup.assignments.length === 1 ? chapterGroup.assignments[0] : null);
                         setDetailsOpen(true);
                       }}
                     >
@@ -2040,25 +1891,9 @@ const MyWorks = () => {
       </Dialog>
 
       {/* Dialog para detalles de asignaciones en vista Kanban */}
-      <Dialog open={detailsOpen} onClose={() => {
-        setDetailsOpen(false);
-        setSelectedTask(null);
-        setSelectedChapterGroup(null);
-      }} maxWidth="md" fullWidth>
+      <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>
-          {selectedTask ? 
-            `Detalles de la Tarea - ${getStatusLabel(selectedTask.status)}` : 
-            selectedChapterGroup ? 
-              `${selectedChapterGroup.assignments[0]?.status === 'rechazado' || selectedChapterGroup.assignments[0]?.reviewComment ? 
-                'Rechazos del Capítulo' : 
-                selectedChapterGroup.assignments[0]?.status === 'pendiente_aprobacion' ? 
-                'Tareas Esperando Aprobación' :
-                selectedChapterGroup.assignments[0]?.status === 'completado' || selectedChapterGroup.assignments[0]?.status === 'aprobado' ?
-                'Tareas Completadas' :
-                selectedChapterGroup.assignments[0]?.status === 'uploaded' ?
-                'Tareas Subidas' :
-                'Tareas Pendientes'} - Capítulo ${selectedChapterGroup.chapter}` : 
-              'Resumen del Capítulo'}
+          {selectedTask ? 'Detalles de la Tarea' : 'Resumen del Capítulo'}
         </DialogTitle>
         <DialogContent>
           {selectedTask ? (
@@ -2125,10 +1960,10 @@ const MyWorks = () => {
               )}
               
               {/* Información de revisión/rechazo */}
-              {(selectedTask.status === 'pendiente' || selectedTask.status === 'rechazado') && selectedTask.reviewComment && (
+              {selectedTask.status === 'pendiente' && selectedTask.reviewComment && (
                 <Grid item xs={12}>
                   <Alert 
-                    severity="error" 
+                    severity="warning" 
                     sx={{ 
                       mt: 2,
                       backgroundColor: 'rgba(239, 68, 68, 0.1)',
@@ -2144,7 +1979,7 @@ const MyWorks = () => {
                     <Typography variant="body2" sx={{ mt: 1, color: '#374151' }}>
                       <strong>Motivo del rechazo:</strong>
                     </Typography>
-                    <Typography variant="body2" sx={{ mt: 0.5, color: '#374151', p: 2, bgcolor: 'rgba(239, 68, 68, 0.05)', borderRadius: 1, border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    <Typography variant="body2" sx={{ mt: 0.5, color: '#374151' }}>
                       {selectedTask.reviewComment}
                     </Typography>
                     {selectedTask.reviewedAt && (
@@ -2152,26 +1987,6 @@ const MyWorks = () => {
                         Revisado el: {new Date(selectedTask.reviewedAt).toLocaleString('es-ES')}
                       </Typography>
                     )}
-                    
-                    {/* Botón para reenviar a revisión */}
-                    <Box sx={{ mt: 2 }}>
-                      <Button
-                        variant="contained"
-                        startIcon={<Assignment />}
-                        onClick={() => {
-                          handleResubmitForReview(selectedTask.id);
-                          setDetailsOpen(false);
-                        }}
-                        sx={{
-                          background: 'linear-gradient(135deg, #10b981, #059669)',
-                          '&:hover': {
-                            background: 'linear-gradient(135deg, #059669, #047857)',
-                          },
-                        }}
-                      >
-                        Reenviar a Revisión
-                      </Button>
-                    </Box>
                   </Alert>
                 </Grid>
               )}
@@ -2234,8 +2049,8 @@ const MyWorks = () => {
               {/* Acciones disponibles */}
               <Grid item xs={12}>
                 <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                  {/* Botón para completar si está pendiente (sin comentarios de rechazo) */}
-                  {(selectedTask.status === 'pendiente' || selectedTask.status === 'pending') && !selectedTask.reviewComment && (
+                  {/* Botón para completar si está pendiente */}
+                  {(selectedTask.status === 'pendiente' || selectedTask.status === 'pending') && (
                     <Button
                       variant="contained"
                       startIcon={<CheckCircle />}
@@ -2298,450 +2113,632 @@ const MyWorks = () => {
                 </Box>
               </Grid>
             </Grid>
-          ) : selectedChapterGroup ? (
-            // Vista agrupada personalizada según el estado
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <Typography variant="h6" gutterBottom>
-                  {selectedChapterGroup.mangaTitle} - Capítulo {selectedChapterGroup.chapter}
-                </Typography>
-                
-                {/* Vista para tareas rechazadas */}
-                {selectedChapterGroup.assignments.some(a => a.status === 'rechazado' || a.reviewComment) && (
-                  <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                    <strong>Tareas rechazadas en este capítulo:</strong>
-                  </Typography>
-                )}
-                
-                {/* Vista para tareas pendientes de aprobación */}
-                {selectedChapterGroup.assignments.some(a => a.status === 'pendiente_aprobacion') && (
-                  <>
-                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                      <strong>Tareas esperando aprobación del jefe:</strong>
-                    </Typography>
-                    <Alert severity="info" sx={{ mb: 2, backgroundColor: 'rgba(245, 158, 11, 0.1)' }}>
-                      <Typography variant="body2">
-                        Estas tareas han sido completadas y enviadas para revisión. El jefe las revisará pronto.
-                      </Typography>
-                    </Alert>
-                  </>
-                )}
-                
-                {/* Vista para tareas completadas */}
-                {selectedChapterGroup.assignments.some(a => a.status === 'completado' || a.status === 'aprobado') && (
-                  <>
-                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                      <strong>Tareas completadas y aprobadas:</strong>
-                    </Typography>
-                    <Alert severity="success" sx={{ mb: 2 }}>
-                      <Typography variant="body2">
-                        ¡Excelente trabajo! Estas tareas han sido completadas y aprobadas.
-                      </Typography>
-                    </Alert>
-                  </>
-                )}
-                
-                {/* Vista para tareas subidas */}
-                {selectedChapterGroup.assignments.some(a => a.status === 'uploaded') && (
-                  <>
-                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                      <strong>Tareas subidas a la plataforma:</strong>
-                    </Typography>
-                    <Alert severity="success" sx={{ mb: 2, backgroundColor: 'rgba(139, 92, 246, 0.1)', borderColor: 'rgba(139, 92, 246, 0.3)' }}>
-                      <Typography variant="body2">
-                        Estas tareas han sido publicadas exitosamente en la plataforma.
-                      </Typography>
-                    </Alert>
-                  </>
-                )}
-                
-                {/* Vista para tareas pendientes */}
-                {selectedChapterGroup.assignments.some(a => a.status === 'pendiente' && !a.reviewComment) && (
-                  <>
-                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                      <strong>Tareas pendientes de trabajo:</strong>
-                    </Typography>
-                    <Alert severity="info" sx={{ mb: 2, backgroundColor: 'rgba(99, 102, 241, 0.1)' }}>
-                      <Typography variant="body2">
-                        Estas tareas están esperando a ser trabajadas. ¡Es hora de ponerse a trabajar!
-                      </Typography>
-                    </Alert>
-                  </>
-                )}
-              </Grid>
+          ) : (
+            // Detalles específicos del capítulo según el estado dominante de las tareas
+            (() => {
+              // Determinar el estado dominante del capítulo
+              const chapterAssignments = assignments.filter(a => 
+                a.mangaId === selectedTask?.mangaId && a.chapter === selectedTask?.chapter
+              );
               
-              {/* Mostrar todas las tareas del grupo */}
-              {selectedChapterGroup.assignments.map((assignment, index) => {
-                const isRejected = assignment.status === 'rechazado' || assignment.reviewComment;
-                const isPendingApproval = assignment.status === 'pendiente_aprobacion';
-                const isCompleted = assignment.status === 'completado' || assignment.status === 'aprobado';
-                const isUploaded = assignment.status === 'uploaded';
-                const isPending = assignment.status === 'pendiente' && !assignment.reviewComment;
-                
-                // Determinar color del borde según el estado
-                const borderColor = isRejected ? 'rgba(239, 68, 68, 0.3)' :
-                                   isPendingApproval ? 'rgba(245, 158, 11, 0.3)' :
-                                   isCompleted ? 'rgba(16, 185, 129, 0.3)' :
-                                   isUploaded ? 'rgba(139, 92, 246, 0.3)' :
-                                   'rgba(99, 102, 241, 0.3)';
-                
+              if (chapterAssignments.length === 0) {
+                // Si selectedTask es null, usar todas las asignaciones para crear un resumen general
+                const allChapterAssignments = assignments;
                 return (
-                  <Grid item xs={12} key={assignment.id || index}>
-                    <Card sx={{ mb: 2, border: `1px solid ${borderColor}` }}>
-                      <CardContent>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                          <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
-                            {TASK_TYPES[assignment.type] || assignment.type}
-                          </Typography>
-                          <Chip
-                            label={getStatusLabel(assignment.status)}
-                            color={getStatusColor(assignment.status)}
-                            size="small"
-                          />
-                        </Box>
-                      
-                        {/* Información básica de la tarea */}
-                        <Grid container spacing={2} sx={{ mb: 2 }}>
-                          {assignment.assignedDate && (
-                            <Grid item xs={12} sm={6}>
-                              <Typography variant="body2" color="textSecondary">
-                                <strong>Asignado:</strong> {new Date(assignment.assignedDate).toLocaleDateString('es-ES')}
-                              </Typography>
-                            </Grid>
-                          )}
-                          {assignment.dueDate && (
-                            <Grid item xs={12} sm={6}>
-                              <Typography variant="body2" color="textSecondary">
-                                <strong>Fecha límite:</strong> {new Date(assignment.dueDate).toLocaleDateString('es-ES')}
-                              </Typography>
-                            </Grid>
-                          )}
-                          {assignment.completedDate && (
-                            <Grid item xs={12} sm={6}>
-                              <Typography variant="body2" color="textSecondary">
-                                <strong>Completado:</strong> {new Date(assignment.completedDate).toLocaleDateString('es-ES')}
-                              </Typography>
-                            </Grid>
-                          )}
-                          {assignment.uploadedDate && (
-                            <Grid item xs={12} sm={6}>
-                              <Typography variant="body2" color="textSecondary">
-                                <strong>Subido:</strong> {new Date(assignment.uploadedDate).toLocaleDateString('es-ES')}
-                              </Typography>
-                            </Grid>
-                          )}
-                        </Grid>
-                        
-                        {/* Información específica según el estado */}
-                        
-                        {/* Para tareas rechazadas */}
-                        {isRejected && assignment.reviewComment && (
-                          <Alert 
-                            severity="error" 
-                            sx={{ 
-                              mt: 2,
-                              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                              borderColor: 'rgba(239, 68, 68, 0.3)',
-                              '& .MuiAlert-icon': {
-                                color: '#ef4444'
-                              }
-                            }}
-                          >
-                            <AlertTitle sx={{ color: '#ef4444', fontWeight: 600 }}>
-                              Tarea rechazada por {assignment.reviewedByName || 'el jefe'}
-                            </AlertTitle>
-                            <Typography variant="body2" sx={{ mt: 1, color: '#374151' }}>
-                              <strong>Motivo del rechazo:</strong>
-                            </Typography>
-                            <Typography variant="body2" sx={{ mt: 0.5, color: '#374151', p: 2, bgcolor: 'rgba(239, 68, 68, 0.05)', borderRadius: 1, border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                              {assignment.reviewComment}
-                            </Typography>
-                            {assignment.reviewedAt && (
-                              <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-                                Revisado el: {new Date(assignment.reviewedAt).toLocaleString('es-ES')}
-                              </Typography>
-                            )}
-                            
-                            {/* Botón para reenviar a revisión individual */}
-                            <Box sx={{ mt: 2 }}>
-                              <Button
-                                variant="contained"
-                                startIcon={<Assignment />}
-                                onClick={() => {
-                                  handleResubmitForReview(assignment.id);
-                                  setDetailsOpen(false);
-                                }}
-                                sx={{
-                                  background: 'linear-gradient(135deg, #10b981, #059669)',
-                                  '&:hover': {
-                                    background: 'linear-gradient(135deg, #059669, #047857)',
-                                  },
-                                }}
-                              >
-                                Reenviar a Revisión
-                              </Button>
-                            </Box>
-                          </Alert>
-                        )}
-                        
-                        {/* Para tareas pendientes de aprobación */}
-                        {isPendingApproval && (
-                          <Alert 
-                            severity="info" 
-                            sx={{ 
-                              mt: 2,
-                              backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                              borderColor: 'rgba(245, 158, 11, 0.3)',
-                              '& .MuiAlert-icon': {
-                                color: '#f59e0b'
-                              }
-                            }}
-                          >
-                            <AlertTitle sx={{ color: '#f59e0b', fontWeight: 600 }}>
-                              Esperando aprobación del jefe
-                            </AlertTitle>
-                            <Typography variant="body2" sx={{ mt: 1 }}>
-                              Tu trabajo ha sido enviado para revisión. El jefe lo revisará pronto.
-                            </Typography>
-                            {assignment.pendingApprovalSince && (
-                              <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-                                Enviado para revisión el: {new Date(assignment.pendingApprovalSince).toLocaleString('es-ES')}
-                              </Typography>
-                            )}
-                          </Alert>
-                        )}
-                        
-                        {/* Para tareas completadas/aprobadas */}
-                        {isCompleted && (
-                          <Alert 
-                            severity="success" 
-                            sx={{ 
-                              mt: 2,
-                              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                              borderColor: 'rgba(16, 185, 129, 0.3)'
-                            }}
-                          >
-                            <AlertTitle sx={{ color: '#10b981', fontWeight: 600 }}>
-                              {assignment.status === 'aprobado' ? 
-                                `Tarea aprobada por ${assignment.reviewedByName || assignment.approvedByName || 'el jefe'}` :
-                                'Tarea completada exitosamente'
-                              }
-                            </AlertTitle>
-                            {assignment.reviewComment && (
-                              <>
-                                <Typography variant="body2" sx={{ mt: 1 }}>
-                                  <strong>Comentario del jefe:</strong>
-                                </Typography>
-                                <Typography variant="body2" sx={{ mt: 0.5, p: 1.5, bgcolor: 'rgba(16, 185, 129, 0.05)', borderRadius: 1 }}>
-                                  {assignment.reviewComment}
-                                </Typography>
-                              </>
-                            )}
-                            {(assignment.reviewedAt || assignment.approvedAt || assignment.completedDate) && (
-                              <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-                                {assignment.status === 'aprobado' ? 'Aprobado' : 'Completado'} el: {new Date(
-                                  assignment.reviewedAt || assignment.approvedAt || assignment.completedDate
-                                ).toLocaleString('es-ES')}
-                              </Typography>
-                            )}
-                          </Alert>
-                        )}
-                        
-                        {/* Para tareas subidas */}
-                        {isUploaded && (
-                          <Alert 
-                            severity="success" 
-                            sx={{ 
-                              mt: 2,
-                              backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                              borderColor: 'rgba(139, 92, 246, 0.3)',
-                              '& .MuiAlert-icon': {
-                                color: '#8b5cf6'
-                              }
-                            }}
-                          >
-                            <AlertTitle sx={{ color: '#8b5cf6', fontWeight: 600 }}>
-                              Tarea publicada exitosamente
-                            </AlertTitle>
-                            <Typography variant="body2" sx={{ mt: 1 }}>
-                              Esta tarea ha sido subida y publicada en la plataforma.
-                            </Typography>
-                            {assignment.uploadedBy && (
-                              <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-                                Subido por: {assignment.uploadedByName || 'Uploader'}
-                              </Typography>
-                            )}
-                          </Alert>
-                        )}
-                        
-                        {/* Para tareas pendientes */}
-                        {isPending && (
-                          <Alert 
-                            severity="info" 
-                            sx={{ 
-                              mt: 2,
-                              backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                              borderColor: 'rgba(99, 102, 241, 0.3)',
-                              '& .MuiAlert-icon': {
-                                color: '#6366f1'
-                              }
-                            }}
-                          >
-                            <AlertTitle sx={{ color: '#6366f1', fontWeight: 600 }}>
-                              Tarea lista para trabajar
-                            </AlertTitle>
-                            <Typography variant="body2" sx={{ mt: 1 }}>
-                              Esta tarea está esperando a ser completada. ¡Puedes empezar a trabajar en ella!
-                            </Typography>
-                            <Box sx={{ mt: 2 }}>
-                              <Button
-                                variant="contained"
-                                startIcon={<PlayArrow />}
-                                onClick={() => {
-                                  handleMarkComplete(assignment.id);
-                                  setDetailsOpen(false);
-                                }}
-                                sx={{
-                                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                                  '&:hover': {
-                                    background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-                                  },
-                                }}
-                              >
-                                Marcar como Completada
-                              </Button>
-                            </Box>
-                          </Alert>
-                        )}
-                      </CardContent>
-                    </Card>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                      <Typography variant="h6" gutterBottom>
+                        Resumen General de Asignaciones
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
+                        Vista general de todas tus asignaciones activas.
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Alert severity="info" sx={{ mb: 2 }}>
+                        <Typography variant="body2">
+                          Haz clic en tarjetas específicas para ver detalles individuales.
+                        </Typography>
+                      </Alert>
+                    </Grid>
                   </Grid>
                 );
-              })}
+              }
               
-              {/* Acciones globales según el tipo de tareas */}
-              <Grid item xs={12}>
-                <Box sx={{ display: 'flex', gap: 2, mt: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+              // Contar estados en el capítulo
+              const statusCounts = {
+                pending: chapterAssignments.filter(a => a.status === 'pendiente' && !a.reviewComment).length,
+                pendingApproval: chapterAssignments.filter(a => a.status === 'pendiente_aprobacion').length,
+                completed: chapterAssignments.filter(a => a.status === 'completado' || a.status === 'aprobado').length,
+                rejected: chapterAssignments.filter(a => a.status === 'rechazado' || (a.status === 'pendiente' && a.reviewComment)).length,
+                uploaded: chapterAssignments.filter(a => a.status === 'uploaded').length
+              };
+              
+              const firstAssignment = chapterAssignments[0];
+              const mangaTitle = firstAssignment.mangaTitle || firstAssignment.manga || 'Manga Desconocido';
+              const chapter = firstAssignment.chapter || 'N/A';
+              
+              // Determinar el estado dominante
+              let dominantState = 'mixed';
+              if (statusCounts.uploaded > 0) dominantState = 'uploaded';
+              else if (statusCounts.completed > 0) dominantState = 'completed';
+              else if (statusCounts.pendingApproval > 0) dominantState = 'pendingApproval';
+              else if (statusCounts.rejected > 0) dominantState = 'rejected';
+              else if (statusCounts.pending > 0) dominantState = 'pending';
+              
+              // Generar contenido específico según el estado dominante
+              switch (dominantState) {
+                case 'pending':
+                  return (
+                    <Grid container spacing={2}>
+                      <Grid item xs={12}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                          <Assignment sx={{ fontSize: '2rem', color: '#6366f1' }} />
+                          <Box>
+                            <Typography variant="h6" fontWeight={600}>
+                              {mangaTitle} - Capítulo {chapter}
+                            </Typography>
+                            <Typography variant="body2" color="textSecondary">
+                              Estado: Pendiente de Trabajo
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+                      
+                      <Grid item xs={12}>
+                        <Alert severity="warning" sx={{ mb: 2, backgroundColor: 'rgba(99, 102, 241, 0.1)', borderColor: 'rgba(99, 102, 241, 0.3)' }}>
+                          <AlertTitle sx={{ color: '#6366f1', fontWeight: 600 }}>
+                            🚀 ¡Es hora de trabajar!
+                          </AlertTitle>
+                          <Typography variant="body2">
+                            Este capítulo tiene {chapterAssignments.length} tarea(s) pendiente(s) esperando tu atención.
+                            {chapterAssignments.some(a => a.dueDate && new Date(a.dueDate) < new Date()) && (
+                              <Box component="span" sx={{ color: '#ef4444', fontWeight: 600, ml: 1 }}>
+                                ⚠️ Algunas tareas están atrasadas
+                              </Box>
+                            )}
+                          </Typography>
+                        </Alert>
+                      </Grid>
+                      
+                      <Grid item xs={12}>
+                        <Typography variant="h6" sx={{ mb: 2, fontSize: '1rem', fontWeight: 600 }}>
+                          📋 Tareas por Completar:
+                        </Typography>
+                        <List dense>
+                          {chapterAssignments.map((assignment, index) => (
+                            <ListItem key={index} sx={{ bgcolor: 'rgba(99, 102, 241, 0.05)', mb: 1, borderRadius: 1 }}>
+                              <ListItemIcon>
+                                <Assignment sx={{ color: '#6366f1' }} />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={TASK_TYPES[assignment.type] || assignment.type}
+                                secondary={
+                                  <Box>
+                                    {assignment.dueDate && (
+                                      <Typography variant="caption" sx={{ 
+                                        color: new Date(assignment.dueDate) < new Date() ? '#ef4444' : '#6b7280',
+                                        fontWeight: new Date(assignment.dueDate) < new Date() ? 600 : 400
+                                      }}>
+                                        Fecha límite: {new Date(assignment.dueDate).toLocaleDateString('es-ES')}
+                                        {new Date(assignment.dueDate) < new Date() && ' (ATRASADA)'}
+                                      </Typography>
+                                    )}
+                                    {assignment.priority && assignment.priority !== 'normal' && (
+                                      <Typography variant="caption" sx={{ 
+                                        color: assignment.priority === 'alta' ? '#ef4444' : '#f59e0b',
+                                        fontWeight: 600,
+                                        ml: assignment.dueDate ? 2 : 0
+                                      }}>
+                                        Prioridad: {assignment.priority === 'alta' ? 'ALTA' : 'MEDIA'}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                }
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Grid>
+                      
+                      {/* Acciones rápidas */}
+                      <Grid item xs={12}>
+                        <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                          <Button
+                            variant="contained"
+                            startIcon={<CheckCircle />}
+                            onClick={() => {
+                              // Completar todas las tareas pendientes del capítulo
+                              chapterAssignments.forEach(assignment => {
+                                if (assignment.status === 'pendiente') {
+                                  handleMarkComplete(assignment.id);
+                                }
+                              });
+                              setDetailsOpen(false);
+                            }}
+                            sx={{
+                              background: 'linear-gradient(135deg, #10b981, #059669)',
+                              '&:hover': {
+                                background: 'linear-gradient(135deg, #059669, #047857)',
+                              },
+                            }}
+                          >
+                            Completar Todo el Capítulo
+                          </Button>
+                          
+                          {firstAssignment.driveLink && (
+                            <Button
+                              variant="outlined"
+                              startIcon={<LinkIcon />}
+                              href={firstAssignment.driveLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{ textTransform: 'none' }}
+                            >
+                              Abrir en Drive
+                            </Button>
+                          )}
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  );
                   
-                  {/* Acciones para tareas rechazadas */}
-                  {selectedChapterGroup.assignments.some(a => a.reviewComment) && (
-                    <Button
-                      variant="contained"
-                      startIcon={<Assignment />}
-                      onClick={() => {
-                        // Reenviar todas las tareas rechazadas
-                        selectedChapterGroup.assignments.forEach(assignment => {
-                          if (assignment.reviewComment) {
-                            handleResubmitForReview(assignment.id);
-                          }
-                        });
-                        setDetailsOpen(false);
-                      }}
-                      sx={{
-                        background: 'linear-gradient(135deg, #10b981, #059669)',
-                        '&:hover': {
-                          background: 'linear-gradient(135deg, #059669, #047857)',
-                        },
-                      }}
-                    >
-                      Reenviar Todas las Rechazadas
-                    </Button>
-                  )}
+                case 'pendingApproval':
+                  return (
+                    <Grid container spacing={2}>
+                      <Grid item xs={12}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                          <HourglassTop sx={{ fontSize: '2rem', color: '#f59e0b' }} />
+                          <Box>
+                            <Typography variant="h6" fontWeight={600}>
+                              {mangaTitle} - Capítulo {chapter}
+                            </Typography>
+                            <Typography variant="body2" color="textSecondary">
+                              Estado: Esperando Aprobación del Jefe
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+                      
+                      <Grid item xs={12}>
+                        <Alert severity="info" sx={{ mb: 2, backgroundColor: 'rgba(245, 158, 11, 0.1)', borderColor: 'rgba(245, 158, 11, 0.3)' }}>
+                          <AlertTitle sx={{ color: '#f59e0b', fontWeight: 600 }}>
+                            ⏳ Trabajo Enviado para Revisión
+                          </AlertTitle>
+                          <Typography variant="body2">
+                            Has completado {chapterAssignments.length} tarea(s) y las has enviado para que el jefe las revise.
+                            Recibirás una notificación cuando sean aprobadas o si necesitan correcciones.
+                          </Typography>
+                        </Alert>
+                      </Grid>
+                      
+                      <Grid item xs={12}>
+                        <Typography variant="h6" sx={{ mb: 2, fontSize: '1rem', fontWeight: 600 }}>
+                          📤 Tareas Enviadas para Revisión:
+                        </Typography>
+                        <List dense>
+                          {chapterAssignments.map((assignment, index) => (
+                            <ListItem key={index} sx={{ bgcolor: 'rgba(245, 158, 11, 0.05)', mb: 1, borderRadius: 1 }}>
+                              <ListItemIcon>
+                                <HourglassTop sx={{ color: '#f59e0b' }} />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={TASK_TYPES[assignment.type] || assignment.type}
+                                secondary={
+                                  <Box>
+                                    {assignment.pendingApprovalSince && (
+                                      <Typography variant="caption" color="textSecondary">
+                                        Enviado el: {new Date(assignment.pendingApprovalSince).toLocaleString('es-ES')}
+                                      </Typography>
+                                    )}
+                                    {assignment.completedDate && (
+                                      <Typography variant="caption" color="textSecondary" sx={{ ml: 2 }}>
+                                        Completado el: {new Date(assignment.completedDate).toLocaleString('es-ES')}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                }
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Grid>
+                      
+                      <Grid item xs={12}>
+                        <Box sx={{ p: 2, borderRadius: 2, bgcolor: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                          <Typography variant="body2" sx={{ fontSize: '0.875rem', color: '#92400e' }}>
+                            💡 <strong>Qué pasa ahora:</strong> El jefe revisará tu trabajo y te dará feedback. 
+                            Puedes seguir trabajando en otras asignaciones mientras tanto.
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  );
                   
-                  {/* Acciones para tareas pendientes */}
-                  {selectedChapterGroup.assignments.some(a => a.status === 'pendiente' && !a.reviewComment) && (
-                    <Button
-                      variant="contained"
-                      startIcon={<CheckCircle />}
-                      onClick={() => {
-                        // Completar todas las tareas pendientes
-                        selectedChapterGroup.assignments.forEach(assignment => {
-                          if (assignment.status === 'pendiente' && !assignment.reviewComment) {
-                            handleMarkComplete(assignment.id);
-                          }
-                        });
-                        setDetailsOpen(false);
-                      }}
-                      sx={{
-                        background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                        '&:hover': {
-                          background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-                        },
-                      }}
-                    >
-                      Completar Todas las Pendientes
-                    </Button>
-                  )}
+                case 'completed':
+                  return (
+                    <Grid container spacing={2}>
+                      <Grid item xs={12}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                          <CheckCircle sx={{ fontSize: '2rem', color: '#10b981' }} />
+                          <Box>
+                            <Typography variant="h6" fontWeight={600}>
+                              {mangaTitle} - Capítulo {chapter}
+                            </Typography>
+                            <Typography variant="body2" color="textSecondary">
+                              Estado: Completado y Aprobado
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+                      
+                      <Grid item xs={12}>
+                        <Alert severity="success" sx={{ mb: 2 }}>
+                          <AlertTitle sx={{ fontWeight: 600 }}>
+                            🎉 ¡Excelente Trabajo!
+                          </AlertTitle>
+                          <Typography variant="body2">
+                            Has completado exitosamente {chapterAssignments.length} tarea(s) de este capítulo.
+                            {chapterAssignments.some(a => a.reviewedByName || a.approvedByName) ? 
+                              ` Tu trabajo ha sido aprobado por ${chapterAssignments.find(a => a.reviewedByName || a.approvedByName)?.reviewedByName || chapterAssignments.find(a => a.reviewedByName || a.approvedByName)?.approvedByName || 'el jefe'}.` :
+                              ' Tu trabajo está completado y listo.'
+                            }
+                          </Typography>
+                        </Alert>
+                      </Grid>
+                      
+                      <Grid item xs={12}>
+                        <Typography variant="h6" sx={{ mb: 2, fontSize: '1rem', fontWeight: 600 }}>
+                          ✅ Tareas Completadas:
+                        </Typography>
+                        <List dense>
+                          {chapterAssignments.map((assignment, index) => (
+                            <ListItem key={index} sx={{ bgcolor: 'rgba(16, 185, 129, 0.05)', mb: 1, borderRadius: 1 }}>
+                              <ListItemIcon>
+                                {assignment.status === 'aprobado' ? 
+                                  <ThumbUp sx={{ color: '#10b981' }} /> : 
+                                  <CheckCircle sx={{ color: '#10b981' }} />
+                                }
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={TASK_TYPES[assignment.type] || assignment.type}
+                                secondary={
+                                  <Box>
+                                    <Typography variant="caption" color="textSecondary">
+                                      Completado el: {assignment.completedDate ? new Date(assignment.completedDate).toLocaleString('es-ES') : 'Fecha no disponible'}
+                                    </Typography>
+                                    {(assignment.reviewedAt || assignment.approvedAt) && (
+                                      <Typography variant="caption" color="success.main" sx={{ ml: 2, fontWeight: 600 }}>
+                                        Aprobado el: {new Date(assignment.reviewedAt || assignment.approvedAt).toLocaleString('es-ES')}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                }
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Grid>
+                      
+                      {/* Mostrar comentarios positivos si los hay */}
+                      {chapterAssignments.some(a => a.reviewComment && a.status === 'aprobado') && (
+                        <Grid item xs={12}>
+                          <Box sx={{ p: 2, borderRadius: 2, bgcolor: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                            <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#065f46', mb: 1 }}>
+                              💬 Comentarios del Jefe:
+                            </Typography>
+                            {chapterAssignments
+                              .filter(a => a.reviewComment && a.status === 'aprobado')
+                              .map((assignment, index) => (
+                                <Typography key={index} variant="body2" sx={{ fontSize: '0.875rem', color: '#374151', mb: 1 }}>
+                                  "{assignment.reviewComment}"
+                                </Typography>
+                              ))
+                            }
+                          </Box>
+                        </Grid>
+                      )}
+                      
+                      {/* Botón para subir si es uploader */}
+                      {userProfile?.role === 'uploader' && (
+                        <Grid item xs={12}>
+                          <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                            <Button
+                              variant="contained"
+                              startIcon={<UploadIcon />}
+                              onClick={() => {
+                                chapterAssignments.forEach(assignment => {
+                                  if (assignment.status === 'completado' || assignment.status === 'aprobado') {
+                                    handleMarkUploaded(assignment.id);
+                                  }
+                                });
+                                setDetailsOpen(false);
+                              }}
+                              sx={{
+                                background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                                '&:hover': {
+                                  background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                                },
+                              }}
+                            >
+                              Marcar como Subido
+                            </Button>
+                          </Box>
+                        </Grid>
+                      )}
+                    </Grid>
+                  );
                   
-                  {/* Acciones para tareas completadas (uploadable) */}
-                  {userProfile?.role === 'uploader' && 
-                   selectedChapterGroup.assignments.some(a => a.status === 'completado' || a.status === 'aprobado') && (
-                    <Button
-                      variant="contained"
-                      startIcon={<UploadIcon />}
-                      onClick={() => {
-                        // Subir todas las tareas completadas
-                        selectedChapterGroup.assignments.forEach(assignment => {
-                          if (assignment.status === 'completado' || assignment.status === 'aprobado') {
-                            handleMarkUploaded(assignment.id);
-                          }
-                        });
-                        setDetailsOpen(false);
-                      }}
-                      sx={{
-                        background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-                        '&:hover': {
-                          background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
-                        },
-                      }}
-                    >
-                      Subir Todas las Completadas
-                    </Button>
-                  )}
+                case 'rejected':
+                  return (
+                    <Grid container spacing={2}>
+                      <Grid item xs={12}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                          <Warning sx={{ fontSize: '2rem', color: '#ef4444' }} />
+                          <Box>
+                            <Typography variant="h6" fontWeight={600}>
+                              {mangaTitle} - Capítulo {chapter}
+                            </Typography>
+                            <Typography variant="body2" color="textSecondary">
+                              Estado: Requiere Correcciones
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+                      
+                      <Grid item xs={12}>
+                        <Alert severity="error" sx={{ mb: 2, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)' }}>
+                          <AlertTitle sx={{ color: '#ef4444', fontWeight: 600 }}>
+                            🔄 Trabajo Rechazado - Necesita Correcciones
+                          </AlertTitle>
+                          <Typography variant="body2">
+                            El jefe ha revisado tu trabajo y solicita algunas correcciones antes de aprobarlo.
+                            Revisa los comentarios y realiza los ajustes necesarios.
+                          </Typography>
+                        </Alert>
+                      </Grid>
+                      
+                      <Grid item xs={12}>
+                        <Typography variant="h6" sx={{ mb: 2, fontSize: '1rem', fontWeight: 600 }}>
+                          📝 Tareas que Requieren Corrección:
+                        </Typography>
+                        <List dense>
+                          {chapterAssignments.map((assignment, index) => (
+                            <ListItem key={index} sx={{ bgcolor: 'rgba(239, 68, 68, 0.05)', mb: 1, borderRadius: 1 }}>
+                              <ListItemIcon>
+                                <Warning sx={{ color: '#ef4444' }} />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={TASK_TYPES[assignment.type] || assignment.type}
+                                secondary={
+                                  <Box>
+                                    {assignment.reviewedAt && (
+                                      <Typography variant="caption" color="textSecondary">
+                                        Revisado el: {new Date(assignment.reviewedAt).toLocaleString('es-ES')}
+                                      </Typography>
+                                    )}
+                                    {assignment.reviewedByName && (
+                                      <Typography variant="caption" color="textSecondary" sx={{ ml: 2 }}>
+                                        por {assignment.reviewedByName}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                }
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Grid>
+                      
+                      {/* Mostrar comentarios de rechazo */}
+                      <Grid item xs={12}>
+                        <Typography variant="h6" sx={{ mb: 2, fontSize: '1rem', fontWeight: 600, color: '#dc2626' }}>
+                          💬 Comentarios del Jefe:
+                        </Typography>
+                        {chapterAssignments
+                          .filter(a => a.reviewComment)
+                          .map((assignment, index) => (
+                            <Box key={index} sx={{ 
+                              p: 2, 
+                              mb: 2,
+                              borderRadius: 2, 
+                              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                              border: '1px solid rgba(239, 68, 68, 0.2)'
+                            }}>
+                              <Typography variant="body2" sx={{ 
+                                fontSize: '0.875rem', 
+                                color: '#dc2626', 
+                                fontWeight: 600,
+                                mb: 1
+                              }}>
+                                {TASK_TYPES[assignment.type] || assignment.type}:
+                              </Typography>
+                              <Typography variant="body2" sx={{ 
+                                fontSize: '0.875rem', 
+                                color: '#374151',
+                                fontStyle: 'italic',
+                                pl: 2,
+                                borderLeft: '3px solid #ef4444'
+                              }}>
+                                "{assignment.reviewComment}"
+                              </Typography>
+                            </Box>
+                          ))
+                        }
+                      </Grid>
+                      
+                      {/* Acciones para corregir */}
+                      <Grid item xs={12}>
+                        <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                          <Button
+                            variant="contained"
+                            startIcon={<Assignment />}
+                            onClick={() => {
+                              setDetailsOpen(false);
+                              // Aquí podrías abrir un formulario de edición o redirigir
+                            }}
+                            sx={{
+                              background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                              '&:hover': {
+                                background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
+                              },
+                            }}
+                          >
+                            Empezar Correcciones
+                          </Button>
+                          
+                          {firstAssignment.driveLink && (
+                            <Button
+                              variant="outlined"
+                              startIcon={<LinkIcon />}
+                              href={firstAssignment.driveLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{ textTransform: 'none', borderColor: '#ef4444', color: '#ef4444' }}
+                            >
+                              Abrir en Drive
+                            </Button>
+                          )}
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  );
                   
-                  {/* Enlace a Google Drive siempre disponible */}
-                  {selectedChapterGroup.driveLink && (
-                    <Button
-                      variant="outlined"
-                      startIcon={<LinkIcon />}
-                      href={selectedChapterGroup.driveLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      sx={{ textTransform: 'none' }}
-                    >
-                      Abrir en Google Drive
-                    </Button>
-                  )}
-                </Box>
-              </Grid>
-            </Grid>
-          ) : (
-            // Detalles del capítulo completo - vista simplificada
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <Typography variant="h6" gutterBottom>
-                  Resumen del Capítulo
-                </Typography>
-                <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-                  Vista general del capítulo seleccionado.
-                </Typography>
-              </Grid>
-              <Grid item xs={12}>
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  <Typography variant="body2">
-                    Haz clic en tarjetas específicas para ver detalles individuales de las tareas.
-                  </Typography>
-                </Alert>
-              </Grid>
-            </Grid>
-          )}
+                case 'uploaded':
+                  return (
+                    <Grid container spacing={2}>
+                      <Grid item xs={12}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                          <UploadIcon sx={{ fontSize: '2rem', color: '#8b5cf6' }} />
+                          <Box>
+                            <Typography variant="h6" fontWeight={600}>
+                              {mangaTitle} - Capítulo {chapter}
+                            </Typography>
+                            <Typography variant="body2" color="textSecondary">
+                              Estado: Subido y Disponible
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+                      
+                      <Grid item xs={12}>
+                        <Alert severity="success" sx={{ mb: 2, backgroundColor: 'rgba(139, 92, 246, 0.1)', borderColor: 'rgba(139, 92, 246, 0.3)' }}>
+                          <AlertTitle sx={{ color: '#8b5cf6', fontWeight: 600 }}>
+                            🚀 ¡Capítulo Publicado!
+                          </AlertTitle>
+                          <Typography variant="body2">
+                            Este capítulo ha sido completado, aprobado y subido exitosamente.
+                            Ya está disponible para los lectores. ¡Excelente trabajo en equipo!
+                          </Typography>
+                        </Alert>
+                      </Grid>
+                      
+                      <Grid item xs={12}>
+                        <Typography variant="h6" sx={{ mb: 2, fontSize: '1rem', fontWeight: 600 }}>
+                          📤 Tareas Completadas y Subidas:
+                        </Typography>
+                        <List dense>
+                          {chapterAssignments.map((assignment, index) => (
+                            <ListItem key={index} sx={{ bgcolor: 'rgba(139, 92, 246, 0.05)', mb: 1, borderRadius: 1 }}>
+                              <ListItemIcon>
+                                <UploadIcon sx={{ color: '#8b5cf6' }} />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={TASK_TYPES[assignment.type] || assignment.type}
+                                secondary={
+                                  <Box>
+                                    {assignment.uploadedDate && (
+                                      <Typography variant="caption" color="textSecondary">
+                                        Subido el: {new Date(assignment.uploadedDate).toLocaleString('es-ES')}
+                                      </Typography>
+                                    )}
+                                    {assignment.completedDate && (
+                                      <Typography variant="caption" color="textSecondary" sx={{ ml: 2 }}>
+                                        Completado el: {new Date(assignment.completedDate).toLocaleDateString('es-ES')}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                }
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Grid>
+                      
+                      {/* Timeline del proceso */}
+                      <Grid item xs={12}>
+                        <Box sx={{ p: 2, borderRadius: 2, bgcolor: 'rgba(139, 92, 246, 0.05)', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
+                          <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#7c3aed', mb: 2 }}>
+                            📅 Línea de Tiempo del Capítulo:
+                          </Typography>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            {chapterAssignments[0]?.completedDate && (
+                              <Typography variant="caption" sx={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                                ✅ Completado: {new Date(chapterAssignments[0].completedDate).toLocaleDateString('es-ES')}
+                              </Typography>
+                            )}
+                            {chapterAssignments[0]?.reviewedAt && (
+                              <Typography variant="caption" sx={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                                👍 Aprobado: {new Date(chapterAssignments[0].reviewedAt).toLocaleDateString('es-ES')}
+                              </Typography>
+                            )}
+                            {chapterAssignments[0]?.uploadedDate && (
+                              <Typography variant="caption" sx={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                                🚀 Publicado: {new Date(chapterAssignments[0].uploadedDate).toLocaleDateString('es-ES')}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      </Grid>
+                      
+                      <Grid item xs={12}>
+                        <Box sx={{ display: 'flex', gap: 2, mt: 2, justifyContent: 'center' }}>
+                          <Box sx={{ 
+                            p: 2, 
+                            borderRadius: 2, 
+                            bgcolor: 'rgba(139, 92, 246, 0.1)', 
+                            textAlign: 'center',
+                            minWidth: 200
+                          }}>
+                            <Typography variant="h6" sx={{ color: '#8b5cf6', fontWeight: 600 }}>
+                              🎉
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: '#7c3aed', fontWeight: 500 }}>
+                              ¡Misión Completada!
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  );
+                  
+                default:
+                  return (
+                    <Grid container spacing={2}>
+                      <Grid item xs={12}>
+                        <Typography variant="h6" gutterBottom>
+                          {mangaTitle} - Capítulo {chapter}
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
+                          Este capítulo tiene tareas en diferentes estados de progreso.
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Alert severity="info" sx={{ mb: 2 }}>
+                          <Typography variant="body2">
+                            Capítulo con estados mixtos: {statusCounts.pending} pendiente(s), {statusCounts.completed} completada(s), 
+                            {statusCounts.pendingApproval} esperando aprobación, {statusCounts.rejected} rechazada(s), {statusCounts.uploaded} subida(s).
+                          </Typography>
+                        </Alert>
+                      </Grid>
+                    </Grid>
+                  );
+              }
+            })()
+          )
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => {
-            setDetailsOpen(false);
-            setSelectedTask(null);
-            setSelectedChapterGroup(null);
-          }}>Cerrar</Button>
+          <Button onClick={() => setDetailsOpen(false)}>Cerrar</Button>
         </DialogActions>
       </Dialog>
 
@@ -2825,7 +2822,7 @@ const MyWorks = () => {
                 >
                   {Object.entries(TASK_TYPES).map(([key, value]) => (
                     <MenuItem key={key} value={key}>
-                      <Checkbox checked={formData.tasks.includes(key)} />
+                      <Checkbox checked={formData.tasks.indexOf(key) > -1} />
                       {value}
                     </MenuItem>
                   ))}

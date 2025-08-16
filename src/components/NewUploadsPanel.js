@@ -21,6 +21,7 @@ import {
   FormControlLabel,
   TextField,
   LinearProgress,
+  CircularProgress,
   Alert,
   Divider,
   Fab,
@@ -62,6 +63,8 @@ const NewUploadsPanel = () => {
   const [uploadReport, setUploadReport] = useState(null);
   const [showAllChapters, setShowAllChapters] = useState(false);
   const [allCompletedChapters, setAllCompletedChapters] = useState([]);
+  const [saveProgressLoading, setSaveProgressLoading] = useState(false);
+  const [saveProgressSuccess, setSaveProgressSuccess] = useState(false);
 
   // Estados del checklist de maquetado
   const [layoutChecklist, setLayoutChecklist] = useState({
@@ -117,8 +120,49 @@ const NewUploadsPanel = () => {
 
       // Filtrar capítulos completados y no subidos
       const completedChapters = Object.values(chapterGroups).filter(chapterGroup => {
-        const allCompleted = chapterGroup.assignments.length > 0 && 
-          chapterGroup.assignments.every(assignment => assignment.status === CHAPTER_STATUS.COMPLETED);
+        // Encontrar el manga correspondiente para determinar si es joint
+        const manga = mangas.find(m => m.id === chapterGroup.mangaId);
+        
+        // Mapeo de nombres de tareas de la DB a los nombres internos
+        const taskMapping = {
+          'traduccion': 'traduccion',
+          'proofreading': 'proofreading', 
+          'limpieza': 'cleanRedrawer',
+          'clean': 'cleanRedrawer',
+          'cleanRedrawer': 'cleanRedrawer',
+          'typesetting': 'type',
+          'type': 'type'
+        };
+
+        // Normalizar availableTasks si es un manga joint
+        const normalizedAvailableTasks = manga?.isJoint && manga?.availableTasks 
+          ? manga.availableTasks.map(task => taskMapping[task] || task).filter(Boolean)
+          : null;
+        
+        // Filtrar solo asignaciones válidas (con tipo definido)
+        const validAssignments = chapterGroup.assignments.filter(assignment => 
+          assignment && 
+          assignment.type && 
+          assignment.type !== undefined && 
+          typeof assignment.type === 'string' && 
+          ['traduccion', 'proofreading', 'cleanRedrawer', 'type'].includes(assignment.type)
+        );
+        
+        // Determinar el número de tareas requeridas
+        const requiredTaskCount = manga?.isJoint && normalizedAvailableTasks 
+          ? normalizedAvailableTasks.length 
+          : 4; // traduccion, proofreading, cleanRedrawer, type
+        
+        // CORREGIDO: Un capítulo está completado SOLO si:
+        // 1. Tiene TODAS las tareas necesarias para un capítulo completo
+        // 2. TODAS las tareas necesarias están completadas O aprobadas
+        // 3. NINGUNA tarea está subida (uploaded)
+        const allCompleted = validAssignments.length === requiredTaskCount && 
+          validAssignments.every(assignment => 
+            assignment.status === CHAPTER_STATUS.COMPLETED || 
+            assignment.status === 'aprobado' || 
+            assignment.status === 'completed'
+          );
         
         const noneUploaded = chapterGroup.assignments.every(assignment => 
           assignment.status !== CHAPTER_STATUS.UPLOADED);
@@ -379,23 +423,138 @@ const NewUploadsPanel = () => {
     }
   };
 
+  // Función para limpiar valores undefined (Firebase no los acepta)
+  const cleanUndefinedValues = (obj) => {
+    if (obj === null || obj === undefined) {
+      return null;
+    }
+    
+    if (Array.isArray(obj)) {
+      return obj.map(item => cleanUndefinedValues(item));
+    }
+    
+    if (typeof obj === 'object') {
+      const cleaned = {};
+      for (const [key, value] of Object.entries(obj)) {
+        cleaned[key] = cleanUndefinedValues(value);
+      }
+      return cleaned;
+    }
+    
+    return obj;
+  };
+
   // Guardar progreso actual
   const saveProgress = async () => {
-    if (!userProfile?.uid) return;
+    if (!userProfile?.uid) {
+      console.error('No hay usuario autenticado para guardar progreso');
+      alert('Error: No hay usuario autenticado. Por favor, inicia sesión de nuevo.');
+      return;
+    }
     
     try {
+      setSaveProgressLoading(true);
+      console.log('Iniciando guardado de progreso para usuario:', userProfile.uid);
+      console.log('Rol del usuario:', userProfile.role);
+      
+      // Validar datos antes del guardado
+      if (!selectedChapters || selectedChapters.length === 0) {
+        console.warn('No hay capítulos seleccionados para guardar');
+        alert('No hay capítulos seleccionados para guardar.');
+        return;
+      }
+      
+      // Limpiar datos para evitar referencias circulares y datos innecesarios
+      const cleanSelectedChapters = selectedChapters.map(chapter => {
+        const cleanChapter = {
+          mangaId: chapter.mangaId || null,
+          mangaTitle: chapter.mangaTitle || null,
+          chapter: chapter.chapter || null,
+          assignments: chapter.assignments?.map(assignment => ({
+            id: assignment.id || null,
+            type: assignment.type || null,
+            status: assignment.status || null,
+            assignedTo: assignment.assignedTo || null,
+            assignedToName: assignment.assignedToName || null
+          })) || [],
+          driveLink: chapter.driveLink || null,
+          isJoint: chapter.isJoint || false,
+          jointPartner: chapter.jointPartner || null,
+          chapterCredits: chapter.chapterCredits || null
+        };
+        
+        // Limpiar cualquier undefined que pueda haber quedado
+        return cleanUndefinedValues(cleanChapter);
+      });
+      
       const progressData = {
-        selectedChapters,
-        currentChapterIndex,
-        layoutProgress,
-        workflow: currentWorkflow,
+        selectedChapters: cleanSelectedChapters,
+        currentChapterIndex: currentChapterIndex || 0,
+        layoutProgress: layoutProgress || [],
+        layoutChecklist: layoutChecklist || {
+          hasCreditsPage: false,
+          hasScanNotices: false,
+          everythingCorrect: false
+        },
+        workflow: currentWorkflow || 'layout',
         lastSaved: Date.now()
       };
       
-      await realtimeService.setData(`uploadProgress/${userProfile.uid}`, progressData);
-      setSavedProgress(progressData);
+      // Aplicar limpieza final a todo el objeto progressData
+      const cleanProgressData = cleanUndefinedValues(progressData);
+      
+      console.log('Datos a guardar:', {
+        userId: userProfile.uid,
+        selectedChaptersCount: cleanSelectedChapters.length,
+        currentChapterIndex,
+        workflow: currentWorkflow,
+        layoutChecklistCompleted: Object.values(layoutChecklist).every(v => v)
+      });
+      
+      // Intentar guardar los datos
+      const success = await realtimeService.setData(`uploadProgress/${userProfile.uid}`, cleanProgressData);
+      
+      if (success) {
+        setSavedProgress(cleanProgressData);
+        console.log('Progreso guardado exitosamente');
+        
+        // Mostrar feedback de éxito
+        setSaveProgressSuccess(true);
+        
+        // Ocultar el feedback después de 2 segundos
+        setTimeout(() => {
+          setSaveProgressSuccess(false);
+        }, 2000);
+      } else {
+        throw new Error('La función setData retornó false');
+      }
+      
     } catch (error) {
-      //  message removed for production
+      console.error('Error detallado al guardar progreso:', error);
+      console.error('Código de error:', error.code);
+      console.error('Mensaje de error:', error.message);
+      
+      // Mensajes de error más específicos
+      let errorMessage = 'Error al guardar el progreso. ';
+      
+      if (error.code === 'PERMISSION_DENIED') {
+        errorMessage += 'No tienes permisos para guardar el progreso. Verifica tu rol de usuario.';
+        console.error('Permisos insuficientes. Rol actual:', userProfile?.role);
+      } else if (error.code === 'NETWORK_ERROR') {
+        errorMessage += 'Error de conexión. Verifica tu conexión a internet.';
+      } else if (error.message?.includes('auth')) {
+        errorMessage += 'Error de autenticación. Por favor, inicia sesión de nuevo.';
+      } else if (error.message?.includes('validation')) {
+        errorMessage += 'Los datos no cumplen con los requisitos del sistema.';
+        console.error('Error de validación:', error.message);
+      } else {
+        errorMessage += 'Error interno. Por favor, inténtalo de nuevo.';
+      }
+      
+      errorMessage += ' Si el problema persiste, contacta al administrador.';
+      alert(errorMessage);
+    } finally {
+      setSaveProgressLoading(false);
     }
   };
 
@@ -405,6 +564,11 @@ const NewUploadsPanel = () => {
       setSelectedChapters(savedProgress.selectedChapters || []);
       setCurrentChapterIndex(savedProgress.currentChapterIndex || 0);
       setLayoutProgress(savedProgress.layoutProgress || []);
+      setLayoutChecklist(savedProgress.layoutChecklist || {
+        hasCreditsPage: false,
+        hasScanNotices: false,
+        everythingCorrect: false,
+      });
       setCurrentWorkflow(savedProgress.workflow || 'layout');
     }
   };
@@ -432,6 +596,27 @@ const NewUploadsPanel = () => {
         !(c.mangaId === chapter.mangaId && c.chapter === chapter.chapter)
       ));
     }
+  };
+
+  // Seleccionar todos los capítulos
+  const handleSelectAll = () => {
+    const chaptersToSelect = showAllChapters ? allCompletedChapters : availableChapters;
+    setSelectedChapters([...chaptersToSelect]);
+  };
+
+  // Deseleccionar todos los capítulos
+  const handleDeselectAll = () => {
+    setSelectedChapters([]);
+  };
+
+  // Verificar si todos los capítulos están seleccionados
+  const areAllSelected = () => {
+    const chaptersToCheck = showAllChapters ? allCompletedChapters : availableChapters;
+    return chaptersToCheck.length > 0 && chaptersToCheck.every(chapter => 
+      selectedChapters.some(selected => 
+        selected.mangaId === chapter.mangaId && selected.chapter === chapter.chapter
+      )
+    );
   };
 
   // Completar checklist del capítulo actual
@@ -725,28 +910,32 @@ const NewUploadsPanel = () => {
 
   // Renderizar vista de selección
   const renderSelectionView = () => (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight={700} sx={{ mb: 2 }}>
-          📚 Capítulos Disponibles para Subir
+    <Container maxWidth="xl" sx={{ py: 4 }}>
+      {/* Header mejorado */}
+      <Box sx={{ mb: 4, textAlign: 'center' }}>
+        <Typography variant="h3" fontWeight={700} sx={{ mb: 2, color: 'primary.main' }}>
+          📚 Panel de Uploads
         </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-          Selecciona los capítulos que quieres subir. Solo se muestran capítulos completados y no subidos.
-          Para series con múltiples capítulos disponibles, se muestra el más antiguo.
+        <Typography variant="h6" color="text.secondary" sx={{ mb: 3, maxWidth: '800px', mx: 'auto' }}>
+          Gestiona los uploads de capítulos completados. Selecciona los capítulos listos para subir y procede con el flujo de maquetado.
         </Typography>
         
         {savedProgress && (
           <Alert 
             severity="info" 
-            sx={{ mb: 3 }}
+            sx={{ mb: 3, maxWidth: '600px', mx: 'auto' }}
             action={
-              <Button color="inherit" onClick={resumeProgress}>
+              <Button color="inherit" onClick={resumeProgress} variant="outlined" size="small">
                 Retomar
               </Button>
             }
           >
-            Tienes un progreso guardado del {new Date(savedProgress.lastSaved).toLocaleString()}
+            <Typography variant="body2" fontWeight={600}>
+              Progreso guardado disponible
+            </Typography>
+            <Typography variant="body2">
+              Guardado el {new Date(savedProgress.lastSaved).toLocaleString()}
+            </Typography>
           </Alert>
         )}
       </Box>
@@ -799,20 +988,17 @@ const NewUploadsPanel = () => {
               <LinearProgress sx={{ width: '100%' }} />
             </Box>
           ) : availableChapters.length === 0 ? (
-            <Alert severity="info" sx={{ mb: 3 }}>
-              No hay capítulos disponibles para subir en este momento.
-              {userProfile?.role === 'admin' && (
-                <Box sx={{ mt: 2 }}>
-                  <Button
-                    variant="outlined"
-                    onClick={createTestData}
-                    size="small"
-                  >
-                    Crear Datos de Prueba
-                  </Button>
-                </Box>
-              )}
-            </Alert>
+            <Box sx={{ textAlign: 'center', py: 8 }}>
+              <Typography variant="h5" color="text.secondary" sx={{ mb: 2 }}>
+                📋 No hay capítulos listos para subir
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                Todos los capítulos disponibles ya han sido subidos o aún están en proceso de completado.
+              </Typography>
+              <Alert severity="info" sx={{ maxWidth: '500px', mx: 'auto' }}>
+                Los capítulos aparecerán aquí automáticamente cuando todas sus tareas estén completadas o aprobadas.
+              </Alert>
+            </Box>
           ) : (
             showAllChapters ? (
               // Vista completa agrupada por serie
@@ -901,42 +1087,8 @@ const NewUploadsPanel = () => {
                               />
                               
                               <ListItemText
-                                primary={
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <Typography variant="h6" fontWeight={600}>
-                                      Capítulo {chapter.chapter}
-                                    </Typography>
-                                    {chapter.isJoint && (
-                                      <Tooltip title={`Colaboración con ${chapter.jointPartner || 'otro scan'}`}>
-                                        <Chip 
-                                          label={`Joint (${chapter.jointPartner || 'Otro Scan'})`}
-                                          size="small" 
-                                          color="warning" 
-                                          variant="outlined"
-                                          sx={{ fontSize: '0.7rem', height: 18 }}
-                                        />
-                                      </Tooltip>
-                                    )}
-                                  </Box>
-                                }
-                                secondary={
-                                  <Box sx={{ mt: 1 }}>
-                                    <Typography variant="body2" sx={{ mb: 1 }}>
-                                      {chapter.assignments.length} asignación(es) completada(s)
-                                    </Typography>
-                                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                                      {chapter.assignments.map((assignment, i) => (
-                                        <Chip
-                                          key={i}
-                                          label={assignment.type}
-                                          size="small"
-                                          color="primary"
-                                          variant="outlined"
-                                        />
-                                      ))}
-                                    </Box>
-                                  </Box>
-                                }
+                                primary={`Capítulo ${chapter.chapter}${chapter.isJoint ? ` - Joint (${chapter.jointPartner || 'Otro Scan'})` : ''}`}
+                                secondary={`${chapter.assignments.length} asignación(es) completada(s) • Tipos: ${chapter.assignments.map(a => a.type).join(', ')}`}
                               />
                               
                               <IconButton
@@ -994,53 +1146,8 @@ const NewUploadsPanel = () => {
                       </Avatar>
                       
                       <ListItemText
-                        primary={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="h6" fontWeight={600}>
-                              {chapter.mangaTitle || chapter.manga?.title} - Cap. {chapter.chapter}
-                            </Typography>
-                            {chapter.totalAvailable > 1 && (
-                              <Tooltip title={`Hay ${chapter.totalAvailable} capítulos disponibles para esta serie`}>
-                                <Chip
-                                  label={`+${chapter.totalAvailable - 1} más`}
-                                  size="small"
-                                  color="info"
-                                  variant="outlined"
-                                  sx={{ fontSize: '0.7rem', height: 20 }}
-                                />
-                              </Tooltip>
-                            )}
-                            {chapter.isJoint && (
-                              <Tooltip title={`Colaboración con ${chapter.jointPartner || 'otro scan'}`}>
-                                <Chip 
-                                  label={`Joint (${chapter.jointPartner || 'Otro Scan'})`}
-                                  size="small" 
-                                  color="warning" 
-                                  variant="filled"
-                                  sx={{ fontSize: '0.7rem', height: 20 }}
-                                />
-                              </Tooltip>
-                            )}
-                          </Box>
-                        }
-                        secondary={
-                          <Box sx={{ mt: 1 }}>
-                            <Typography variant="body2" sx={{ mb: 1 }}>
-                              {chapter.assignments.length} asignación(es) completada(s)
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                              {chapter.assignments.map((assignment, i) => (
-                                <Chip
-                                  key={i}
-                                  label={assignment.type}
-                                  size="small"
-                                  color="primary"
-                                  variant="outlined"
-                                />
-                              ))}
-                            </Box>
-                          </Box>
-                        }
+                        primary={`${chapter.mangaTitle || chapter.manga?.title} - Cap. ${chapter.chapter}${chapter.isJoint ? ` - Joint (${chapter.jointPartner || 'Otro Scan'})` : ''}${chapter.totalAvailable > 1 ? ` (+${chapter.totalAvailable - 1} más)` : ''}`}
+                        secondary={`${chapter.assignments.length} asignación(es) completada(s) • Tipos: ${chapter.assignments.map(a => a.type).join(', ')}`}
                       />
                       
                       <IconButton
@@ -1059,17 +1166,34 @@ const NewUploadsPanel = () => {
       </Card>
 
       {/* Botones de acción */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Button
-          variant="outlined"
-          startIcon={<RefreshIcon />}
-          onClick={loadAvailableChapters}
-          disabled={loading}
-        >
-          Actualizar Lista
-        </Button>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={loadAvailableChapters}
+            disabled={loading}
+          >
+            Actualizar Lista
+          </Button>
+          
+          {/* Botones de selección */}
+          {(showAllChapters ? allCompletedChapters : availableChapters).length > 0 && (
+            <>
+              <Button
+                variant={areAllSelected() ? "outlined" : "contained"}
+                size="small"
+                startIcon={<CheckIcon />}
+                onClick={areAllSelected() ? handleDeselectAll : handleSelectAll}
+                color={areAllSelected() ? "secondary" : "primary"}
+              >
+                {areAllSelected() ? 'Deseleccionar Todos' : 'Seleccionar Todos'}
+              </Button>
+            </>
+          )}
+        </Box>
         
-        <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center' }}>
             {selectedChapters.length} capítulo(s) seleccionado(s)
           </Typography>
@@ -1301,11 +1425,31 @@ const NewUploadsPanel = () => {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Button
-              variant="outlined"
-              startIcon={<SaveIcon />}
+              variant={saveProgressSuccess ? "contained" : "outlined"}
+              color={saveProgressSuccess ? "success" : "primary"}
+              startIcon={
+                saveProgressLoading ? (
+                  <CircularProgress size={16} sx={{ color: 'inherit' }} />
+                ) : saveProgressSuccess ? (
+                  <CheckIcon />
+                ) : (
+                  <SaveIcon />
+                )
+              }
               onClick={saveProgress}
+              disabled={saveProgressLoading}
+              sx={{
+                minWidth: '160px', // Mantener ancho constante para evitar saltos
+                transition: 'all 0.3s ease-in-out'
+              }}
             >
-              Guardar Progreso
+              {saveProgressLoading ? (
+                "Guardando..."
+              ) : saveProgressSuccess ? (
+                "¡Guardado!"
+              ) : (
+                "Guardar Progreso"
+              )}
             </Button>
             
             {currentChapterIndex > 0 && (

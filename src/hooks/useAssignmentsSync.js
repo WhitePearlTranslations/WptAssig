@@ -46,33 +46,42 @@ export const useAssignmentsSync = (userFilter = null, debugKey = 'unknown') => {
     setLoading(true);
     setError(null);
     
-    try {
-      // Limpiar suscripción anterior si existe
-      if (unsubscribeRef.current) {
+    // Initialize async subscription
+    const initSubscription = async () => {
+      try {
+        // Clear previous subscription if exists
+        if (unsubscribeRef.current) {
+          //  message removed for production
+          if (typeof unsubscribeRef.current === 'function') {
+            unsubscribeRef.current();
+          }
+          unsubscribeRef.current = null;
+        }
+        
+        // Create new subscription
+        unsubscribeRef.current = await realtimeService.subscribeToAssignments(
+          handleAssignmentsUpdate,
+          userFilter
+        );
+        
         //  message removed for production
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
+        
+      } catch (subscriptionError) {
+        //  message removed for production
+        setError(subscriptionError);
+        setLoading(false);
       }
-      
-      // Crear nueva suscripción
-      unsubscribeRef.current = realtimeService.subscribeToAssignments(
-        handleAssignmentsUpdate,
-        userFilter
-      );
-      
-      //  message removed for production
-      
-    } catch (subscriptionError) {
-      //  message removed for production
-      setError(subscriptionError);
-      setLoading(false);
-    }
+    };
+    
+    initSubscription();
     
     // Cleanup function
     return () => {
       if (unsubscribeRef.current) {
         //  message removed for production
-        unsubscribeRef.current();
+        if (typeof unsubscribeRef.current === 'function') {
+          unsubscribeRef.current();
+        }
         unsubscribeRef.current = null;
       }
     };

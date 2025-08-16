@@ -66,55 +66,64 @@ const Dashboard = () => {
   const [typeDistribution, setTypeDistribution] = useState([]);
 
   useEffect(() => {
-    // Mis asignaciones y estadísticas personales
     let unsubscribeMyAssignments = null;
-    if (userProfile?.uid) {
-      unsubscribeMyAssignments = realtimeService.subscribeToAssignments((assignments) => {
-        const myAssignments = assignments.filter(assignment => 
-          assignment.assignedTo === userProfile.uid
-        );
-        
-        const myActiveAssignments = myAssignments.filter(assignment => 
-          assignment.status !== 'completado' && assignment.status !== 'uploaded'
-        );
-        
-        setMyActiveAssignments(myActiveAssignments);
-        
-        // Calcular estadísticas personales
-        const total = myAssignments.length;
-        const pending = myAssignments.filter(a => a.status === 'pending' || a.status === 'pendiente').length;
-        const inProgress = myAssignments.filter(a => a.status === 'in_progress' || a.status === 'en_progreso').length;
-        const completed = myAssignments.filter(a => a.status === 'completed' || a.status === 'completado').length;
-        const overdue = myAssignments.filter(a => 
-          a.dueDate && new Date(a.dueDate) < new Date() && 
-          (a.status === 'pending' || a.status === 'pendiente' || a.status === 'in_progress' || a.status === 'en_progreso')
-        ).length;
-        
-        setMyStats({ total, pending, inProgress, completed, overdue });
-        
-        // Fechas límite próximas (próximos 7 días)
-        const now = new Date();
-        const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-        
-        const upcoming = myActiveAssignments
-          .filter(a => a.dueDate && new Date(a.dueDate) <= nextWeek)
-          .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-          .slice(0, 5);
-          
-        setUpcomingDeadlines(upcoming);
-        
-        // Generar datos de actividad (últimos 7 días)
-        const activityChart = generateActivityData(myAssignments);
-        setActivityData(activityChart);
-        
-        // Generar distribución por tipo de trabajo
-        const typeChart = generateTypeDistribution(myAssignments);
-        setTypeDistribution(typeChart);
-      });
-    }
+    
+    // Initialize async subscriptions
+    const initSubscriptions = async () => {
+      if (userProfile?.uid) {
+        try {
+          unsubscribeMyAssignments = await realtimeService.subscribeToAssignments((assignments) => {
+            const myAssignments = assignments.filter(assignment => 
+              assignment.assignedTo === userProfile.uid
+            );
+            
+            const myActiveAssignments = myAssignments.filter(assignment => 
+              assignment.status !== 'completado' && assignment.status !== 'uploaded'
+            );
+            
+            setMyActiveAssignments(myActiveAssignments);
+            
+            // Calcular estadísticas personales
+            const total = myAssignments.length;
+            const pending = myAssignments.filter(a => a.status === 'pending' || a.status === 'pendiente').length;
+            const inProgress = myAssignments.filter(a => a.status === 'in_progress' || a.status === 'en_progreso').length;
+            const completed = myAssignments.filter(a => a.status === 'completed' || a.status === 'completado').length;
+            const overdue = myAssignments.filter(a => 
+              a.dueDate && new Date(a.dueDate) < new Date() && 
+              (a.status === 'pending' || a.status === 'pendiente' || a.status === 'in_progress' || a.status === 'en_progreso')
+            ).length;
+            
+            setMyStats({ total, pending, inProgress, completed, overdue });
+            
+            // Fechas límite próximas (próximos 7 días)
+            const now = new Date();
+            const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+            
+            const upcoming = myActiveAssignments
+              .filter(a => a.dueDate && new Date(a.dueDate) <= nextWeek)
+              .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+              .slice(0, 5);
+              
+            setUpcomingDeadlines(upcoming);
+            
+            // Generar datos de actividad (últimos 7 días)
+            const activityChart = generateActivityData(myAssignments);
+            setActivityData(activityChart);
+            
+            // Generar distribución por tipo de trabajo
+            const typeChart = generateTypeDistribution(myAssignments);
+            setTypeDistribution(typeChart);
+          });
+        } catch (error) {
+          console.error('Error setting up subscriptions:', error);
+        }
+      }
+    };
+
+    initSubscriptions();
 
     return () => {
-      if (unsubscribeMyAssignments) {
+      if (typeof unsubscribeMyAssignments === 'function') {
         unsubscribeMyAssignments();
       }
     };

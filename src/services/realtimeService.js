@@ -10,7 +10,7 @@ import {
   serverTimestamp,
   child
 } from 'firebase/database';
-import { realtimeDb } from './firebase';
+import { getRealtimeDb } from './firebase';
 
 // Funciones auxiliares para codificar/decodificar números de capítulos decimales
 // Firebase no permite puntos (.) en las rutas, así que los reemplazamos
@@ -26,6 +26,7 @@ export const realtimeService = {
   // USUARIOS
   createUser: async (userData) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const userRef = ref(realtimeDb, `users/${userData.uid}`);
       await set(userRef, {
         ...userData,
@@ -41,6 +42,7 @@ export const realtimeService = {
 
   updateUser: async (userId, updateData) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const userRef = ref(realtimeDb, `users/${userId}`);
       await update(userRef, {
         ...updateData,
@@ -54,6 +56,7 @@ export const realtimeService = {
 
   deleteUser: async (userId) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const userRef = ref(realtimeDb, `users/${userId}`);
       await remove(userRef);
     } catch (error) {
@@ -64,6 +67,7 @@ export const realtimeService = {
 
   getAllUsers: async () => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const usersRef = ref(realtimeDb, 'users');
       const snapshot = await get(usersRef);
       if (snapshot.exists()) {
@@ -83,8 +87,9 @@ export const realtimeService = {
     }
   },
 
-  subscribeToUsers: (callback) => {
+  subscribeToUsers: async (callback) => {
     //  message removed for production
+    const realtimeDb = await getRealtimeDb();
     const usersRef = ref(realtimeDb, 'users');
     //  message removed for production
     
@@ -121,6 +126,7 @@ export const realtimeService = {
   // MANGAS
   createManga: async (mangaData) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const mangasRef = ref(realtimeDb, 'mangas');
       const newMangaRef = push(mangasRef);
       await set(newMangaRef, {
@@ -138,6 +144,7 @@ export const realtimeService = {
 
   updateManga: async (mangaId, updateData) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const mangaRef = ref(realtimeDb, `mangas/${mangaId}`);
       await update(mangaRef, {
         ...updateData,
@@ -151,6 +158,7 @@ export const realtimeService = {
 
   getAllMangas: async () => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const mangasRef = ref(realtimeDb, 'mangas');
       const snapshot = await get(mangasRef);
       if (snapshot.exists()) {
@@ -170,7 +178,8 @@ export const realtimeService = {
     }
   },
 
-  subscribeToMangas: (callback) => {
+  subscribeToMangas: async (callback) => {
+    const realtimeDb = await getRealtimeDb();
     const mangasRef = ref(realtimeDb, 'mangas');
     const unsubscribe = onValue(mangasRef, (snapshot) => {
       const mangas = [];
@@ -190,6 +199,7 @@ export const realtimeService = {
   // ASIGNACIONES
   createAssignment: async (assignmentData) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const assignmentsRef = ref(realtimeDb, 'assignments');
       const newAssignmentRef = push(assignmentsRef);
       
@@ -219,6 +229,7 @@ export const realtimeService = {
 
   updateAssignment: async (assignmentId, updateData) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const assignmentRef = ref(realtimeDb, `assignments/${assignmentId}`);
       await update(assignmentRef, {
         ...updateData,
@@ -237,6 +248,7 @@ export const realtimeService = {
 
   deleteAssignment: async (assignmentId) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       // Obtener datos de la asignación antes de eliminarla para actualizar el conteo
       const assignmentRef = ref(realtimeDb, `assignments/${assignmentId}`);
       const snapshot = await get(assignmentRef);
@@ -256,6 +268,7 @@ export const realtimeService = {
 
   getAllAssignments: async () => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const assignmentsRef = ref(realtimeDb, 'assignments');
       const snapshot = await get(assignmentsRef);
       if (snapshot.exists()) {
@@ -277,6 +290,7 @@ export const realtimeService = {
 
   getAssignmentsByUser: async (userId) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const assignmentsRef = ref(realtimeDb, 'assignments');
       const snapshot = await get(assignmentsRef);
       if (snapshot.exists()) {
@@ -299,8 +313,9 @@ export const realtimeService = {
     }
   },
 
-  subscribeToAssignments: (callback, userFilter = null) => {
+  subscribeToAssignments: async (callback, userFilter = null) => {
     //  message removed for production
+    const realtimeDb = await getRealtimeDb();
     const assignmentsRef = ref(realtimeDb, 'assignments');
     const unsubscribe = onValue(assignmentsRef, (snapshot) => {
       //  message removed for production
@@ -330,6 +345,7 @@ export const realtimeService = {
   // Obtener asignación por ID compartible (sin autenticación)
   getSharedAssignment: async (shareableId) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const assignmentRef = ref(realtimeDb, `assignments/${shareableId}`);
       const snapshot = await get(assignmentRef);
       if (snapshot.exists()) {
@@ -348,6 +364,7 @@ export const realtimeService = {
   // Actualizar progreso de asignación compartida
   updateSharedAssignmentProgress: async (shareableId, progress, comments = '') => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const assignmentRef = ref(realtimeDb, `assignments/${shareableId}`);
       const status = progress >= 100 ? 'completado' : progress > 0 ? 'en_progreso' : 'pendiente';
       
@@ -373,7 +390,8 @@ export const realtimeService = {
   },
 
   // Escuchar cambios en asignación específica (para links compartidos)
-  subscribeToSharedAssignment: (shareableId, callback) => {
+  subscribeToSharedAssignment: async (shareableId, callback) => {
+    const realtimeDb = await getRealtimeDb();
     const assignmentRef = ref(realtimeDb, `assignments/${shareableId}`);
     const unsubscribe = onValue(assignmentRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -391,6 +409,7 @@ export const realtimeService = {
   // Función auxiliar para actualizar el conteo de capítulos de un manga
   updateMangaChapterCount: async (mangaId) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       // Contar capítulos independientes
       const chaptersRef = ref(realtimeDb, `mangas/${mangaId}/chapters`);
       const chaptersSnapshot = await get(chaptersRef);
@@ -437,6 +456,7 @@ export const realtimeService = {
   // CAPÍTULOS (independientes de asignaciones)
   createChapter: async (mangaId, chapterData) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const encodedChapterNumber = encodeChapterNumber(chapterData.chapter);
       const chapterRef = ref(realtimeDb, `mangas/${mangaId}/chapters/${encodedChapterNumber}`);
       await set(chapterRef, {
@@ -458,6 +478,7 @@ export const realtimeService = {
 
   updateChapter: async (mangaId, chapterNumber, updateData) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const encodedChapterNumber = encodeChapterNumber(chapterNumber);
       const chapterRef = ref(realtimeDb, `mangas/${mangaId}/chapters/${encodedChapterNumber}`);
       await update(chapterRef, {
@@ -473,6 +494,7 @@ export const realtimeService = {
 
   deleteChapter: async (mangaId, chapterNumber) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const encodedChapterNumber = encodeChapterNumber(chapterNumber);
       const chapterRef = ref(realtimeDb, `mangas/${mangaId}/chapters/${encodedChapterNumber}`);
       await remove(chapterRef);
@@ -487,6 +509,7 @@ export const realtimeService = {
 
   getChapters: async (mangaId) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const chaptersRef = ref(realtimeDb, `mangas/${mangaId}/chapters`);
       const snapshot = await get(chaptersRef);
       if (snapshot.exists()) {
@@ -517,6 +540,7 @@ export const realtimeService = {
   // ESTADÍSTICAS
   getStats: async () => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const [mangasSnapshot, assignmentsSnapshot, usersSnapshot] = await Promise.all([
         get(ref(realtimeDb, 'mangas')),
         get(ref(realtimeDb, 'assignments')),
@@ -556,6 +580,7 @@ export const realtimeService = {
   // SINCRONIZACIÓN DE ESTADO DE ASIGNACIONES
   syncAssignmentsWithPublishedChapters: async () => {
     try {
+      const realtimeDb = await getRealtimeDb();
       //  message removed for production
       
       // Obtener todas las asignaciones
@@ -685,8 +710,9 @@ export const realtimeService = {
         
         //  message removed for production
         
-        // Solo procesar asignaciones que no están completadas
-        if (assignment.status !== 'completado' && assignment.mangaId && assignment.chapter) {
+        // Solo procesar asignaciones que no están completadas ni subidas (uploaded)
+        // No debemos cambiar asignaciones que ya están en estado 'uploaded' porque ese es un estado superior a 'completado'
+        if (assignment.status !== 'completado' && assignment.status !== 'uploaded' && assignment.mangaId && assignment.chapter) {
           const mangaPublishedChapters = publishedChapters.get(assignment.mangaId);
           const chapterStr = assignment.chapter.toString();
           
@@ -756,6 +782,7 @@ export const realtimeService = {
   // MÉTODOS GENÉRICOS PARA CUALQUIER RUTA
   updateData: async (path, data) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const dataRef = ref(realtimeDb, path);
       await update(dataRef, {
         ...data,
@@ -770,20 +797,55 @@ export const realtimeService = {
 
   setData: async (path, data) => {
     try {
+      console.log('setData: Iniciando guardado en path:', path);
+      console.log('setData: Datos a guardar:', Object.keys(data));
+      
+      // Asegurar que Firebase esté inicializado
+      const realtimeDb = await getRealtimeDb();
+      if (!realtimeDb) {
+        throw new Error('Firebase Realtime Database no está inicializado');
+      }
+      
       const dataRef = ref(realtimeDb, path);
-      await set(dataRef, {
+      const dataToSave = {
         ...data,
         updatedAt: serverTimestamp()
-      });
+      };
+      
+      console.log('setData: Estructura de datos final:', Object.keys(dataToSave));
+      
+      await set(dataRef, dataToSave);
+      
+      console.log('setData: Guardado exitoso en path:', path);
       return true;
     } catch (error) {
-      //  message removed for production
+      console.error('setData: Error detallado:', {
+        path,
+        errorCode: error.code,
+        errorMessage: error.message,
+        errorName: error.name,
+        stack: error.stack
+      });
+      
+      // Enriquecer el error con más información
+      if (error.code === 'PERMISSION_DENIED') {
+        error.message += ' - Acceso denegado a la ruta: ' + path;
+      } else if (error.code === 'NETWORK_ERROR') {
+        error.message += ' - Error de conexión al guardar en: ' + path;
+      }
+      
       throw error;
     }
   },
 
   getData: async (path) => {
     try {
+      // Asegurar que Firebase esté inicializado
+      const realtimeDb = await getRealtimeDb();
+      if (!realtimeDb) {
+        throw new Error('Firebase Realtime Database no está inicializado');
+      }
+      
       const dataRef = ref(realtimeDb, path);
       const snapshot = await get(dataRef);
       if (snapshot.exists()) {
@@ -791,13 +853,18 @@ export const realtimeService = {
       }
       return null;
     } catch (error) {
-      //  message removed for production
+      console.error('getData: Error al obtener datos:', {
+        path,
+        errorCode: error.code,
+        errorMessage: error.message
+      });
       throw error;
     }
   },
 
   deleteData: async (path) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const dataRef = ref(realtimeDb, path);
       await remove(dataRef);
       return true;
@@ -810,6 +877,7 @@ export const realtimeService = {
   // Método específico para cargar reportes de uploads respetando las reglas de seguridad
   getUploadReports: async (userRole, userId) => {
     try {
+      const realtimeDb = await getRealtimeDb();
       const dataRef = ref(realtimeDb, 'uploadReports');
       const snapshot = await get(dataRef);
       

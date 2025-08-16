@@ -98,32 +98,23 @@ const firebaseConfig = {
 
 ### 5. Configurar reglas de Realtime Database
 
-En Firebase Console, ir a Realtime Database > Reglas y configurar:
+**Opción A: Deploy automático (Recomendado)**
+```bash
+# Hacer deploy de las reglas usando Firebase CLI
+firebase deploy --only database
 
-```json
-{
-  "rules": {
-    "users": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
-    "mangas": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
-    "assignments": {
-      ".read": true,
-      ".write": true,
-      "$assignmentId": {
-        ".read": true,
-        ".write": true
-      }
-    }
-  }
-}
+# O usar el script incluido (Windows)
+deploy-rules.bat
 ```
 
-**Nota**: Las asignaciones tienen permisos públicos para permitir el acceso via links compartidos.
+**Opción B: Configuración manual**
+En Firebase Console, ir a Realtime Database > Reglas y usar las reglas del archivo `database.rules.json`.
+
+**Características de las reglas:**
+- ✅ Sistema de aprobación con estados `pendiente_aprobacion` y `aprobado`
+- ✅ Permisos diferenciados por roles
+- ✅ Campos adicionales para tracking de aprobaciones
+- ✅ Acceso público para asignaciones compartidas
 
 ## 🚀 Ejecutar la aplicación
 

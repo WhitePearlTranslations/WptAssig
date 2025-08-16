@@ -19,6 +19,7 @@ import SeriesManagement from './components/SeriesManagement';
 import AdminPanel from './components/AdminPanel';
 import MyWorks from './components/MyWorks';
 import Uploads from './pages/Uploads';
+import ReviewPanel from './components/ReviewPanel';
 
 const theme = createTheme({
   palette: {
@@ -420,6 +421,19 @@ function App() {
                   <AppLayout>
                     <Uploads />
                   </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route
+              path="/reviews"
+              element={
+                <ProtectedRoute>
+                  <RoleProtectedRoute requiredRoles={[ROLES.ADMIN, ROLES.JEFE_EDITOR, ROLES.JEFE_TRADUCTOR]}>
+                    <AppLayout>
+                      <ReviewPanel />
+                    </AppLayout>
+                  </RoleProtectedRoute>
                 </ProtectedRoute>
               }
             />

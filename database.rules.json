@@ -64,7 +64,28 @@
         
         "status": {
           ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor' || root.child('users').child(auth.uid).child('role').val() == 'uploader' || data.child('assignedTo').val() == auth.uid)",
-          ".validate": "newData.isString() && (newData.val() == 'pendiente' || newData.val() == 'en_progreso' || newData.val() == 'completado' || newData.val() == 'cancelado' || newData.val() == 'sin_asignar' || newData.val() == 'uploaded')"
+          ".validate": "newData.isString() && (newData.val() == 'pendiente' || newData.val() == 'en_progreso' || newData.val() == 'completado' || newData.val() == 'cancelado' || newData.val() == 'sin_asignar' || newData.val() == 'uploaded' || newData.val() == 'pendiente_aprobacion' || newData.val() == 'aprobado')"
+        },
+        
+        // Campos adicionales para el flujo de aprobación
+        "completedDate": {
+          ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor' || data.child('assignedTo').val() == auth.uid)",
+          ".validate": "newData.isString()"
+        },
+        
+        "completedBy": {
+          ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor' || data.child('assignedTo').val() == auth.uid)",
+          ".validate": "newData.isString()"
+        },
+        
+        "pendingApprovalSince": {
+          ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor' || data.child('assignedTo').val() == auth.uid)",
+          ".validate": "newData.isString()"
+        },
+        
+        "reviewRequiredBy": {
+          ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador' || root.child('users').child(auth.uid).child('role').val() == 'jefe_editor' || root.child('users').child(auth.uid).child('role').val() == 'jefe_traductor' || data.child('assignedTo').val() == auth.uid)",
+          ".validate": "newData.isString()"
         }
       }
     },
@@ -85,7 +106,7 @@
         
         "status": {
           ".write": true,
-          ".validate": "newData.isString() && (newData.val() == 'pendiente' || newData.val() == 'en_progreso' || newData.val() == 'completado' || newData.val() == 'cancelado' || newData.val() == 'sin_asignar' || newData.val() == 'uploaded')"
+          ".validate": "newData.isString() && (newData.val() == 'pendiente' || newData.val() == 'en_progreso' || newData.val() == 'completado' || newData.val() == 'cancelado' || newData.val() == 'sin_asignar' || newData.val() == 'uploaded' || newData.val() == 'pendiente_aprobacion' || newData.val() == 'aprobado')"
         },
         
         "updatedAt": {
@@ -103,7 +124,6 @@
       ".read": "auth != null",
       ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')"
     },
-    
     
     // Progreso de Upload - Los usuarios pueden guardar su progreso
     "uploadProgress": {

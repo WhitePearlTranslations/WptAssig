@@ -101,6 +101,18 @@ const STATUS_CONFIG = {
     bgColor: 'rgba(16, 185, 129, 0.1)',
     icon: <CheckCircleIcon />
   },
+  'aprobado': {
+    label: 'Aprobado',
+    color: '#10b981',
+    bgColor: 'rgba(16, 185, 129, 0.1)',
+    icon: <CheckCircleIcon />
+  },
+  'pendiente_aprobacion': {
+    label: 'Esperando Aprobación',
+    color: '#f59e0b',
+    bgColor: 'rgba(245, 158, 11, 0.1)',
+    icon: <ScheduleIcon />
+  },
   [ASSIGNMENT_STATUS.RETRASADO]: {
     label: 'Retrasado',
     color: '#ef4444',
@@ -393,13 +405,22 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
               : 4; // traduccion, proofreading, cleanRedrawer, type
             const assignedCount = assignedAssignments.length;
             
-            // Un capítulo está completado (verde) si:
-            // 1. Tiene al menos una asignación, Y
-            // 2. TODAS las asignaciones existentes están asignadas a usuarios, Y
-            // 3. TODAS las asignaciones existentes están completadas
-            const isChapterCompleted = allAssignments.length > 0 && 
-              assignedAssignments.length === allAssignments.length &&
-              assignedAssignments.every(assignment => assignment.status === 'completado');
+            // CORREGIDO: Un capítulo está completado (verde) SOLO si:
+            // 1. Tiene TODAS las tareas necesarias para un capítulo completo (4 tareas para mangas normales, o las disponibles para mangas joint)
+            // 2. TODAS las tareas necesarias están asignadas a usuarios
+            // 3. TODAS las tareas necesarias están completadas
+            // 
+            // NOTA: Ya no se marca como completado solo porque las asignaciones existentes estén completadas
+            // Debe tener el número completo de tareas para considerarse completado
+            const requiredTaskCount = manga.isJoint && normalizedAvailableTasks 
+              ? normalizedAvailableTasks.length 
+              : 4; // traduccion, proofreading, cleanRedrawer, type
+            
+            const isChapterCompleted = allAssignments.length === requiredTaskCount && 
+              assignedAssignments.length === requiredTaskCount &&
+              assignedAssignments.every(assignment => 
+                assignment.status === 'completado' || assignment.status === 'aprobado'
+              );
             
             // Un capítulo está subido (azul) si:
             // 1. Tiene al menos una asignación, Y
@@ -816,8 +837,10 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                         size="small"
                         startIcon={<UploadIcon />}
                         onClick={() => {
-                          // Marcar todas las asignaciones completadas de este capítulo como subidas
-                          const completedAssignments = assignedAssignments.filter(a => a.status === 'completado');
+                          // Marcar todas las asignaciones completadas/aprobadas de este capítulo como subidas
+                          const completedAssignments = assignedAssignments.filter(a => 
+                            a.status === 'completado' || a.status === 'aprobado'
+                          );
                           completedAssignments.forEach(assignment => {
                             onMarkUploaded(assignment.id);
                           });
@@ -1324,7 +1347,12 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded })
   );
 
   // Calcular progreso general del capítulo
-  const completedTasks = chapterGroup.assignments.filter(a => a.status === 'completed' || a.status === 'completado').length;
+  // Incluir tanto tareas completadas como aprobadas en el cálculo de progreso
+  const completedTasks = chapterGroup.assignments.filter(a => 
+    a.status === 'completed' || 
+    a.status === 'completado' || 
+    a.status === 'aprobado'
+  ).length;
   const totalTasks = chapterGroup.assignments.length;
   const chapterProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
   const isChapterCompleted = completedTasks === totalTasks;
@@ -1780,13 +1808,15 @@ const SeriesManagement = () => {
 
   // Cargar datos desde Firebase
   useEffect(() => {
-    let unsubscribeMangas, unsubscribeAssignments, unsubscribeUsers;
+    let unsubscribeMangas = null;
+    let unsubscribeAssignments = null;
+    let unsubscribeUsers = null;
     
     const loadData = async () => {
       setLoading(true);
       try {
         // Suscribirse a mangas
-        unsubscribeMangas = realtimeService.subscribeToMangas(async (mangasData) => {
+        unsubscribeMangas = await realtimeService.subscribeToMangas(async (mangasData) => {
           const activeMangas = mangasData.filter(manga => manga.status !== 'deleted');
           setMangas(activeMangas);
           
@@ -1805,7 +1835,7 @@ const SeriesManagement = () => {
         });
 
         // Suscribirse a asignaciones
-        unsubscribeAssignments = realtimeService.subscribeToAssignments((assignmentsData) => {
+        unsubscribeAssignments = await realtimeService.subscribeToAssignments((assignmentsData) => {
           setAssignments(assignmentsData);
           
           // Si es la pestaña del staff, calcular estadísticas personales
@@ -1840,7 +1870,7 @@ const SeriesManagement = () => {
         // Suscribirse a usuarios (comentado debido a permisos)
         //  message removed for production
         try {
-          unsubscribeUsers = realtimeService.subscribeToUsers((usersData) => {
+          unsubscribeUsers = await realtimeService.subscribeToUsers((usersData) => {
             //  message removed for production
             //  message removed for production
             //  message removed for production
@@ -1872,13 +1902,22 @@ const SeriesManagement = () => {
     
     // Cleanup function
     return () => {
-      if (unsubscribeMangas) unsubscribeMangas();
-      if (unsubscribeAssignments) unsubscribeAssignments();
-      if (unsubscribeUsers) unsubscribeUsers();
+      if (typeof unsubscribeMangas === 'function') {
+        unsubscribeMangas();
+      }
+      if (typeof unsubscribeAssignments === 'function') {
+        unsubscribeAssignments();
+      }
+      if (typeof unsubscribeUsers === 'function') {
+        unsubscribeUsers();
+      }
     };
   }, [userProfile, hasRole]);
 
-  // Efecto para actualizar automáticamente el estado de capítulos cuando cambien las asignaciones
+  // DESHABILITADO: Efecto para actualizar automáticamente el estado de capítulos cuando cambien las asignaciones
+  // Este useEffect causaba que al marcar una asignación individual como completada, se marcara todo el capítulo.
+  // Los capítulos ahora deben marcarse manualmente como "listo" o "subido" por los jefes/administradores.
+  /*
   useEffect(() => {
     if (assignments.length === 0 || Object.keys(chapters).length === 0) {
       return; // No hacer nada si no hay datos
@@ -1952,6 +1991,7 @@ const SeriesManagement = () => {
     
     return () => clearTimeout(timeoutId);
   }, [assignments, chapters]); // Se ejecuta cuando cambian las asignaciones o capítulos
+  */
 
   const handleToggleExpand = (seriesId) => {
     setExpandedSeries(prev => ({
@@ -2132,6 +2172,22 @@ const SeriesManagement = () => {
   };
 
   const getAssignmentStats = (manga) => {
+    // Mapeo de nombres de tareas de la DB a los nombres internos
+    const taskMapping = {
+      'traduccion': 'traduccion',
+      'proofreading': 'proofreading', 
+      'limpieza': 'cleanRedrawer',
+      'clean': 'cleanRedrawer',
+      'cleanRedrawer': 'cleanRedrawer',
+      'typesetting': 'type',
+      'type': 'type'
+    };
+
+    // Normalizar availableTasks si es un manga joint
+    const normalizedAvailableTasks = manga.isJoint && manga.availableTasks 
+      ? manga.availableTasks.map(task => taskMapping[task] || task).filter(Boolean)
+      : null;
+
     const mangaAssignments = assignments.filter(a => a.mangaId === manga.id);
     const independentChapters = chapters[manga.id] || [];
     
@@ -2166,16 +2222,41 @@ const SeriesManagement = () => {
     const allChapters = Object.keys(chapterGroups);
     const totalChapters = allChapters.length;
     
-    // Un capítulo está completado si TODAS las asignaciones están completadas
+    // CORREGIDO: Un capítulo está completado SOLO si:
+    // 1. Tiene TODAS las tareas necesarias para un capítulo completo
+    // 2. TODAS las tareas necesarias están asignadas a usuarios
+    // 3. TODAS las tareas necesarias están completadas
+    const requiredTaskCount = manga.isJoint && normalizedAvailableTasks 
+      ? normalizedAvailableTasks.length 
+      : 4; // traduccion, proofreading, cleanRedrawer, type
+    
     const completedChapters = allChapters.filter(chapter => {
       const chapterData = chapterGroups[chapter];
-      const chapterAssignments = Object.values(chapterData).filter(a => a !== null);
       
-      // Si no hay asignaciones en el capítulo, no está completado
-      if (chapterAssignments.length === 0) return false;
+      // Filtrar solo asignaciones válidas (con type definido y que no sean datos de capítulo)
+      const allAssignments = Object.values(chapterData).filter(assignment => 
+        assignment !== null && 
+        assignment.type && // Debe tener tipo definido
+        assignment.type !== undefined && // No debe ser undefined
+        typeof assignment.type === 'string' && // Debe ser string
+        ['traduccion', 'proofreading', 'cleanRedrawer', 'type'].includes(assignment.type) // Solo tipos válidos
+      );
       
-      // Todas las asignaciones del capítulo deben estar completadas
-      return chapterAssignments.every(assignment => assignment.status === 'completado');
+      const assignedAssignments = allAssignments.filter(assignment => 
+        assignment.assignedTo && assignment.status !== 'sin_asignar'
+      );
+      
+      // Un capítulo está completado SOLO si:
+      // 1. Tiene el número completo de tareas requeridas
+      // 2. Todas están asignadas
+      // 3. Todas están completadas, aprobadas O subidas
+      return allAssignments.length === requiredTaskCount && 
+        assignedAssignments.length === requiredTaskCount &&
+        assignedAssignments.every(assignment => 
+          assignment.status === 'completado' || 
+          assignment.status === 'aprobado' || 
+          assignment.status === 'uploaded'
+        );
     }).length;
     
     const progress = totalChapters > 0 ? (completedChapters / totalChapters) * 100 : 0;
@@ -2232,13 +2313,22 @@ const SeriesManagement = () => {
       return 'uploaded';
     }
     
-    // VERDE (listo): Todas las asignaciones están completadas (pero no subidas)
-    const isChapterCompleted = assignedAssignments.length === validAssignments.length &&
-      assignedAssignments.every(assignment => assignment.status === 'completado');
-    
-    if (isChapterCompleted) {
-      return 'listo';
-    }
+  // CORREGIDO: NO marcar capítulos automáticamente como "listo" solo porque
+  // las asignaciones están completadas. Esto evita el error crítico donde
+  // al marcar una asignación individual como completada, se marca todo el capítulo.
+  // 
+  // VERDE (listo): Todas las asignaciones están completadas (pero no subidas)
+  // Esta lógica se mantiene comentada para prevenir el comportamiento no deseado:
+  // const isChapterCompleted = assignedAssignments.length === validAssignments.length &&
+  //   assignedAssignments.every(assignment => assignment.status === 'completado');
+  // 
+  // if (isChapterCompleted) {
+  //   return 'listo';
+  // }
+  //
+  // NOTA: Los capítulos ahora deben marcarse manualmente como "listo" o "subido"
+  // por los jefes/administradores cuando verifiquen que todas las tareas están realmente
+  // completadas y el capítulo está listo para publicación.
     
     // AMARILLO (en progreso): Hay al menos una asignación en progreso
     const hasWorkInProgress = assignedAssignments.length > 0;
@@ -2331,8 +2421,9 @@ const SeriesManagement = () => {
         completedDate: new Date().toISOString().split('T')[0] 
       });
       
-      // Actualizar el status del capítulo después de cambiar la asignación
-      await updateChapterStatusAfterAssignmentChange(assignment.mangaId, assignment.chapter);
+      // DESHABILITADO: Actualizar el status del capítulo después de cambiar la asignación
+      // Esta función causaba que al marcar una asignación individual como completada, se marcara todo el capítulo.
+      // await updateChapterStatusAfterAssignmentChange(assignment.mangaId, assignment.chapter);
       
       setSnackbar({ open: true, message: 'Asignación marcada como completada', severity: 'success' });
     } catch (error) {
@@ -2354,8 +2445,9 @@ const SeriesManagement = () => {
         uploadedDate: new Date().toISOString().split('T')[0] 
       });
       
-      // Actualizar el status del capítulo después de cambiar la asignación
-      await updateChapterStatusAfterAssignmentChange(assignment.mangaId, assignment.chapter);
+      // DESHABILITADO: Actualizar el status del capítulo después de cambiar la asignación
+      // Esta función causaba que al marcar una asignación individual como completada, se marcara todo el capítulo.
+      // await updateChapterStatusAfterAssignmentChange(assignment.mangaId, assignment.chapter);
       
       setSnackbar({ open: true, message: 'Asignación marcada como subida', severity: 'success' });
     } catch (error) {
@@ -2377,8 +2469,9 @@ const SeriesManagement = () => {
         uploadedDate: null // Remover la fecha de subida
       });
       
-      // Actualizar el status del capítulo después de cambiar la asignación
-      await updateChapterStatusAfterAssignmentChange(assignment.mangaId, assignment.chapter);
+      // DESHABILITADO: Actualizar el status del capítulo después de cambiar la asignación
+      // Esta función causaba que al marcar una asignación individual como completada, se marcara todo el capítulo.
+      // await updateChapterStatusAfterAssignmentChange(assignment.mangaId, assignment.chapter);
       
       setSnackbar({ open: true, message: 'Asignación marcada como completada', severity: 'success' });
     } catch (error) {

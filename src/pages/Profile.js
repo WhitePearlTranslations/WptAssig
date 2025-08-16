@@ -67,40 +67,52 @@ const Profile = () => {
   useEffect(() => {
     if (!userProfile?.uid) return;
 
-    // Obtener asignaciones del usuario desde Realtime Database
-    const unsubscribeAssignments = realtimeService.subscribeToAssignments((assignments) => {
-      // Filtrar solo las asignaciones del usuario actual
-      const userAssignments = assignments.filter(assignment => assignment.assignedTo === userProfile.uid);
-      
-      // Calcular estadísticas
-      const completed = userAssignments.filter(assignment => assignment.status === 'completado').length;
-      const active = userAssignments.filter(assignment => assignment.status !== 'completado').length;
-      const total = userAssignments.length;
-      
-      setUserStats({
-        assignmentsCompleted: completed,
-        assignmentsActive: active,
-        assignmentsTotal: total
-      });
-      
-      // Obtener asignaciones recientes (últimas 5, ordenadas por fecha de actualización)
-      const recentAssignments = userAssignments
-        .sort((a, b) => {
-          const dateA = new Date(a.updatedAt || a.createdAt);
-          const dateB = new Date(b.updatedAt || b.createdAt);
-          return dateB - dateA;
-        })
-        .slice(0, 5);
-      
-      setRecentAssignments(recentAssignments);
-    }, userProfile.uid);
-    
-    // Obtener información de mangas para mostrar títulos correctos
-    const unsubscribeMangas = realtimeService.subscribeToMangas(setMangas);
+    let unsubscribeAssignments = null;
+    let unsubscribeMangas = null;
+
+    // Initialize async subscriptions
+    const initSubscriptions = async () => {
+      try {
+        // Get user assignments from Realtime Database
+        unsubscribeAssignments = await realtimeService.subscribeToAssignments((assignments) => {
+          // Filter only assignments for current user
+          const userAssignments = assignments.filter(assignment => assignment.assignedTo === userProfile.uid);
+          
+          // Calculate statistics
+          const completed = userAssignments.filter(assignment => assignment.status === 'completado').length;
+          const active = userAssignments.filter(assignment => assignment.status !== 'completado').length;
+          const total = userAssignments.length;
+          
+          setUserStats({
+            assignmentsCompleted: completed,
+            assignmentsActive: active,
+            assignmentsTotal: total
+          });
+          
+          // Get recent assignments (last 5, sorted by update date)
+          const recentAssignments = userAssignments
+            .sort((a, b) => {
+              const dateA = new Date(a.updatedAt || a.createdAt);
+              const dateB = new Date(b.updatedAt || b.createdAt);
+              return dateB - dateA;
+            })
+            .slice(0, 5);
+          
+          setRecentAssignments(recentAssignments);
+        }, userProfile.uid);
+        
+        // Get manga information to show correct titles
+        unsubscribeMangas = await realtimeService.subscribeToMangas(setMangas);
+      } catch (error) {
+        console.error('Error setting up subscriptions:', error);
+      }
+    };
+
+    initSubscriptions();
     
     return () => {
-      if (unsubscribeAssignments) unsubscribeAssignments();
-      if (unsubscribeMangas) unsubscribeMangas();
+      if (typeof unsubscribeAssignments === 'function') unsubscribeAssignments();
+      if (typeof unsubscribeMangas === 'function') unsubscribeMangas();
     };
   }, [userProfile]);
 

@@ -33,7 +33,8 @@ import {
   Settings as SettingsIcon,
   Work as WorkIcon,
   Menu as MenuIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  HourglassTop as ReviewIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
@@ -117,6 +118,13 @@ const Navbar = () => {
             userProfile?.role === ROLES.JEFE_TRADUCTOR || 
             userProfile?.role === ROLES.EDITOR || 
             userProfile?.role === ROLES.TRADUCTOR
+    },
+    {
+      text: 'Revisiones',
+      icon: ReviewIcon,
+      path: '/reviews',
+      color: '#f59e0b',
+      show: hasRole(ROLES.ADMIN) || hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR)
     },
     {
       text: 'Series',
