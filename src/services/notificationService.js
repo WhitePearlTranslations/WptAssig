@@ -17,14 +17,12 @@ class NotificationService {
 
     this.permission = Notification.permission;
     
-    // Registrar Service Worker si está soportado
-    if (this.isServiceWorkerSupported) {
-      try {
-        await this.registerServiceWorker();
-      } catch (error) {
-        console.warn('No se pudo registrar el Service Worker:', error);
-      }
-    }
+    // Service Worker deshabilitado - desregistrar cualquier SW existente
+    console.log('Service Worker deshabilitado - las notificaciones funcionarán sin SW');
+    this.swRegistration = null;
+    
+    // Desregistrar cualquier service worker existente
+    this.forceServiceWorkerCleanup();
   }
 
   // Registrar Service Worker
@@ -358,6 +356,160 @@ class NotificationService {
            this.swRegistration && 
            this.swRegistration.active &&
            this.hasPermission();
+  }
+
+  // Desregistrar TODOS los service workers existentes
+  async unregisterAllServiceWorkers() {
+    if (!this.isServiceWorkerSupported) {
+      return;
+    }
+
+    try {
+      console.log('🗑️ Desregistrando todos los service workers...');
+      
+      // Obtener todas las registraciones
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      console.log('🗑️ Service workers encontrados:', registrations.length);
+      
+      // Desregistrar cada uno
+      const unregisterPromises = registrations.map(async (registration, index) => {
+        console.log(`🗑️ Desregistrando SW #${index + 1}:`, registration.scope);
+        try {
+          const success = await registration.unregister();
+          console.log(`🗑️ SW #${index + 1} desregistrado:`, success);
+          return success;
+        } catch (error) {
+          console.error(`🗑️ Error desregistrando SW #${index + 1}:`, error);
+          return false;
+        }
+      });
+      
+      // Esperar a que todos se desregistren
+      const results = await Promise.all(unregisterPromises);
+      const successful = results.filter(Boolean).length;
+      
+      console.log(`🗑️ Desregistración completa: ${successful}/${registrations.length} exitosos`);
+      
+      // Limpiar caches también
+      await this.clearAllCaches();
+      
+      return successful === registrations.length;
+    } catch (error) {
+      console.error('🗑️ Error desregistrando service workers:', error);
+      return false;
+    }
+  }
+
+  // Limpiar todos los caches
+  async clearAllCaches() {
+    try {
+      console.log('🗑️ Limpiando todos los caches...');
+      const cacheNames = await caches.keys();
+      console.log('🗑️ Caches encontrados:', cacheNames);
+      
+      const deletePromises = cacheNames.map(async (cacheName) => {
+        console.log('🗑️ Eliminando cache:', cacheName);
+        return await caches.delete(cacheName);
+      });
+      
+      const results = await Promise.all(deletePromises);
+      const successful = results.filter(Boolean).length;
+      
+      console.log(`🗑️ Limpieza de cache completa: ${successful}/${cacheNames.length} exitosos`);
+      return successful === cacheNames.length;
+    } catch (error) {
+      console.error('🗑️ Error limpiando caches:', error);
+      return false;
+    }
+  }
+
+  // Forzar limpieza completa con verificación automática
+  async forceServiceWorkerCleanup() {
+    if (!this.isServiceWorkerSupported) {
+      return;
+    }
+
+    try {
+      console.log('🧹 FORZANDO limpieza completa de service workers...');
+      
+      // 1. Obtener todas las registraciones
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      console.log('🧹 Service workers detectados:', registrations.length);
+      
+      if (registrations.length === 0) {
+        console.log('🧹 No hay service workers para limpiar');
+        await this.clearAllCaches();
+        return;
+      }
+      
+      // 2. Desregistrar todos los service workers
+      let successCount = 0;
+      for (const registration of registrations) {
+        try {
+          console.log('🧹 Desregistrando:', registration.scope);
+          const success = await registration.unregister();
+          if (success) {
+            successCount++;
+            console.log('🧹 ✅ Desregistrado exitosamente:', registration.scope);
+          } else {
+            console.log('🧹 ❌ Error desregistrando:', registration.scope);
+          }
+        } catch (error) {
+          console.error('🧹 ❌ Excepción desregistrando:', registration.scope, error);
+        }
+      }
+      
+      console.log(`🧹 Desregistración completada: ${successCount}/${registrations.length}`);
+      
+      // 3. Limpiar todos los caches
+      await this.clearAllCaches();
+      
+      // 4. Si encontramos SW activos, marcar para recargar después de un tiempo
+      if (registrations.length > 0) {
+        console.log('🧹 Service workers encontrados - programando verificación...');
+        
+        // Guardar timestamp de cuando hicimos la limpieza
+        localStorage.setItem('swCleanupTimestamp', Date.now().toString());
+        
+        // Verificar después de 2 segundos si aún hay SW activos
+        setTimeout(() => {
+          this.checkIfReloadNeeded();
+        }, 2000);
+      }
+      
+    } catch (error) {
+      console.error('🧹 Error en limpieza forzada:', error);
+    }
+  }
+  
+  // Verificar si necesitamos recargar para completar la limpieza
+  async checkIfReloadNeeded() {
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      
+      if (registrations.length > 0) {
+        console.log('🧹 ⚠️ Aún hay service workers activos después de la limpieza');
+        console.log('🧹 Service workers persistentes:', registrations.map(r => r.scope));
+        
+        // Verificar si ya intentamos la limpieza recientemente
+        const lastCleanup = localStorage.getItem('swCleanupTimestamp');
+        const now = Date.now();
+        
+        if (lastCleanup && (now - parseInt(lastCleanup)) < 60000) { // 1 minuto
+          console.log('🧹 🔄 Forzando recarga para completar limpieza...');
+          
+          // Mostrar mensaje al usuario
+          if (window.confirm('Se detectaron archivos antiguos que requieren actualización. ¿Recargar la página para aplicar los cambios?')) {
+            window.location.reload(true);
+          }
+        }
+      } else {
+        console.log('🧹 ✅ Limpieza completada exitosamente');
+        localStorage.removeItem('swCleanupTimestamp');
+      }
+    } catch (error) {
+      console.error('🧹 Error verificando estado post-limpieza:', error);
+    }
   }
 }
 
