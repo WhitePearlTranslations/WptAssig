@@ -23,7 +23,6 @@ import ReviewPanel from './components/ReviewPanel';
 import GlobalNotificationProvider from './components/GlobalNotificationProvider';
 import TourFloatingButton from './components/TourFloatingButton';
 import PageTourButton from './components/PageTourButton';
-import ServiceWorkerProvider from './components/ServiceWorkerProvider';
 import NotificationTester from './components/NotificationTester';
 
 const theme = createTheme({
@@ -333,9 +332,8 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
-        <ServiceWorkerProvider>
-          <Router>
-            <GlobalNotificationProvider>
+        <Router>
+          <GlobalNotificationProvider>
             <Routes>
             {/* Ruta de login sin layout */}
             <Route path="/login" element={<Login />} />
@@ -466,7 +464,6 @@ function App() {
             </Routes>
             </GlobalNotificationProvider>
           </Router>
-        </ServiceWorkerProvider>
         
         {/* Toast notifications */}
         <Toaster
