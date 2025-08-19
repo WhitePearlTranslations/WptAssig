@@ -20,6 +20,11 @@ import AdminPanel from './components/AdminPanel';
 import MyWorks from './components/MyWorks';
 import Uploads from './pages/Uploads';
 import ReviewPanel from './components/ReviewPanel';
+import GlobalNotificationProvider from './components/GlobalNotificationProvider';
+import TourFloatingButton from './components/TourFloatingButton';
+import PageTourButton from './components/PageTourButton';
+import ServiceWorkerProvider from './components/ServiceWorkerProvider';
+import NotificationTester from './components/NotificationTester';
 
 const theme = createTheme({
   palette: {
@@ -317,6 +322,8 @@ const AppLayout = ({ children }) => {
           {children}
         </Box>
       </Box>
+      <TourFloatingButton />
+      <PageTourButton />
     </Box>
   );
 };
@@ -326,8 +333,10 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
-        <Router>
-          <Routes>
+        <ServiceWorkerProvider>
+          <Router>
+            <GlobalNotificationProvider>
+            <Routes>
             {/* Ruta de login sin layout */}
             <Route path="/login" element={<Login />} />
             
@@ -438,13 +447,26 @@ function App() {
               }
             />
             
+            <Route
+              path="/test-notifications"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <NotificationTester />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            
             {/* Redirección por defecto */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             
             {/* Ruta 404 */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </Router>
+            </Routes>
+            </GlobalNotificationProvider>
+          </Router>
+        </ServiceWorkerProvider>
         
         {/* Toast notifications */}
         <Toaster

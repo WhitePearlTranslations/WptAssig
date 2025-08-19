@@ -29,7 +29,10 @@ import {
   TrendingUp,
   AccessTime,
   Work,
-  BarChart
+  BarChart,
+  HourglassTop,
+  RateReview,
+  Help as HelpIcon
 } from '@mui/icons-material';
 import {
   LineChart,
@@ -49,11 +52,17 @@ import {
 import { realtimeService } from '../services/realtimeService';
 import { useAuth, ROLES } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { usePendingReviews } from '../hooks/usePendingReviews';
+import { ReviewNotificationCard } from '../components/NotificationBadge';
+import { useTour } from '../hooks/useTour';
+import { useNotificationMonitor } from '../hooks/useNotificationMonitor';
+import NotificationPermissionBanner from '../components/NotificationPermissionBanner';
 
 const Dashboard = () => {
-  const { userProfile, isSuperAdmin } = useAuth();
+  const { userProfile, isSuperAdmin, hasRole } = useAuth();
   const navigate = useNavigate();
   const [myActiveAssignments, setMyActiveAssignments] = useState([]);
+  const [allAssignments, setAllAssignments] = useState([]); // Para el monitoreo de notificaciones
   const [myStats, setMyStats] = useState({
     total: 0,
     pending: 0,
@@ -64,6 +73,27 @@ const Dashboard = () => {
   const [upcomingDeadlines, setUpcomingDeadlines] = useState([]);
   const [activityData, setActivityData] = useState([]);
   const [typeDistribution, setTypeDistribution] = useState([]);
+  
+  // Hook para revisiones pendientes (solo para jefes)
+  const pendingReviews = usePendingReviews();
+  const isChief = hasRole(ROLES.ADMIN) || hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR);
+
+  // Hook del tour
+  const { startTour, isNewUser, isTourAvailable } = useTour();
+  
+  // Hook para monitoreo de notificaciones
+  useNotificationMonitor(allAssignments, userProfile);
+
+  // Efecto para mostrar tour automáticamente para nuevos usuarios
+  useEffect(() => {
+    if (isNewUser && isTourAvailable) {
+      const timer = setTimeout(() => {
+        startTour();
+      }, 1500); // Esperar a que la página se cargue
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isNewUser, isTourAvailable, startTour]);
 
   useEffect(() => {
     let unsubscribeMyAssignments = null;
@@ -73,6 +103,9 @@ const Dashboard = () => {
       if (userProfile?.uid) {
         try {
           unsubscribeMyAssignments = await realtimeService.subscribeToAssignments((assignments) => {
+            // Guardar todas las asignaciones para el monitoreo de notificaciones
+            setAllAssignments(assignments);
+            
             const myAssignments = assignments.filter(assignment => 
               assignment.assignedTo === userProfile.uid
             );
@@ -235,10 +268,17 @@ const Dashboard = () => {
 
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box className="animate-fade-in" sx={{ mb: 6 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-          <Box>
+    <Container maxWidth="lg" sx={{ mt: { xs: 2, md: 4 }, mb: 4, px: { xs: 2, sm: 3 } }} data-tour="dashboard">
+      <Box className="animate-fade-in" sx={{ mb: { xs: 4, md: 6 } }}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between', 
+          alignItems: { xs: 'flex-start', sm: 'flex-start' }, 
+          gap: { xs: 2, sm: 0 },
+          mb: 2 
+        }}>
+          <Box sx={{ flex: 1 }}>
             <Typography 
               variant="h2" 
               component="h1"
@@ -249,6 +289,14 @@ const Dashboard = () => {
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
                 mb: 2,
+                fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+                '@media (max-width: 768px)': {
+                  background: '#6366f1',
+                  WebkitBackgroundClip: 'initial',
+                  WebkitTextFillColor: 'initial',
+                  backgroundClip: 'initial',
+                  color: '#6366f1',
+                },
               }}
             >
               Dashboard
@@ -259,6 +307,7 @@ const Dashboard = () => {
               sx={{ 
                 fontWeight: 400,
                 opacity: 0.8,
+                fontSize: { xs: '1rem', sm: '1.1rem', md: '1.25rem' },
               }}
             >
               Bienvenido de vuelta, {userProfile?.name || 'Usuario'}
@@ -269,54 +318,161 @@ const Dashboard = () => {
           {isSuperAdmin() && (
             <Button
               variant="contained"
-              size="large"
+              size={window.innerWidth < 768 ? "medium" : "large"}
               startIcon={<AdminPanelSettings />}
               onClick={() => navigate('/admin')}
               sx={{
                 background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                 color: 'white',
                 fontWeight: 600,
-                px: 3,
-                py: 1.5,
+                px: { xs: 2, sm: 3 },
+                py: { xs: 1, sm: 1.5 },
                 borderRadius: '16px',
                 textTransform: 'none',
-                fontSize: '1.1rem',
+                fontSize: { xs: '0.9rem', sm: '1rem', md: '1.1rem' },
                 boxShadow: '0 8px 32px rgba(239, 68, 68, 0.4)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
-                animation: 'pulse 2s infinite',
-                position: 'relative',
-                overflow: 'hidden',
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  top: 0,
-                  left: '-100%',
-                  width: '100%',
-                  height: '100%',
-                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
-                  animation: 'shine 3s infinite',
+                minHeight: { xs: '44px', sm: 'auto' },
+                width: { xs: '100%', sm: 'auto' },
+                // Remove complex animations on mobile
+                '@media (max-width: 768px)': {
+                  animation: 'none',
+                  '&::before': {
+                    display: 'none',
+                  },
+                },
+                // Keep animations on desktop
+                '@media (min-width: 769px)': {
+                  animation: 'pulse 2s infinite',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: '-100%',
+                    width: '100%',
+                    height: '100%',
+                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                    animation: 'shine 3s infinite',
+                  },
+                  '@keyframes pulse': {
+                    '0%, 100%': { transform: 'scale(1)' },
+                    '50%': { transform: 'scale(1.05)' },
+                  },
+                  '@keyframes shine': {
+                    '0%': { left: '-100%' },
+                    '100%': { left: '100%' },
+                  },
                 },
                 '&:hover': {
                   background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 12px 40px rgba(239, 68, 68, 0.5)',
+                  '@media (min-width: 769px)': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 12px 40px rgba(239, 68, 68, 0.5)',
+                  },
                 },
-                '@keyframes pulse': {
-                  '0%, 100%': { transform: 'scale(1)' },
-                  '50%': { transform: 'scale(1.05)' },
-                },
-                '@keyframes shine': {
-                  '0%': { left: '-100%' },
-                  '100%': { left: '100%' },
+                '&:active': {
+                  '@media (max-width: 768px)': {
+                    transform: 'scale(0.98)',
+                  },
                 },
               }}
             >
               Panel de Admin
             </Button>
           )}
+          
+          {/* Botón de Tour */}
+          {isTourAvailable && (
+            <Button
+              variant="outlined"
+              size={window.innerWidth < 768 ? "medium" : "large"}
+              startIcon={<HelpIcon />}
+              onClick={startTour}
+              sx={{
+                borderColor: '#6366f1',
+                color: '#6366f1',
+                fontWeight: 600,
+                px: { xs: 2, sm: 3 },
+                py: { xs: 1, sm: 1.5 },
+                borderRadius: '16px',
+                textTransform: 'none',
+                fontSize: { xs: '0.9rem', sm: '1rem', md: '1.1rem' },
+                borderWidth: 2,
+                minHeight: { xs: '44px', sm: 'auto' },
+                width: { xs: '100%', sm: 'auto' },
+                ml: { xs: 0, sm: 2 },
+                mt: { xs: 2, sm: 0 },
+                '&:hover': {
+                  borderColor: '#4f46e5',
+                  backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                  transform: 'translateY(-1px)',
+                },
+              }}
+            >
+              Tour de la App
+            </Button>
+          )}
         </Box>
       </Box>
 
+      {/* Banner de Permisos de Notificación */}
+      <NotificationPermissionBanner />
+
+      {/* Notificaciones para Jefes - Solo mostrar si hay revisiones pendientes */}
+      {isChief && pendingReviews.count > 0 && (
+        <Alert 
+          severity="warning" 
+          sx={{ 
+            mb: 4,
+            background: 'rgba(245, 158, 11, 0.1)',
+            borderColor: 'rgba(245, 158, 11, 0.3)',
+            border: '1px solid',
+            borderRadius: '12px'
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <HourglassTop sx={{ color: '#f59e0b' }} />
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  color: '#f59e0b', 
+                  fontWeight: 600,
+                  fontSize: { xs: '1rem', sm: '1.25rem' }
+                }}
+              >
+                Tienes {pendingReviews.count} revisión{pendingReviews.count > 1 ? 'es' : ''} pendiente{pendingReviews.count > 1 ? 's' : ''}
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              startIcon={<RateReview />}
+              onClick={() => navigate('/review')}
+              size="small"
+              sx={{
+                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                color: 'white',
+                fontWeight: 600,
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #d97706, #b45309)',
+                }
+              }}
+            >
+              Ir a Revisar
+            </Button>
+          </Box>
+          <Typography variant="body2" sx={{ mt: 1, color: '#92400e' }}>
+            📋 Asignaciones de <strong>{pendingReviews.roleDescription}</strong> esperando tu aprobación
+            {pendingReviews.detailedStats && pendingReviews.detailedStats.overdue > 0 && (
+              <span style={{ color: '#dc2626', fontWeight: 600, marginLeft: '8px' }}>
+                • {pendingReviews.detailedStats.overdue} vencida{pendingReviews.detailedStats.overdue > 1 ? 's' : ''}
+              </span>
+            )}
+          </Typography>
+        </Alert>
+      )}
 
       {/* Información Personal del Usuario */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -451,8 +607,20 @@ const Dashboard = () => {
                     </ListItemIcon>
                     <ListItemText
                       primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="body1" fontWeight={600}>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          flexDirection: { xs: 'column', sm: 'row' },
+                          alignItems: { xs: 'flex-start', sm: 'center' }, 
+                          gap: 1 
+                        }}>
+                          <Typography 
+                            variant="body1" 
+                            fontWeight={600}
+                            sx={{ 
+                              fontSize: { xs: '0.9rem', sm: '1rem' },
+                              lineHeight: { xs: 1.3, sm: 1.5 }
+                            }}
+                          >
                             {assignment.mangaTitle} - Cap. {assignment.chapter}
                           </Typography>
                           <Chip
@@ -462,13 +630,23 @@ const Dashboard = () => {
                               background: assignment.type === 'traduccion' ? '#6366f1' : '#ec4899',
                               color: 'white',
                               fontWeight: 500,
+                              fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                              height: { xs: '20px', sm: '24px' },
+                              mt: { xs: 0.5, sm: 0 },
                             }}
                           />
                         </Box>
                       }
                       secondary={
-                        <Box>
-                          <Typography variant="body2" sx={{ color: deadlineColor, fontWeight: 500 }}>
+                        <Box sx={{ mt: { xs: 1, sm: 0.5 } }}>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: deadlineColor, 
+                              fontWeight: 500,
+                              fontSize: { xs: '0.8rem', sm: '0.875rem' }
+                            }}
+                          >
                             {daysUntil < 0
                               ? `Vencido hace ${Math.abs(daysUntil)} días`
                               : daysUntil === 0
@@ -478,7 +656,15 @@ const Dashboard = () => {
                               : `Vence en ${daysUntil} días`
                             }
                           </Typography>
-                          <Typography variant="caption" color="textSecondary">
+                          <Typography 
+                            variant="caption" 
+                            color="textSecondary"
+                            sx={{ 
+                              fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                              display: 'block',
+                              mt: 0.5
+                            }}
+                          >
                             Fecha límite: {new Date(assignment.dueDate).toLocaleDateString('es-ES')}
                           </Typography>
                         </Box>

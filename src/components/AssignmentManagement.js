@@ -333,6 +333,27 @@ const AssignmentCard = ({ assignment, onEdit, onDelete, users = [] }) => {
                 </Button>
               </Grid>
             )}
+            
+            {assignment.rawLink && (
+              <Grid item xs={12} sm={6}>
+                <Button
+                  size="small"
+                  startIcon={<LinkIcon />}
+                  href={assignment.rawLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    textTransform: 'none',
+                    color: '#6366f1',
+                    '&:hover': {
+                      backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    },
+                  }}
+                >
+                  Ver RAW
+                </Button>
+              </Grid>
+            )}
           </Grid>
         </Box>
       </CardContent>
@@ -358,6 +379,7 @@ const AssignmentDialog = ({
     cleanRedrawer: { userId: '', fecha: null, completed: false },
     fechaSubida: null,
     linkCapitulo: '',
+    rawLink: '',
     fechaRevisionRaw: null,
     prioridad: false,
   });
@@ -382,6 +404,7 @@ const AssignmentDialog = ({
         cleanRedrawer: { userId: '', fecha: null, completed: false },
         fechaSubida: null,
         linkCapitulo: '',
+        rawLink: '',
         fechaRevisionRaw: null,
         prioridad: false,
       });
@@ -570,6 +593,24 @@ const AssignmentDialog = ({
                 placeholder="https://..."
               />
             </Grid>
+            
+            {/* Campo para link de la RAW - Solo aparece si hay traductor asignado */}
+            {formData.traductor?.userId && (
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Link de la RAW a traducir"
+                  value={formData.rawLink}
+                  onChange={(e) => setFormData({ ...formData, rawLink: e.target.value })}
+                  variant="outlined"
+                  placeholder="https://ejemplo.com/manga-raw..."
+                  InputProps={{
+                    startAdornment: <LinkIcon sx={{ color: 'text.secondary', mr: 1 }} />
+                  }}
+                  helperText="Enlace directo a la RAW para que el traductor pueda trabajar"
+                />
+              </Grid>
+            )}
           </Grid>
         </DialogContent>
         

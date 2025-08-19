@@ -26,11 +26,11 @@ import {
 import {
   Add,
   Edit,
-  Delete,
   PersonAdd,
   SupervisorAccount,
   PersonOutline,
-  History
+  History,
+  Warning
 } from '@mui/icons-material';
 import { ref, onValue, set, update, remove, push } from 'firebase/database';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
@@ -200,22 +200,7 @@ const Users = () => {
     }
   };
 
-  const handleDeleteUser = async (userId) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este usuario?')) {
-      try {
-        // En lugar de eliminar, marcamos como eliminado
-        await update(ref(realtimeDb, `users/${userId}`), {
-          status: 'deleted',
-          deletedAt: new Date().toISOString(),
-          deletedBy: userProfile.uid
-        });
-        toast.success('Usuario eliminado exitosamente');
-      } catch (error) {
-        //  message removed for production
-        toast.error('Error al eliminar el usuario');
-      }
-    }
-  };
+  // Función de eliminación removida - se debe usar el Panel Admin para eliminar usuarios
 
   const getRoleColor = (role) => {
     switch (role) {
@@ -295,26 +280,11 @@ const Users = () => {
           <Button
             variant="outlined"
             startIcon={<History />}
-            onClick={() => {
-              const ghostUser = {
-                name: '',
-                email: '',
-                role: ROLES.TRADUCTOR,
-                password: '',
-                active: true,
-                isGhost: true
-              };
-              setEditingUser(null);
-              setFormData(ghostUser);
-              setOpenDialog(true);
-            }}
+            disabled
             sx={{
-              borderColor: 'orange',
-              color: 'orange',
-              '&:hover': {
-                borderColor: 'darkorange',
-                backgroundColor: 'rgba(255, 165, 0, 0.1)'
-              }
+              borderColor: 'grey.400',
+              color: 'grey.400',
+              cursor: 'not-allowed'
             }}
           >
             Usuario Fantasma
@@ -322,12 +292,38 @@ const Users = () => {
           <Button
             variant="contained"
             startIcon={<PersonAdd />}
-            onClick={() => handleOpenDialog()}
+            disabled
+            sx={{
+              bgcolor: 'grey.400',
+              color: 'grey.600',
+              cursor: 'not-allowed',
+              '&:hover': {
+                bgcolor: 'grey.400'
+              }
+            }}
           >
             Crear Usuario
           </Button>
         </Box>
       </Box>
+
+      {/* Advertencia sobre eliminación de usuarios */}
+      <Paper sx={{ mb: 4, p: 3, bgcolor: 'rgba(255, 152, 0, 0.1)', border: '1px solid rgba(255, 152, 0, 0.3)' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Warning sx={{ color: 'warning.main' }} />
+          <Box>
+            <Typography variant="h6" sx={{ color: 'warning.main', fontWeight: 600 }}>
+              Nota Importante sobre Gestión de Usuarios
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Para <strong>crear o eliminar usuarios</strong> del sistema, utiliza el <strong>Panel de Administración</strong>. 
+              Esta página está destinada únicamente para <strong>visualizar y editar</strong> usuarios existentes. 
+              La gestión completa de usuarios desde el panel admin garantiza que se realicen todas las 
+              validaciones necesarias y se mantenga la integridad de los datos del sistema.
+            </Typography>
+          </Box>
+        </Box>
+      </Paper>
 
       {/* Estadísticas rápidas */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -461,27 +457,14 @@ const Users = () => {
                   <TableCell>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       {canManageUser(user) && (
-                        <>
-                          <Tooltip title="Editar">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleOpenDialog(user)}
-                            >
-                              <Edit />
-                            </IconButton>
-                          </Tooltip>
-                          {hasRole(ROLES.ADMIN) && (
-                            <Tooltip title="Eliminar">
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => handleDeleteUser(user.id)}
-                              >
-                                <Delete />
-                              </IconButton>
-                            </Tooltip>
-                          )}
-                        </>
+                        <Tooltip title="Editar">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenDialog(user)}
+                          >
+                            <Edit />
+                          </IconButton>
+                        </Tooltip>
                       )}
                     </Box>
                   </TableCell>

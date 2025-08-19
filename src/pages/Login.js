@@ -102,7 +102,8 @@ const Login = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 2,
+        padding: { xs: 1, sm: 2 },
+        // Simplify background effects on mobile
         '&::before': {
           content: '""',
           position: 'absolute',
@@ -110,7 +111,10 @@ const Login = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'radial-gradient(circle at 20% 50%, rgba(60, 60, 120, 0.2), transparent 50%), radial-gradient(circle at 80% 20%, rgba(100, 60, 120, 0.2), transparent 50%), radial-gradient(circle at 40% 80%, rgba(60, 100, 140, 0.2), transparent 50%)',
+          background: {
+            xs: 'none', // Remove complex gradients on mobile
+            sm: 'radial-gradient(circle at 20% 50%, rgba(60, 60, 120, 0.2), transparent 50%), radial-gradient(circle at 80% 20%, rgba(100, 60, 120, 0.2), transparent 50%), radial-gradient(circle at 40% 80%, rgba(60, 100, 140, 0.2), transparent 50%)'
+          },
           pointerEvents: 'none'
         }
       }}
@@ -120,18 +124,38 @@ const Login = () => {
           <Paper
             elevation={24}
             sx={{
-              padding: { xs: 3, sm: 4 },
-              borderRadius: 4,
+              padding: { xs: 2, sm: 3, md: 4 },
+              borderRadius: { xs: 2, sm: 4 },
               background: 'rgba(255, 255, 255, 0.08)',
-              backdropFilter: 'blur(20px)',
+              backdropFilter: { xs: 'blur(10px)', sm: 'blur(20px)' },
               border: '1px solid rgba(255, 255, 255, 0.15)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+              boxShadow: {
+                xs: '0 4px 16px rgba(0, 0, 0, 0.1)',
+                sm: '0 8px 32px rgba(0, 0, 0, 0.15)'
+              },
               position: 'relative',
               overflow: 'hidden',
               transition: 'all 0.3s ease-in-out',
-              '&:hover': {
-                transform: 'translateY(-5px)',
-                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.2)'
+              maxWidth: { xs: '100%', sm: 'none' },
+              // Remove hover effects on mobile
+              '@media (hover: hover)': {
+                '&:hover': {
+                  transform: 'translateY(-5px)',
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.2)'
+                },
+                '&:hover::before': {
+                  left: '100%'
+                }
+              },
+              // Touch device optimizations
+              '@media (hover: none)': {
+                '&:hover': {
+                  transform: 'none',
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)'
+                },
+                '&:active': {
+                  transform: 'scale(0.98)'
+                }
               },
               '&::before': {
                 content: '""',
@@ -141,10 +165,11 @@ const Login = () => {
                 width: '100%',
                 height: '100%',
                 background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent)',
-                transition: 'left 0.8s'
-              },
-              '&:hover::before': {
-                left: '100%'
+                transition: 'left 0.8s',
+                // Hide shimmer effect on mobile
+                '@media (max-width: 768px)': {
+                  display: 'none'
+                }
               }
             }}
           >
@@ -235,7 +260,10 @@ const Login = () => {
                   autoComplete="email"
                   autoFocus
                   InputLabelProps={{
-                    sx: { color: 'rgba(255, 255, 255, 0.8)' }
+                    sx: { 
+                      color: 'rgba(255, 255, 255, 0.8)',
+                      fontSize: { xs: '1rem', sm: '1rem' }
+                    }
                   }}
                   InputProps={{
                     startAdornment: (
@@ -245,6 +273,12 @@ const Login = () => {
                     ),
                     sx: {
                       color: 'white',
+                      minHeight: { xs: '48px', sm: 'auto' },
+                      fontSize: { xs: '16px', sm: '1rem' }, // Prevents iOS zoom
+                      '& .MuiOutlinedInput-input': {
+                        fontSize: { xs: '16px', sm: '1rem' },
+                        padding: { xs: '16px 14px', sm: '16.5px 14px' }
+                      },
                       '& .MuiOutlinedInput-notchedOutline': {
                         borderColor: 'rgba(255, 255, 255, 0.3)'
                       },
@@ -259,8 +293,8 @@ const Login = () => {
                         color: 'white'
                       },
                       background: 'rgba(255, 255, 255, 0.05)',
-                      borderRadius: 2,
-                      backdropFilter: 'blur(10px)',
+                      borderRadius: { xs: 1, sm: 2 },
+                      backdropFilter: { xs: 'blur(5px)', sm: 'blur(10px)' },
                       transition: 'all 0.3s ease'
                     }
                   }}

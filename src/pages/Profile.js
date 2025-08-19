@@ -34,10 +34,15 @@ import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 
 import { realtimeDb } from '../services/firebase';
 import { realtimeService } from '../services/realtimeService';
 import { useAuth, ROLES } from '../contexts/AuthContext';
+import { usePageTour } from '../hooks/usePageTour';
 import toast from 'react-hot-toast';
 
 const Profile = () => {
   const { currentUser, userProfile } = useAuth();
+  
+  // Hook para tour de página
+  const { startTour: startPageTour, isTourAvailable } = usePageTour();
+  
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -282,6 +287,7 @@ const Profile = () => {
                   startIcon={<Edit />}
                   onClick={() => setEditing(true)}
                   variant="outlined"
+                  data-tour="profile-edit-button"
                 >
                   Editar
                 </Button>
@@ -310,6 +316,7 @@ const Profile = () => {
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
               <Avatar
                 src={formData.profileImage || userProfile.profileImage}
+                data-tour="profile-avatar"
                 sx={{
                   width: 80,
                   height: 80,
@@ -358,6 +365,7 @@ const Profile = () => {
                 disabled={!editing}
                 placeholder="https://ejemplo.com/mi-imagen.jpg"
                 helperText="Introduce la URL de tu imagen de perfil"
+                data-tour="profile-image-field"
               />
 
               {editing && (
@@ -395,7 +403,7 @@ const Profile = () => {
 
         {/* Estadísticas */}
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, mb: 3 }}>
+          <Paper sx={{ p: 3, mb: 3 }} data-tour="profile-stats">
             <Typography variant="h6" gutterBottom>
               Estadísticas
             </Typography>
@@ -460,7 +468,7 @@ const Profile = () => {
           </Paper>
 
           {/* Asignaciones recientes */}
-          <Paper sx={{ p: 3 }}>
+          <Paper sx={{ p: 3 }} data-tour="recent-assignments">
             <Typography variant="h6" gutterBottom>
               Asignaciones Recientes
             </Typography>

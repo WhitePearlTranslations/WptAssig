@@ -269,7 +269,7 @@ const AssignmentInfo = ({ assignment, users }) => {
 };
 
 // Componente para mostrar asignaciones de un manga organizado por capítulos
-const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCreateAssignment, onCreateChapter, onDeleteAssignment, userProfile, chapters, onMarkUploaded, onMarkNotUploaded }) => {
+const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCreateAssignment, onCreateChapter, onDeleteAssignment, userProfile, chapters, onMarkUploaded, onMarkNotUploaded, onEditUnavailableTask }) => {
   // Mapeo de nombres de tareas de la DB a los nombres internos
   const taskMapping = {
     'traduccion': 'traduccion',
@@ -437,7 +437,15 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
             
             // Debug logging para verificar el estado
             if (allAssignments.length > 0) {
-              // Debug message removed for production
+              console.log(`CAPÍTULO ${chapter}:`, {
+                allAssignments: allAssignments.length,
+                assignedAssignments: assignedAssignments.length,
+                requiredTaskCount,
+                isChapterCompleted,
+                isChapterUploaded,
+                userRole: userProfile?.role,
+                assignments: allAssignments.map(a => ({ type: a.type, status: a.status, assignedTo: !!a.assignedTo }))
+              });
             }
             
             return (
@@ -576,10 +584,21 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                     )
                   )
                 ) : (
-                  // Tarea no disponible para este manga joint
-                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', opacity: 0.7 }}>
-                    No disponible
-                  </Typography>
+                  // Tarea no disponible para este manga joint - mostrar texto personalizable
+                  (userProfile?.role === 'admin' || userProfile?.role === 'jefe_editor' || userProfile?.role === 'jefe_traductor') ? (
+                    <Box
+                      sx={{ cursor: 'pointer' }}
+                      onClick={() => onEditUnavailableTask(manga, chapter, 'traduccion')}
+                    >
+                      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', opacity: 0.7, textDecoration: 'underline' }}>
+                        {chapterData.chapterData?.unavailableTexts?.traduccion || 'No disponible - Click para editar'}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', opacity: 0.7 }}>
+                      {chapterData.chapterData?.unavailableTexts?.traduccion || 'No disponible'}
+                    </Typography>
+                  )
                 )}
                 </TableCell>
 
@@ -637,10 +656,21 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                     )
                   )
                 ) : (
-                  // Tarea no disponible para este manga joint
-                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', opacity: 0.7 }}>
-                    No disponible
-                  </Typography>
+                  // Tarea no disponible para este manga joint - mostrar texto personalizable
+                  (userProfile?.role === 'admin' || userProfile?.role === 'jefe_editor' || userProfile?.role === 'jefe_traductor') ? (
+                    <Box
+                      sx={{ cursor: 'pointer' }}
+                      onClick={() => onEditUnavailableTask(manga, chapter, 'proofreading')}
+                    >
+                      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', opacity: 0.7, textDecoration: 'underline' }}>
+                        {chapterData.chapterData?.unavailableTexts?.proofreading || 'No disponible - Click para editar'}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', opacity: 0.7 }}>
+                      {chapterData.chapterData?.unavailableTexts?.proofreading || 'No disponible'}
+                    </Typography>
+                  )
                 )}
                 </TableCell>
 
@@ -698,10 +728,21 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                     )
                   )
                 ) : (
-                  // Tarea no disponible para este manga joint
-                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', opacity: 0.7 }}>
-                    No disponible
-                  </Typography>
+                  // Tarea no disponible para este manga joint - mostrar texto personalizable
+                  (userProfile?.role === 'admin' || userProfile?.role === 'jefe_editor' || userProfile?.role === 'jefe_traductor') ? (
+                    <Box
+                      sx={{ cursor: 'pointer' }}
+                      onClick={() => onEditUnavailableTask(manga, chapter, 'cleanRedrawer')}
+                    >
+                      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', opacity: 0.7, textDecoration: 'underline' }}>
+                        {chapterData.chapterData?.unavailableTexts?.cleanRedrawer || 'No disponible - Click para editar'}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', opacity: 0.7 }}>
+                      {chapterData.chapterData?.unavailableTexts?.cleanRedrawer || 'No disponible'}
+                    </Typography>
+                  )
                 )}
                 </TableCell>
 
@@ -759,10 +800,21 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                     )
                   )
                 ) : (
-                  // Tarea no disponible para este manga joint
-                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', opacity: 0.7 }}>
-                    No disponible
-                  </Typography>
+                  // Tarea no disponible para este manga joint - mostrar texto personalizable
+                  (userProfile?.role === 'admin' || userProfile?.role === 'jefe_editor' || userProfile?.role === 'jefe_traductor') ? (
+                    <Box
+                      sx={{ cursor: 'pointer' }}
+                      onClick={() => onEditUnavailableTask(manga, chapter, 'type')}
+                    >
+                      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', opacity: 0.7, textDecoration: 'underline' }}>
+                        {chapterData.chapterData?.unavailableTexts?.type || 'No disponible - Click para editar'}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', opacity: 0.7 }}>
+                      {chapterData.chapterData?.unavailableTexts?.type || 'No disponible'}
+                    </Typography>
+                  )
                 )}
                 </TableCell>
 
@@ -927,6 +979,7 @@ const ChapterDialog = ({ open, onClose, manga, chapterData, onSave }) => {
     chapter: '',
     driveLink: '',
     notes: '',
+    authorName: '', // Nuevo campo para el nombre del autor en proyectos joint
     isEditing: false
   });
 
@@ -939,6 +992,7 @@ const ChapterDialog = ({ open, onClose, manga, chapterData, onSave }) => {
         chapter: chapterData.chapter || '',
         driveLink: chapterData.driveLink || '',
         notes: chapterData.notes || '',
+        authorName: chapterData.authorName || '', // Campo para autor en proyectos joint
         isEditing: chapterData.isEditing || false
       });
     } else if (manga) {
@@ -949,6 +1003,7 @@ const ChapterDialog = ({ open, onClose, manga, chapterData, onSave }) => {
         chapter: '',
         driveLink: '',
         notes: '',
+        authorName: '', // Campo para autor en proyectos joint
         isEditing: false
       });
     }
@@ -962,8 +1017,14 @@ const ChapterDialog = ({ open, onClose, manga, chapterData, onSave }) => {
     onSave(formData);
   };
 
+  const handleKeyPress = (event) => {
+    if (event.key === 'Enter') {
+      handleSave();
+    }
+  };
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth onKeyPress={handleKeyPress}>
       <DialogTitle>
         {formData.isEditing ? 'Editar Detalles del Capítulo' : 'Crear Nuevo Capítulo'}
       </DialogTitle>
@@ -985,6 +1046,7 @@ const ChapterDialog = ({ open, onClose, manga, chapterData, onSave }) => {
               type="text"
               value={formData.chapter}
               onChange={(e) => setFormData({ ...formData, chapter: e.target.value })}
+              onKeyPress={handleKeyPress}
               variant="outlined"
               placeholder="Ej: 1, 7.2, 15.5"
               inputProps={{
@@ -999,6 +1061,7 @@ const ChapterDialog = ({ open, onClose, manga, chapterData, onSave }) => {
               label="Link de Google Drive"
               value={formData.driveLink}
               onChange={(e) => setFormData({ ...formData, driveLink: e.target.value })}
+              onKeyPress={handleKeyPress}
               variant="outlined"
               placeholder="https://drive.google.com/..."
             />
@@ -1039,7 +1102,8 @@ const AssignmentDialog = ({ open, onClose, assignment, manga, users, onSave, pre
     assignedTo: '',
     dueDate: '',
     notes: '',
-    driveLink: ''
+    driveLink: '',
+    rawLink: ''
   });
 
   useEffect(() => {
@@ -1052,7 +1116,8 @@ const AssignmentDialog = ({ open, onClose, assignment, manga, users, onSave, pre
         assignedTo: assignment.assignedTo || '',
         dueDate: assignment.dueDate || '',
         notes: assignment.notes || '',
-        driveLink: assignment.driveLink || ''
+        driveLink: assignment.driveLink || '',
+        rawLink: assignment.rawLink || ''
       });
     } else if (manga) {
       setFormData({
@@ -1063,7 +1128,8 @@ const AssignmentDialog = ({ open, onClose, assignment, manga, users, onSave, pre
         assignedTo: '',
         dueDate: '',
         notes: '',
-        driveLink: inheritedDriveLink || ''
+        driveLink: inheritedDriveLink || '',
+        rawLink: ''
       });
     }
   }, [assignment, manga, prefilledChapter, prefilledType, inheritedDriveLink]);
@@ -1265,6 +1331,25 @@ const AssignmentDialog = ({ open, onClose, assignment, manga, users, onSave, pre
               placeholder="https://drive.google.com/..."
             />
           </Grid>
+          
+          {/* Campo para link de la RAW - Solo aparece si el tipo es traducción */}
+          {formData.type === 'traduccion' && (
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Link de la RAW a traducir"
+                value={formData.rawLink}
+                onChange={(e) => setFormData({ ...formData, rawLink: e.target.value })}
+                variant="outlined"
+                placeholder="https://ejemplo.com/manga-raw..."
+                InputProps={{
+                  startAdornment: <LinkIcon sx={{ color: 'text.secondary', mr: 1 }} />
+                }}
+                helperText="Enlace directo a la RAW para que el traductor pueda trabajar"
+              />
+            </Grid>
+          )}
+          
           <Grid item xs={12}>
             <TextField
               fullWidth
@@ -1337,7 +1422,7 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded })
   };
 
   const canMarkUploaded = (assignment) => {
-    return userRole === ROLES.UPLOADER && (assignment.status === 'completed' || assignment.status === 'completado');
+    return (userRole === ROLES.UPLOADER || userRole === ROLES.ADMIN) && (assignment.status === 'completed' || assignment.status === 'completado');
   };
 
   // Determinar si alguna tarea está atrasada
@@ -1792,6 +1877,13 @@ const SeriesManagement = () => {
     manga: null
   });
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [unavailableTextDialog, setUnavailableTextDialog] = useState({ 
+    open: false, 
+    manga: null,
+    chapter: null,
+    taskType: null,
+    currentText: ''
+  });
   
   // Estados para la sección de staff
   const [staffStats, setStaffStats] = useState({
@@ -1805,6 +1897,106 @@ const SeriesManagement = () => {
   
   // Estado para filtro del panel de trabajo
   const [staffFilter, setStaffFilter] = useState('all');
+
+  // Función para editar texto de tarea no disponible
+  const handleEditUnavailableTask = (manga, chapter, taskType) => {
+    const independentChapters = chapters[manga.id] || [];
+    const chapterData = independentChapters.find(
+      ch => ch.chapter == chapter || ch.number == chapter
+    );
+    
+    const currentText = chapterData?.unavailableTexts?.[taskType] || '';
+    
+    setUnavailableTextDialog({
+      open: true,
+      manga,
+      chapter,
+      taskType,
+      currentText
+    });
+  };
+
+  // Función para guardar el texto personalizado
+  const handleSaveUnavailableText = async (newText) => {
+    const { manga, chapter, taskType } = unavailableTextDialog;
+    
+    try {
+      setLoading(true);
+      
+      // Guardar posición actual del scroll
+      const currentScrollY = window.scrollY;
+      
+      // Buscar el capítulo existente o crear uno nuevo
+      const independentChapters = chapters[manga.id] || [];
+      let chapterData = independentChapters.find(
+        ch => ch.chapter == chapter || ch.number == chapter
+      );
+      
+      if (!chapterData) {
+        // Crear un nuevo capítulo con solo los datos necesarios
+        const dynamicStatus = getChapterStatusFromAssignments(manga.id, chapter);
+        chapterData = {
+          chapter: chapter,
+          notes: '',
+          driveLink: '',
+          authorName: '',
+          unavailableTexts: {},
+          status: dynamicStatus
+        };
+      }
+      
+      // Actualizar el texto personalizado
+      const updatedUnavailableTexts = {
+        ...(chapterData.unavailableTexts || {}),
+        [taskType]: newText
+      };
+      
+      const updatedChapterData = {
+        ...chapterData,
+        unavailableTexts: updatedUnavailableTexts
+      };
+      
+      if (independentChapters.find(ch => ch.chapter == chapter || ch.number == chapter)) {
+        // Actualizar capítulo existente
+        await realtimeService.updateChapter(manga.id, chapter, updatedChapterData);
+      } else {
+        // Crear nuevo capítulo
+        await realtimeService.createChapter(manga.id, updatedChapterData);
+      }
+      
+      // Actualizar estado local
+      setChapters(prev => ({
+        ...prev,
+        [manga.id]: prev[manga.id] ? 
+          prev[manga.id].map(ch => 
+            (ch.chapter == chapter || ch.number == chapter) 
+              ? { ...ch, unavailableTexts: updatedUnavailableTexts }
+              : ch
+          ) :
+          [{ ...updatedChapterData, number: chapter }]
+      }));
+      
+      setSnackbar({ 
+        open: true, 
+        message: 'Texto personalizado actualizado exitosamente', 
+        severity: 'success' 
+      });
+      
+      // Restaurar posición del scroll después de la actualización
+      setTimeout(() => {
+        window.scrollTo(0, currentScrollY);
+      }, 100); // Pequeño delay para asegurar que la actualización se haya completado
+      
+    } catch (error) {
+      setSnackbar({ 
+        open: true, 
+        message: 'Error actualizando texto: ' + error.message, 
+        severity: 'error' 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Cargar datos desde Firebase
   useEffect(() => {
@@ -2114,6 +2306,9 @@ const SeriesManagement = () => {
     try {
       setLoading(true);
       
+      // Guardar posición actual del scroll
+      const currentScrollY = window.scrollY;
+      
       // Buscar el usuario asignado para obtener su nombre (si hay uno)
       const assignedUser = formData.assignedTo ? users.find(u => (u.uid || u.id) === formData.assignedTo) : null;
       
@@ -2130,6 +2325,7 @@ const SeriesManagement = () => {
           dueDate: formData.dueDate,
           notes: formData.notes,
           driveLink: formData.driveLink,
+          rawLink: formData.rawLink,
           status: formData.assignedTo ? 'pendiente' : 'sin_asignar'
         };
         
@@ -2149,6 +2345,7 @@ const SeriesManagement = () => {
           dueDate: formData.dueDate,
           notes: formData.notes,
           driveLink: formData.driveLink,
+          rawLink: formData.rawLink,
           status: formData.assignedTo ? 'pendiente' : 'sin_asignar',
           progress: 0
         });
@@ -2163,6 +2360,12 @@ const SeriesManagement = () => {
         prefilledType: null,
         inheritedDriveLink: ''
       });
+      
+      // Restaurar posición del scroll después de cerrar el diálogo
+      setTimeout(() => {
+        window.scrollTo(0, currentScrollY);
+      }, 100); // Pequeño delay para asegurar que el diálogo se haya cerrado completamente
+      
     } catch (error) {
       //  message removed for production
       setSnackbar({ open: true, message: 'Error guardando asignación: ' + error.message, severity: 'error' });
@@ -2345,6 +2548,9 @@ const SeriesManagement = () => {
     try {
       setLoading(true);
       
+      // Guardar posición actual del scroll
+      const currentScrollY = window.scrollY;
+      
       // Determinar el status del capítulo basado en las asignaciones actuales
       const dynamicStatus = getChapterStatusFromAssignments(formData.mangaId, formData.chapter);
       
@@ -2354,6 +2560,7 @@ const SeriesManagement = () => {
           chapter: formData.chapter,
           notes: formData.notes,
           driveLink: formData.driveLink,
+          authorName: formData.authorName, // Incluir nombre del autor para proyectos joint
           status: dynamicStatus // Estado dinámico basado en asignaciones
         };
         
@@ -2377,6 +2584,7 @@ const SeriesManagement = () => {
           chapter: formData.chapter,
           notes: formData.notes,
           driveLink: formData.driveLink,
+          authorName: formData.authorName, // Incluir nombre del autor para proyectos joint
           status: dynamicStatus // Estado dinámico basado en asignaciones
         };
         
@@ -2399,6 +2607,12 @@ const SeriesManagement = () => {
       }
       
       setChapterDialog({ open: false, manga: null, chapterData: null });
+      
+      // Restaurar posición del scroll después de cerrar el diálogo
+      setTimeout(() => {
+        window.scrollTo(0, currentScrollY);
+      }, 100); // Pequeño delay para asegurar que el diálogo se haya cerrado completamente
+      
     } catch (error) {
       //  message removed for production
       setSnackbar({ open: true, message: `Error ${formData.isEditing ? 'actualizando' : 'creando'} capítulo: ` + error.message, severity: 'error' });
@@ -3095,6 +3309,10 @@ const SeriesManagement = () => {
                   borderRadius: '16px',
                   overflow: 'hidden',
                   animation: `fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.1}s both`,
+                  // Mobile responsive fixes
+                  width: '100%',
+                  maxWidth: { xs: 'calc(100vw - 16px)', sm: '100%' },
+                  mx: { xs: 0, sm: 'auto' },
                 }}
               >
                 <CardContent sx={{ p: 0 }}>
@@ -3142,9 +3360,31 @@ const SeriesManagement = () => {
                     )}
 
                     {/* Info */}
-                    <Box sx={{ flex: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-                        <Typography variant="h5" fontWeight={700}>
+                    <Box sx={{ 
+                      flex: 1,
+                      minWidth: 0, // Fix flex shrink issue
+                      width: { xs: '100%', sm: 'auto' }
+                    }}>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        alignItems: { xs: 'flex-start', sm: 'center' }, 
+                        gap: { xs: 1, sm: 2 }, 
+                        mb: 1,
+                        width: '100%'
+                      }}>
+                        <Typography 
+                          variant="h5" 
+                          fontWeight={700}
+                          sx={{
+                            fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' },
+                            wordBreak: 'break-word',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            lineHeight: 1.2,
+                            width: { xs: '100%', sm: 'auto' }
+                          }}
+                        >
                           {manga.title}
                         </Typography>
                         {/* Botón de Drive general - solo para jefes y admins */}
@@ -3182,11 +3422,23 @@ const SeriesManagement = () => {
                         </Typography>
                       )}
                       
-                      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        flexWrap: 'wrap',
+                        gap: { xs: 1, sm: 2 }, 
+                        mb: 2,
+                        width: '100%'
+                      }}>
                         <Chip
                           label={statusConfig.label}
                           size="small"
-                          sx={{ bgcolor: `${statusConfig.color}20`, color: statusConfig.color }}
+                          sx={{ 
+                            bgcolor: `${statusConfig.color}20`, 
+                            color: statusConfig.color,
+                            fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                            height: { xs: 24, sm: 28 },
+                            maxWidth: { xs: '48%', sm: 'none' }
+                          }}
                         />
                         {manga.isJoint && (
                           <Chip
@@ -3195,19 +3447,37 @@ const SeriesManagement = () => {
                             sx={{ 
                               bgcolor: 'rgba(147, 51, 234, 0.1)', 
                               color: '#9333ea',
-                              fontWeight: 600
+                              fontWeight: 600,
+                              fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                              height: { xs: 24, sm: 28 },
+                              maxWidth: { xs: '100%', sm: 'none' },
+                              '& .MuiChip-label': {
+                                padding: { xs: '0 6px', sm: '0 12px' }
+                              }
                             }}
                           />
                         )}
                         <Chip
                           label={`${stats.totalAssignments} asignaciones`}
                           size="small"
-                          sx={{ bgcolor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}
+                          sx={{ 
+                            bgcolor: 'rgba(59, 130, 246, 0.1)', 
+                            color: '#3b82f6',
+                            fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                            height: { xs: 24, sm: 28 },
+                            maxWidth: { xs: '48%', sm: 'none' }
+                          }}
                         />
                         <Chip
                           label={`${stats.totalChapters} capítulos`}
                           size="small"
-                          sx={{ bgcolor: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}
+                          sx={{ 
+                            bgcolor: 'rgba(16, 185, 129, 0.1)', 
+                            color: '#10b981',
+                            fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                            height: { xs: 24, sm: 28 },
+                            maxWidth: { xs: '48%', sm: 'none' }
+                          }}
                         />
                       </Box>
 
@@ -3258,6 +3528,7 @@ const SeriesManagement = () => {
                         userProfile={userProfile}
                         onMarkUploaded={handleMarkUploaded}
                         onMarkNotUploaded={handleMarkNotUploaded}
+                        onEditUnavailableTask={handleEditUnavailableTask}
                       />
                     </Box>
                   </Collapse>
@@ -3295,6 +3566,55 @@ const SeriesManagement = () => {
         prefilledType={assignmentDialog.prefilledType}
         inheritedDriveLink={assignmentDialog.inheritedDriveLink}
       />
+
+      {/* Unavailable Text Dialog */}
+      <Dialog 
+        open={unavailableTextDialog.open} 
+        onClose={() => setUnavailableTextDialog({ open: false, manga: null, chapter: null, taskType: null, currentText: '' })}
+        maxWidth="sm" 
+        fullWidth
+      >
+        <DialogTitle>
+          Editar texto personalizado
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Personalizando texto para la tarea "<strong>{ASSIGNMENT_TYPES[unavailableTextDialog.taskType]?.label || unavailableTextDialog.taskType}</strong>" 
+            en el capítulo <strong>{unavailableTextDialog.chapter}</strong> de 
+            "<strong>{unavailableTextDialog.manga?.title}</strong>"
+          </DialogContentText>
+          <TextField
+            autoFocus
+            fullWidth
+            label="Texto personalizado"
+            multiline
+            rows={3}
+            value={unavailableTextDialog.currentText}
+            onChange={(e) => setUnavailableTextDialog(prev => ({ ...prev, currentText: e.target.value }))}
+            variant="outlined"
+            placeholder="Ej: No necesario para este proyecto, Realizado por otro grupo, etc..."
+            helperText="Deja vacío para mostrar el texto por defecto 'No disponible'"
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setUnavailableTextDialog({ open: false, manga: null, chapter: null, taskType: null, currentText: '' })}
+            color="inherit"
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={() => {
+              handleSaveUnavailableText(unavailableTextDialog.currentText);
+              setUnavailableTextDialog({ open: false, manga: null, chapter: null, taskType: null, currentText: '' });
+            }}
+            variant="contained"
+          >
+            Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar */}
       <Snackbar

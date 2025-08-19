@@ -346,6 +346,32 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
                 </Button>
               )}
 
+              {/* Botón RAW para traducciones */}
+              {(() => {
+                // Buscar si hay alguna tarea de traducción con rawLink
+                const translationTask = chapterGroup.assignments.find(a => a.type === 'traduccion' && a.rawLink);
+                return translationTask ? (
+                  <Button
+                    size="small"
+                    startIcon={<LinkIcon />}
+                    href={translationTask.rawLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{ 
+                      textTransform: 'none',
+                      borderColor: '#6366f1',
+                      color: '#6366f1',
+                      '&:hover': {
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        borderColor: '#4f46e5'
+                      }
+                    }}
+                  >
+                    Ver RAW
+                  </Button>
+                ) : null;
+              })()}
+
               {/* Botones de acción rápida para tareas pendientes */}
               {chapterGroup.assignments.filter(a => canMarkComplete(a)).length > 0 && (
                 <Button
@@ -414,7 +440,7 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="body2" color="textSecondary">
-                  <strong>Estado:</strong> {getStatusLabel(selectedTask.status)}
+                  <strong>Estado:</strong> {getStatusLabel(selectedTask.status, selectedTask)}
                 </Typography>
               </Grid>
               {selectedTask.assignedDate && (
@@ -439,6 +465,51 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
                   <Typography variant="body2" sx={{ mt: 1 }}>
                     {selectedTask.description || selectedTask.notes}
                   </Typography>
+                </Grid>
+              )}
+              
+              {/* Enlaces del ChapterCard interno */}
+              {(selectedTask.driveLink || selectedTask.rawLink) && (
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                    <strong>Enlaces:</strong>
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {selectedTask.driveLink && (
+                      <Button
+                        startIcon={<LinkIcon />}
+                        href={selectedTask.driveLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="outlined"
+                        size="small"
+                        sx={{ textTransform: 'none' }}
+                      >
+                        Abrir en Google Drive
+                      </Button>
+                    )}
+                    {selectedTask.rawLink && selectedTask.type === 'traduccion' && (
+                      <Button
+                        startIcon={<LinkIcon />}
+                        href={selectedTask.rawLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="outlined"
+                        size="small"
+                        sx={{ 
+                          textTransform: 'none',
+                          borderColor: '#6366f1',
+                          color: '#6366f1',
+                          '&:hover': {
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            borderColor: '#4f46e5'
+                          }
+                        }}
+                      >
+                        Ver RAW para Traducir
+                      </Button>
+                    )}
+                  </Box>
                 </Grid>
               )}
               
@@ -621,7 +692,7 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
                         <TableCell>{ASSIGNMENT_TYPES[assignment.type]?.label || assignment.type}</TableCell>
                         <TableCell>
                           <Chip
-                            label={getStatusLabel(assignment.status)}
+                            label={getStatusLabel(assignment.status, assignment)}
                             color={getStatusColor(assignment.status)}
                             size="small"
                           />
@@ -691,6 +762,7 @@ const MyWorks = () => {
     tasks: ['traduccion'],
     assignedTo: '',
     driveLink: '',
+    rawLink: '',
     dueDate: '',
     priority: 'normal'
   });
@@ -769,16 +841,37 @@ const MyWorks = () => {
     }
   };
 
-  const getStatusLabel = (status) => {
+  // Función para determinar si una asignación fue completada con atraso
+  const wasCompletedLate = (assignment) => {
+    if (!assignment.dueDate) return false;
+    
+    const finalStates = ['completado', 'aprobado', 'uploaded'];
+    if (!finalStates.includes(assignment.status)) return false;
+    
+    const dueDate = new Date(assignment.dueDate);
+    const completedDate = assignment.completedDate ? new Date(assignment.completedDate) : new Date();
+    
+    return completedDate > dueDate;
+  };
+
+  const getStatusLabel = (status, assignment = null) => {
+    let statusText;
     switch (status) {
-      case 'completado': return 'Completado';
-      case 'aprobado': return 'Aprobado';
-      case 'pendiente_aprobacion': return 'Esperando Aprobación';
-      case 'rechazado': return 'Rechazado';
-      case 'pendiente': return 'Pendiente';
-      case 'uploaded': return 'Subido';
-      default: return 'Desconocido';
+      case 'completado': statusText = 'Completado'; break;
+      case 'aprobado': statusText = 'Aprobado'; break;
+      case 'pendiente_aprobacion': statusText = 'Esperando Aprobación'; break;
+      case 'rechazado': statusText = 'Rechazado'; break;
+      case 'pendiente': statusText = 'Pendiente'; break;
+      case 'uploaded': statusText = 'Subido'; break;
+      default: statusText = 'Desconocido'; break;
     }
+    
+    // Agregar indicador de atraso si aplica
+    if (assignment && wasCompletedLate(assignment)) {
+      statusText += ' (con atraso)';
+    }
+    
+    return statusText;
   };
 
   const getPriorityColor = (priority) => {
@@ -874,8 +967,15 @@ const MyWorks = () => {
   // Funciones para crear nueva asignación
   const handleSubmitAssignment = async () => {
     try {
+      // Validar campos requeridos
       if (!formData.mangaId || !formData.chapter || !formData.assignedTo || !formData.driveLink) {
         toast.error('Por favor completa todos los campos requeridos');
+        return;
+      }
+      
+      // Validar rawLink si incluye traducción
+      if (formData.tasks.includes('traduccion') && !formData.rawLink) {
+        toast.error('El link de la RAW es requerido para asignaciones de traducción');
         return;
       }
 
@@ -910,6 +1010,7 @@ const MyWorks = () => {
       tasks: ['traduccion'],
       assignedTo: '',
       driveLink: '',
+      rawLink: '',
       dueDate: '',
       priority: 'normal'
     });
@@ -1100,7 +1201,7 @@ const MyWorks = () => {
     rejected: assignments.filter(a => a.status === 'rechazado').length,
     pending: assignments.filter(a => a.status === 'pendiente').length,
     uploaded: assignments.filter(a => a.status === 'uploaded').length,
-    overdue: assignments.filter(a => isOverdue(a.dueDate) && !['completado', 'aprobado', 'uploaded'].includes(a.status)).length
+    overdue: assignments.filter(a => isOverdue(a.dueDate) && !['completado', 'completed', 'aprobado', 'approved', 'uploaded'].includes(a.status)).length
   };
 
   // Filtrar asignaciones según el filtro de staff
@@ -2047,7 +2148,7 @@ const MyWorks = () => {
       }} maxWidth="md" fullWidth>
         <DialogTitle>
           {selectedTask ? 
-            `Detalles de la Tarea - ${getStatusLabel(selectedTask.status)}` : 
+            `Detalles de la Tarea - ${getStatusLabel(selectedTask.status, selectedTask)}` :
             selectedChapterGroup ? 
               `${selectedChapterGroup.assignments[0]?.status === 'rechazado' || selectedChapterGroup.assignments[0]?.reviewComment ? 
                 'Rechazos del Capítulo' : 
@@ -2076,7 +2177,7 @@ const MyWorks = () => {
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="body2" color="textSecondary">
-                  <strong>Estado:</strong> {getStatusLabel(selectedTask.status)}
+                  <strong>Estado:</strong> {getStatusLabel(selectedTask.status, selectedTask)}
                 </Typography>
               </Grid>
               {selectedTask.assignedDate && (
@@ -2105,22 +2206,47 @@ const MyWorks = () => {
               )}
               
               {/* Enlaces */}
-              {selectedTask.driveLink && (
+              {(selectedTask.driveLink || selectedTask.rawLink) && (
                 <Grid item xs={12}>
                   <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
                     <strong>Enlaces:</strong>
                   </Typography>
-                  <Button
-                    startIcon={<LinkIcon />}
-                    href={selectedTask.driveLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    variant="outlined"
-                    size="small"
-                    sx={{ textTransform: 'none' }}
-                  >
-                    Abrir en Google Drive
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {selectedTask.driveLink && (
+                      <Button
+                        startIcon={<LinkIcon />}
+                        href={selectedTask.driveLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="outlined"
+                        size="small"
+                        sx={{ textTransform: 'none' }}
+                      >
+                        Abrir en Google Drive
+                      </Button>
+                    )}
+                    {selectedTask.rawLink && selectedTask.type === 'traduccion' && (
+                      <Button
+                        startIcon={<LinkIcon />}
+                        href={selectedTask.rawLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="outlined"
+                        size="small"
+                        sx={{ 
+                          textTransform: 'none',
+                          borderColor: '#6366f1',
+                          color: '#6366f1',
+                          '&:hover': {
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            borderColor: '#4f46e5'
+                          }
+                        }}
+                      >
+                        Ver RAW para Traducir
+                      </Button>
+                    )}
+                  </Box>
                 </Grid>
               )}
               
@@ -2394,7 +2520,7 @@ const MyWorks = () => {
                             {TASK_TYPES[assignment.type] || assignment.type}
                           </Typography>
                           <Chip
-                            label={getStatusLabel(assignment.status)}
+                            label={getStatusLabel(assignment.status, assignment)}
                             color={getStatusColor(assignment.status)}
                             size="small"
                           />
@@ -2712,6 +2838,33 @@ const MyWorks = () => {
                       Abrir en Google Drive
                     </Button>
                   )}
+                  
+                  {/* Botón RAW para traducciones */}
+                  {(() => {
+                    // Buscar si hay alguna tarea de traducción con rawLink
+                    const translationTask = selectedChapterGroup.assignments.find(a => a.type === 'traduccion' && a.rawLink);
+                    return translationTask ? (
+                      <Button
+                        variant="outlined"
+                        startIcon={<LinkIcon />}
+                        href={translationTask.rawLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ 
+                          textTransform: 'none',
+                          borderColor: '#6366f1',
+                          color: '#6366f1',
+                          '&:hover': {
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            borderColor: '#4f46e5'
+                          }
+                        }}
+                      >
+                        Ver RAW
+                      </Button>
+                    ) : null;
+                  })()
+                  }
                 </Box>
               </Grid>
             </Grid>
@@ -2885,6 +3038,24 @@ const MyWorks = () => {
               />
             </Grid>
             
+            {/* Campo para link de la RAW - Solo aparece si incluye traducción */}
+            {formData.tasks.includes('traduccion') && (
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Link de la RAW a traducir"
+                  value={formData.rawLink}
+                  onChange={(e) => setFormData({ ...formData, rawLink: e.target.value })}
+                  InputProps={{
+                    startAdornment: <LinkIcon sx={{ color: 'text.secondary', mr: 1 }} />
+                  }}
+                  placeholder="https://ejemplo.com/manga-raw..."
+                  helperText="Enlace directo a la RAW para traducir (requerido para traducciones)"
+                  required={formData.tasks.includes('traduccion')}
+                />
+              </Grid>
+            )}
+            
             <Grid item xs={12}>
               <TextField
                 fullWidth
@@ -2908,7 +3079,13 @@ const MyWorks = () => {
           <Button 
             onClick={handleSubmitAssignment} 
             variant="contained"
-            disabled={!formData.mangaId || !formData.chapter || !formData.assignedTo || !formData.driveLink}
+            disabled={
+              !formData.mangaId || 
+              !formData.chapter || 
+              !formData.assignedTo || 
+              !formData.driveLink ||
+              (formData.tasks.includes('traduccion') && !formData.rawLink)
+            }
           >
             Crear Asignación
           </Button>

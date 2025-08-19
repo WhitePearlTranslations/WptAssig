@@ -17,7 +17,9 @@ import {
   ListItemIcon,
   ListItemText,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Badge,
+  Tooltip
 } from '@mui/material';
 import {
   AccountCircle,
@@ -40,6 +42,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { useAuth, ROLES } from '../contexts/AuthContext';
+import { usePendingReviewsCount } from '../hooks/usePendingReviews';
 
 const Navbar = () => {
   const { currentUser, userProfile, hasRole } = useAuth();
@@ -47,6 +50,10 @@ const Navbar = () => {
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
+  
+  // Hook para contar revisiones pendientes (solo para jefes)
+  const pendingReviewsCount = usePendingReviewsCount();
+  const isChief = hasRole(ROLES.ADMIN) || hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR);
   
   const [anchorEl, setAnchorEl] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -124,7 +131,15 @@ const Navbar = () => {
       icon: ReviewIcon,
       path: '/reviews',
       color: '#f59e0b',
-      show: hasRole(ROLES.ADMIN) || hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR)
+      show: hasRole(ROLES.ADMIN) || hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR),
+      badge: isChief ? pendingReviewsCount : 0
+    },
+    {
+      text: 'Usuarios',
+      icon: People,
+      path: '/users',
+      color: '#ef4444',
+      show: hasRole(ROLES.ADMIN)
     },
     {
       text: 'Series',
@@ -240,6 +255,7 @@ const Navbar = () => {
           return (
             <ListItem
               key={item.path}
+              data-tour={`${item.path.substring(1)}-nav`}
               sx={{
                 borderRadius: '12px',
                 mb: 1,
@@ -255,7 +271,26 @@ const Navbar = () => {
               onClick={() => handleNavigation(item.path)}
             >
               <ListItemIcon sx={{ minWidth: 40 }}>
-                <Icon sx={{ color: isActive ? item.color : '#94a3b8', fontSize: '1.2rem' }} />
+                {item.badge && item.badge > 0 ? (
+                  <Badge 
+                    badgeContent={item.badge} 
+                    color="warning" 
+                    max={999}
+                    sx={{
+                      '& .MuiBadge-badge': {
+                        backgroundColor: '#f59e0b',
+                        color: 'white',
+                        fontSize: '0.75rem',
+                        height: '18px',
+                        minWidth: '18px'
+                      }
+                    }}
+                  >
+                    <Icon sx={{ color: isActive ? item.color : '#94a3b8', fontSize: '1.2rem' }} />
+                  </Badge>
+                ) : (
+                  <Icon sx={{ color: isActive ? item.color : '#94a3b8', fontSize: '1.2rem' }} />
+                )}
               </ListItemIcon>
               <ListItemText
                 primary={item.text}
@@ -275,6 +310,7 @@ const Navbar = () => {
       {/* Mobile Footer Actions */}
       <Box sx={{ p: 2, borderTop: '1px solid rgba(148, 163, 184, 0.1)' }}>
         <ListItem
+          data-tour="profile-menu"
           sx={{
             borderRadius: '12px',
             mb: 1,
@@ -291,6 +327,7 @@ const Navbar = () => {
         
         {hasRole(ROLES.ADMIN) && (
           <ListItem
+            data-tour="admin-nav"
             sx={{
               borderRadius: '12px',
               mb: 1,
@@ -344,12 +381,15 @@ const Navbar = () => {
         <Toolbar sx={{ py: { xs: 0.5, md: 1 } }}>
           {/* Logo and Title */}
           <Box 
+            data-tour="dashboard"
             sx={{ 
               display: 'flex', 
               alignItems: 'center', 
               flexGrow: 1,
+              cursor: 'pointer'
             }}
             className="animate-slide-in-left"
+            onClick={() => handleNavigation('/dashboard')}
           >
             <Box
               sx={{
@@ -428,7 +468,31 @@ const Navbar = () => {
                 <Button
                   key={item.path}
                   color="inherit"
-                  startIcon={<Icon />}
+                  data-tour={`${item.path.substring(1)}-nav`}
+                  startIcon={
+                    item.badge && item.badge > 0 ? (
+                      <Badge 
+                        badgeContent={item.badge} 
+                        color="warning" 
+                        max={999}
+                        sx={{
+                          '& .MuiBadge-badge': {
+                            backgroundColor: '#f59e0b',
+                            color: 'white',
+                            fontSize: '0.7rem',
+                            height: '16px',
+                            minWidth: '16px',
+                            top: '-2px',
+                            right: '-2px'
+                          }
+                        }}
+                      >
+                        <Icon />
+                      </Badge>
+                    ) : (
+                      <Icon />
+                    )
+                  }
                   onClick={() => handleNavigation(item.path)}
                   sx={{
                     borderRadius: '12px',
@@ -467,6 +531,45 @@ const Navbar = () => {
             })}
           </Box>
 
+          {/* Notification Badge for Mobile - Show before menu button */}
+          {isChief && pendingReviewsCount > 0 && (
+            <Box sx={{ display: { xs: 'flex', lg: 'none' }, mr: 1 }}>
+              <Tooltip title={`${pendingReviewsCount} revisión${pendingReviewsCount > 1 ? 'es' : ''} pendiente${pendingReviewsCount > 1 ? 's' : ''}`}>
+                <IconButton
+                  onClick={() => handleNavigation('/reviews')}
+                  sx={{
+                    borderRadius: '12px',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      background: 'rgba(245, 158, 11, 0.1)',
+                      transform: 'scale(1.05)'
+                    }
+                  }}
+                >
+                  <Badge 
+                    badgeContent={pendingReviewsCount} 
+                    color="warning" 
+                    max={999}
+                    sx={{
+                      '& .MuiBadge-badge': {
+                        backgroundColor: '#f59e0b',
+                        color: 'white',
+                        animation: 'pulse 2s infinite',
+                        '@keyframes pulse': {
+                          '0%': { transform: 'scale(1)' },
+                          '50%': { transform: 'scale(1.1)' },
+                          '100%': { transform: 'scale(1)' },
+                        }
+                      }
+                    }}
+                  >
+                    <ReviewIcon sx={{ color: '#f59e0b' }} />
+                  </Badge>
+                </IconButton>
+              </Tooltip>
+            </Box>
+          )}
+
           {/* Mobile Menu Button */}
           <Box sx={{ display: { xs: 'flex', lg: 'none' }, alignItems: 'center', gap: 1 }}>
             <IconButton
@@ -491,6 +594,7 @@ const Navbar = () => {
               size="large"
               onClick={handleMenu}
               color="inherit"
+              data-tour="profile-menu"
               sx={{
                 borderRadius: '12px',
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',

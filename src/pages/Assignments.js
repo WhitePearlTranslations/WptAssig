@@ -100,7 +100,7 @@ const Assignments = () => {
   const [filters, setFilters] = useState({
     manga: '',
     user: '',
-    status: 'pendiente',
+    status: '',
     search: '',
     week: ''
   });
@@ -140,7 +140,8 @@ const Assignments = () => {
     assignedTo: '',
     dueDate: '',
     notes: '',
-    driveLink: ''
+    driveLink: '',
+    rawLink: '' // Agregado para manejar enlaces RAW
   });
 
   const TASK_TYPES = {
@@ -574,9 +575,38 @@ const Assignments = () => {
     }
   };
 
-  const getStatusColor = (status) => {
+  // Función para determinar si una asignación fue completada con atraso
+  const wasCompletedLate = (assignment) => {
+    if (!assignment.dueDate) return false;
+    
+    const finalStates = ['completado', 'aprobado', 'uploaded'];
+    if (!finalStates.includes(assignment.status)) return false;
+    
+    const dueDate = new Date(assignment.dueDate);
+    const completedDate = assignment.completedDate ? new Date(assignment.completedDate) : new Date();
+    
+    return completedDate > dueDate;
+  };
+
+  // Función para obtener el texto del estado con indicador de atraso
+  const getStatusText = (assignment) => {
+    let statusText = assignment.status.replace('_', ' ').toUpperCase();
+    
+    if (wasCompletedLate(assignment)) {
+      statusText += ' (CON ATRASO)';
+    }
+    
+    return statusText;
+  };
+
+  const getStatusColor = (assignment) => {
+    // Si es un objeto assignment, usar su status, sino asumir que es un string status directo
+    const status = typeof assignment === 'string' ? assignment : assignment.status;
+    
     switch (status) {
       case 'completado':
+      case 'aprobado':
+      case 'uploaded':
         return 'success';
       case 'en_progreso':
         return 'warning';
@@ -585,9 +615,14 @@ const Assignments = () => {
     }
   };
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (assignment) => {
+    // Si es un objeto assignment, usar su status, sino asumir que es un string status directo
+    const status = typeof assignment === 'string' ? assignment : assignment.status;
+    
     switch (status) {
       case 'completado':
+      case 'aprobado':
+      case 'uploaded':
         return <CheckCircle color="success" />;
       case 'en_progreso':
         return <Schedule color="warning" />;
@@ -707,7 +742,9 @@ const Assignments = () => {
   };
 
   const getGroupStatus = (assignments) => {
-    const allCompleted = assignments.every(a => a.status === 'completado');
+    // Considerar estados finales: completado, aprobado, uploaded
+    const finalStates = ['completado', 'aprobado', 'uploaded'];
+    const allCompleted = assignments.every(a => finalStates.includes(a.status));
     const anyInProgress = assignments.some(a => a.status === 'en_progreso');
     
     if (allCompleted) return 'completado';
@@ -981,6 +1018,12 @@ const Assignments = () => {
         return;
       }
 
+      // Validar que el enlace RAW sea obligatorio para tareas de traducción
+      if (newAssignmentForm.tasks.includes('traduccion') && (!newAssignmentForm.rawLink || newAssignmentForm.rawLink.trim() === '')) {
+        toast.error('Por favor ingresa el enlace RAW para la traducción');
+        return;
+      }
+
       const manga = mangas.find(m => m.id === newAssignmentForm.mangaId);
       const assignedUser = newAssignmentForm.assignedTo 
         ? users.find(u => (u.uid || u.id) === newAssignmentForm.assignedTo)
@@ -1001,6 +1044,7 @@ const Assignments = () => {
           dueDate: newAssignmentForm.dueDate,
           notes: newAssignmentForm.notes,
           driveLink: newAssignmentForm.driveLink,
+          rawLink: task === 'traduccion' ? newAssignmentForm.rawLink : '', // Solo agregar rawLink para traducciones
           status: newAssignmentForm.assignedTo ? 'pendiente' : 'sin_asignar',
           progress: 0,
           priority: 'normal',
@@ -2183,9 +2227,9 @@ const Assignments = () => {
                                   }}
                                 />
                                 <Chip
-                                  icon={getStatusIcon(assignment.status)}
-                                  label={assignment.status.replace('_', ' ').toUpperCase()}
-                                  color={getStatusColor(assignment.status)}
+                                  icon={getStatusIcon(assignment)}
+                                  label={getStatusText(assignment)}
+                                  color={getStatusColor(assignment)}
                                   size="small"
                                   sx={{ fontWeight: 500 }}
                                 />
@@ -2565,6 +2609,27 @@ const Assignments = () => {
                 placeholder="https://drive.google.com/..."
               />
             </Grid>
+            
+            {/* Campo para link de la RAW - Solo aparece si incluye traducción */}
+            {newAssignmentForm.tasks.includes('traduccion') && (
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Link de la RAW a traducir"
+                  value={newAssignmentForm.rawLink || ''}
+                  onChange={(e) => setNewAssignmentForm({
+                    ...newAssignmentForm,
+                    rawLink: e.target.value
+                  })}
+                  InputProps={{
+                    startAdornment: <LinkIcon sx={{ color: 'text.secondary', mr: 1 }} />
+                  }}
+                  placeholder="https://ejemplo.com/manga-raw..."
+                  helperText="Enlace directo a la RAW para traducir (requerido para traducciones)"
+                  required={newAssignmentForm.tasks.includes('traduccion')}
+                />
+              </Grid>
+            )}
             
             {/* Notas */}
             <Grid item xs={12}>

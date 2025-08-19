@@ -11,21 +11,72 @@
     {
       "src": "logo.webp",
       "type": "image/webp",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
       "src": "logo192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
       "src": "logo512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
   "theme_color": "#6366f1",
-  "background_color": "#0a0a0f"
+  "background_color": "#0a0a0f",
+  "lang": "es",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "categories": ["productivity", "business", "utilities"],
+  "screenshots": [
+    {
+      "src": "logo512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Dashboard de Asignaciones"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Mis Trabajos",
+      "short_name": "Trabajos",
+      "description": "Ver mis asignaciones actuales",
+      "url": "/my-works",
+      "icons": [
+        {
+          "src": "favicon.ico",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Inicio",
+      "description": "Ir al dashboard principal",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "favicon.ico",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "serviceworker": {
+    "src": "service-worker.js",
+    "scope": "/"
+  },
+  "gcm_sender_id": "103953800507"
 }

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Notificaciones</title>
+</head>
+<body>
+    <h1>Prueba Rápida de Notificaciones</h1>
+    <button onclick="testNotification()">Probar Notificación</button>
+    
+    <script>
+        async function testNotification() {
+            // Solicitar permisos
+            const permission = await Notification.requestPermission();
+            
+            if (permission === 'granted') {
+                // Mostrar notificación de prueba
+                new Notification('¡Funciona!', {
+                    body: 'El sistema de notificaciones está operativo',
+                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="50%" font-size="60">✅</text></svg>'
+                });
+                
+                console.log('✅ Notificaciones funcionan correctamente');
+            } else {
+                console.log('❌ Permisos denegados');
+                alert('Permisos de notificación denegados');
+            }
+        }
+    </script>
+</body>
+</html>

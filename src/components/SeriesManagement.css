@@ -349,6 +349,21 @@
   .gradient-text:hover::after {
     width: 0;
   }
+  
+  /* Disable heavy effects on touch devices */
+  .particle-bg::before {
+    display: none;
+  }
+  
+  .dynamic-shadow:hover {
+    box-shadow: none;
+  }
+  
+  .status-glow-completed,
+  .status-glow-in-progress,
+  .status-glow-uploaded {
+    box-shadow: none;
+  }
 }
 
 /* High DPI displays */
@@ -580,4 +595,300 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(135deg, #5b5bd6, #7c3aed);
+}
+
+/* =============================================== */
+/* ADDITIONAL MOBILE OPTIMIZATIONS */
+/* =============================================== */
+
+/* Mobile-first critical fixes */
+@media (max-width: 767.98px) {
+  /* Fix container and card layout issues */
+  .MuiContainer-root {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+  
+  /* Fix card content overflow */
+  .MuiCard-root {
+    margin: 8px 0 !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    width: 100% !important;
+    max-width: calc(100vw - 16px) !important;
+  }
+  
+  .MuiCardContent-root {
+    padding: 12px !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    hyphens: auto !important;
+  }
+  
+  /* Fix Typography text overflow */
+  .MuiTypography-h2,
+  .MuiTypography-h3,
+  .MuiTypography-h4,
+  .MuiTypography-h5,
+  .MuiTypography-h6 {
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    hyphens: auto !important;
+    line-height: 1.2 !important;
+  }
+  
+  .MuiTypography-h2 {
+    font-size: 1.5rem !important;
+  }
+  
+  .MuiTypography-h5 {
+    font-size: 1.1rem !important;
+  }
+  
+  .MuiTypography-h6 {
+    font-size: 1rem !important;
+  }
+  
+  /* Fix chip layout overflow */
+  .MuiChip-root {
+    margin: 2px !important;
+    max-width: calc(50% - 4px) !important;
+    font-size: 0.7rem !important;
+  }
+  
+  /* Fix Box flex layout issues */
+  .MuiBox-root {
+    min-width: 0 !important;
+    flex-wrap: wrap !important;
+  }
+  
+  /* Fix Grid container issues */
+  .MuiGrid-container {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+  
+  .MuiGrid-item {
+    padding: 4px !important;
+    max-width: 100% !important;
+    flex-basis: 100% !important;
+  }
+  
+  /* Fix series card image and content layout */
+  .series-card-content {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  
+  .series-card-header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    padding: 12px !important;
+  }
+  
+  .series-card-image {
+    width: 60px !important;
+    height: 90px !important;
+    flex-shrink: 0 !important;
+    align-self: center !important;
+  }
+  
+  .series-card-info {
+    flex: 1 !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+  
+  .series-card-title {
+    font-size: 1.1rem !important;
+    line-height: 1.2 !important;
+    margin-bottom: 4px !important;
+  }
+  
+  .series-card-chips {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+    margin: 8px 0 !important;
+  }
+  
+  /* Simplify particle background on mobile */
+  .particle-bg::before {
+    background: 
+      radial-gradient(circle at 20% 80%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
+    opacity: 0.3;
+    animation: none;
+  }
+  
+  /* Disable complex animations on mobile */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease;
+  }
+  
+  /* Simplify glassmorphism effects */
+  .glass-card {
+    background: rgba(15, 15, 25, 0.9);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  
+  /* Remove hover effects that don't work on mobile */
+  .hover-glow:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  
+  .hover-glow::before {
+    display: none;
+  }
+  
+  .glow-button::before {
+    display: none;
+  }
+  
+  .dynamic-shadow:hover {
+    box-shadow: none;
+  }
+  
+  .image-zoom:hover img {
+    transform: none;
+  }
+  
+  .gradient-text:hover::after {
+    display: none;
+  }
+  
+  /* Optimize text rendering on mobile */
+  .gradient-text {
+    background: #6366f1;
+    -webkit-background-clip: initial;
+    -webkit-text-fill-color: initial;
+    background-clip: initial;
+    color: #6366f1;
+  }
+}
+
+/* Improved mobile touch targets */
+@media (max-width: 768px) {
+  /* Ensure all clickable elements meet minimum touch target size */
+  button, 
+  .glow-button,
+  [role="button"],
+  .hover-glow[role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px 16px;
+  }
+  
+  /* Improve form inputs on mobile */
+  input, 
+  select, 
+  textarea {
+    min-height: 44px;
+    font-size: 16px; /* Prevents iOS zoom */
+    padding: 12px 16px;
+    border-radius: 8px;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  
+  /* Better spacing for mobile */
+  .responsive-container {
+    padding: 0 16px;
+  }
+  
+  .responsive-grid {
+    gap: 16px;
+  }
+  
+  .glass-card {
+    margin: 8px 0;
+    padding: 16px;
+  }
+}
+
+/* Performance optimizations for mobile */
+@media (max-width: 768px) {
+  /* Use transform3d to trigger hardware acceleration */
+  .animate-fade-in {
+    transform: translate3d(0, 0, 0);
+  }
+  
+  /* Optimize will-change for animations */
+  .loading-shimmer {
+    will-change: background-position;
+  }
+  
+  .pulse {
+    will-change: opacity;
+  }
+  
+  /* Remove will-change from hover effects */
+  .hover-glow {
+    will-change: auto;
+  }
+}
+
+/* Tablet-specific optimizations */
+@media (min-width: 769px) and (max-width: 1023px) {
+  .responsive-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+  
+  .glass-card {
+    padding: 20px;
+  }
+  
+  .glow-button {
+    padding: 14px 24px;
+  }
+  
+  /* Keep some hover effects for tablets */
+  .hover-glow:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(99, 102, 241, 0.1);
+  }
+}
+
+/* Landscape orientation optimizations */
+@media (max-width: 768px) and (orientation: landscape) {
+  .responsive-container {
+    padding: 0 24px;
+  }
+  
+  .glass-card {
+    padding: 12px 20px;
+  }
+  
+  .responsive-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+/* Safe area support for mobile devices */
+@supports (padding: max(0px)) {
+  .responsive-container {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+}
+
+/* Dark mode mobile optimizations */
+@media (max-width: 768px) and (prefers-color-scheme: dark) {
+  .glass-card {
+    background: rgba(15, 15, 25, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+  }
+  
+  .loading-shimmer {
+    background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%);
+  }
 }
