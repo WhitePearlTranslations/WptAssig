@@ -158,7 +158,7 @@ export const AuthProvider = ({ children }) => {
               console.log('🆘 AuthContext - Firebase bloqueado, intentando API REST...');
               
               try {
-                // Intentar obtener datos vía REST API como último recurso
+                // Intentar obtener datos vía REST API
                 const response = await fetch(`https://wptasignacion-default-rtdb.firebaseio.com/users/${user.uid}.json`);
                 
                 if (response.ok) {
@@ -173,6 +173,59 @@ export const AuthProvider = ({ children }) => {
                 }
               } catch (restError) {
                 console.error('❌ AuthContext - Error en REST API fallback:', restError);
+                console.log('📞 AuthContext - Intentando JSONP como último recurso...');
+                
+                // Fallback JSONP - esto bypasea completamente CSP
+                try {
+                  const jsonpCallback = `firebase_callback_${Date.now()}`;
+                  
+                  window[jsonpCallback] = (data) => {
+                    if (data) {
+                      const profileData = { uid: user.uid, ...data };
+                      console.log('✅ AuthContext - Perfil obtenido vía JSONP:', profileData);
+                      setUserProfile(profileData);
+                    } else {
+                      setUserProfile({ uid: user.uid });
+                    }
+                    setLoading(false);
+                    // Cleanup
+                    delete window[jsonpCallback];
+                    const scriptElement = document.getElementById(jsonpCallback);
+                    if (scriptElement) {
+                      scriptElement.remove();
+                    }
+                  };
+                  
+                  const script = document.createElement('script');
+                  script.id = jsonpCallback;
+                  script.src = `https://wptasignacion-default-rtdb.firebaseio.com/users/${user.uid}.json?callback=${jsonpCallback}`;
+                  script.onerror = () => {
+                    console.error('❌ AuthContext - JSONP fallback también falló');
+                    setUserProfile({ uid: user.uid });
+                    setLoading(false);
+                    delete window[jsonpCallback];
+                  };
+                  
+                  document.head.appendChild(script);
+                  
+                  // Timeout para JSONP
+                  setTimeout(() => {
+                    if (window[jsonpCallback]) {
+                      console.log('⏰ AuthContext - Timeout JSONP, usando perfil básico');
+                      setUserProfile({ uid: user.uid });
+                      setLoading(false);
+                      delete window[jsonpCallback];
+                      const scriptElement = document.getElementById(jsonpCallback);
+                      if (scriptElement) {
+                        scriptElement.remove();
+                      }
+                    }
+                  }, 5000);
+                  
+                  return; // Exit early, JSONP will handle the rest
+                } catch (jsonpError) {
+                  console.error('❌ AuthContext - Error en JSONP fallback:', jsonpError);
+                }
               }
               
               console.log('🆘 AuthContext - Usando perfil básico como último recurso');
