@@ -56,7 +56,7 @@ import {
   Timeline as TimelineIcon,
   TrendingUp as TrendingUpIcon
 } from '@mui/icons-material';
-import { useAuth, ROLES } from '../contexts/AuthContext';
+import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { ASSIGNMENT_STATUS, STATUS_CONFIG, TASK_TYPES, isChiefRole } from '../utils/constants';
 import realtimeService from '../services/realtimeService';
 import { toast } from 'react-hot-toast';

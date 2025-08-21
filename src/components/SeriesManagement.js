@@ -69,7 +69,7 @@ import {
   Upload as UploadIcon,
 } from '@mui/icons-material';
 import { realtimeService } from '../services/realtimeService';
-import { useAuth, ROLES } from '../contexts/AuthContext';
+import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { getUniqueUsers } from '../utils/cleanDuplicateUsers';
 
 // Estados y configuraciones
@@ -435,18 +435,6 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
             // 2. No está completamente terminado ni subido
             const hasWorkInProgress = assignedCount > 0 && !isChapterCompleted && !isChapterUploaded;
             
-            // Debug logging para verificar el estado
-            if (allAssignments.length > 0) {
-              console.log(`CAPÍTULO ${chapter}:`, {
-                allAssignments: allAssignments.length,
-                assignedAssignments: assignedAssignments.length,
-                requiredTaskCount,
-                isChapterCompleted,
-                isChapterUploaded,
-                userRole: userProfile?.role,
-                assignments: allAssignments.map(a => ({ type: a.type, status: a.status, assignedTo: !!a.assignedTo }))
-              });
-            }
             
             return (
               <TableRow
@@ -2312,8 +2300,6 @@ const SeriesManagement = () => {
       // Buscar el usuario asignado para obtener su nombre (si hay uno)
       const assignedUser = formData.assignedTo ? users.find(u => (u.uid || u.id) === formData.assignedTo) : null;
       
-      // Debug logging
-      // Debug message removed for production
       
       if (existingAssignment) {
         // Actualizar asignación existente

@@ -74,7 +74,7 @@ import {
   ErrorOutline as ErrorOutlineIcon,
   InfoOutlined as InfoOutlinedIcon,
 } from '@mui/icons-material';
-import { useAuth, ROLES } from '../contexts/AuthContext';
+import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 
 // Componente reutilizable para diálogos de confirmación
 const ConfirmDialog = ({ open, onClose, onConfirm, title, message }) => {
@@ -113,7 +113,7 @@ const MangaManagement = () => {
     coverImage: '',
     isJoint: false,
     jointPartner: '',
-    availableTasks: ['traduccion', 'edicion', 'limpieza', 'typesetting']
+    availableTasks: ['traduccion', 'proofreading', 'limpieza', 'typesetting']
   });
 
   // Cargar mangas desde Firebase
@@ -225,7 +225,7 @@ const MangaManagement = () => {
       coverImage: manga.coverImage || '',
       isJoint: manga.isJoint || false,
       jointPartner: manga.jointPartner || '',
-      availableTasks: manga.availableTasks || ['traduccion', 'edicion', 'limpieza', 'typesetting']
+      availableTasks: manga.availableTasks || ['traduccion', 'proofreading', 'limpieza', 'typesetting']
     });
     setDialogOpen(true);
   };
@@ -303,7 +303,7 @@ const MangaManagement = () => {
       coverImage: '',
       isJoint: false,
       jointPartner: '',
-      availableTasks: ['traduccion', 'edicion', 'limpieza', 'typesetting']
+      availableTasks: ['traduccion', 'proofreading', 'limpieza', 'typesetting']
     });
   };
 
@@ -682,7 +682,7 @@ const MangaManagement = () => {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   {[
                     { key: 'traduccion', label: 'Traducción', icon: '📝' },
-                    { key: 'edicion', label: 'Edición', icon: '✏️' },
+                    { key: 'proofreading', label: 'Proofreading', icon: '✏️' },
                     { key: 'limpieza', label: 'Limpieza', icon: '🧹' },
                     { key: 'typesetting', label: 'Typesetting', icon: '🎨' }
                   ].map((task) => (

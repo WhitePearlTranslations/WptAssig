@@ -67,7 +67,7 @@ import {
   ThumbUp,
   HourglassTop
 } from '@mui/icons-material';
-import { useAuth, ROLES } from '../contexts/AuthContext';
+import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { realtimeService } from '../services/realtimeService';
 import { ASSIGNMENT_STATUS, STATUS_CONFIG, TASK_TYPES, isChiefRole, matchChiefRoleForAssignmentType } from '../utils/constants';
 import toast from 'react-hot-toast';

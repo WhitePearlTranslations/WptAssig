@@ -3,7 +3,7 @@
 
 import { ref, set, get } from 'firebase/database';
 import { realtimeDb } from '../services/firebase';
-import { ROLES } from '../contexts/AuthContext';
+import { ROLES } from '../contexts/AuthContextSimple';
 
 const ADMIN_UID = '7HIHfawVZtYBnUgIsvuspXY9DCw1';
 

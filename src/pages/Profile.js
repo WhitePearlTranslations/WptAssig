@@ -33,7 +33,7 @@ import { ref, update, query, orderByChild, equalTo, onValue } from 'firebase/dat
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { realtimeDb } from '../services/firebase';
 import { realtimeService } from '../services/realtimeService';
-import { useAuth, ROLES } from '../contexts/AuthContext';
+import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { usePageTour } from '../hooks/usePageTour';
 import toast from 'react-hot-toast';
 

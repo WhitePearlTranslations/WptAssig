@@ -1,7 +1,7 @@
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
 import { ref, set, update, remove, get } from 'firebase/database';
 import { auth, realtimeDb } from './firebase';
-import { ROLES } from '../contexts/AuthContext';
+import { ROLES } from '../contexts/AuthContextSimple';
 
 // Crear usuario usando Firebase Auth REST API para evitar cerrar sesión del admin
 const createUserWithRestAPI = async (email, password) => {

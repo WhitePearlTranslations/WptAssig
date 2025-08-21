@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useAuth, ROLES } from '../contexts/AuthContext';
+import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { realtimeService } from '../services/realtimeService';
 import { ASSIGNMENT_STATUS } from '../utils/constants';
 

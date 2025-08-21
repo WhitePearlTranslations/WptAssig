@@ -42,7 +42,7 @@ import {
   Edit as EditIcon,
 } from '@mui/icons-material';
 import { realtimeService } from '../services/realtimeService';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContextSimple';
 
 // Estados de capítulo
 const CHAPTER_STATUS = {

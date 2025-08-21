@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { notificationService } from '../services/notificationService';
-import { ROLES } from '../contexts/AuthContext';
+import { ROLES } from '../contexts/AuthContextSimple';
 
 export const useNotificationMonitor = (assignments = [], userProfile = null) => {
   const previousAssignmentsRef = useRef([]);

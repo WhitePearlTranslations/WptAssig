@@ -37,7 +37,7 @@ import {
   Work as WorkIcon,
   AccountCircle as AccountCircleIcon,
 } from '@mui/icons-material';
-import { useAuth, ROLES } from '../contexts/AuthContext';
+import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 
 // Componente para mostrar una asignación individual
 const AssignmentCard = ({ assignment, userRole, onMarkComplete, onMarkUploaded }) => {

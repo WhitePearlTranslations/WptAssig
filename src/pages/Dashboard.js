@@ -50,7 +50,7 @@ import {
   LabelList
 } from 'recharts';
 import { realtimeService } from '../services/realtimeService';
-import { useAuth, ROLES } from '../contexts/AuthContext';
+import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { useNavigate } from 'react-router-dom';
 import { usePendingReviews } from '../hooks/usePendingReviews';
 import { ReviewNotificationCard } from '../components/NotificationBadge';

@@ -35,7 +35,7 @@ import {
 import { ref, onValue, set, update, remove, push } from 'firebase/database';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { realtimeDb, auth } from '../services/firebase';
-import { useAuth, ROLES } from '../contexts/AuthContext';
+import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import toast from 'react-hot-toast';
 
 const Users = () => {

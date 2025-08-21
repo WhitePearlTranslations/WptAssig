@@ -67,7 +67,7 @@ import {
   Sync
 } from '@mui/icons-material';
 import { realtimeService } from '../services/realtimeService';
-import { useAuth, ROLES } from '../contexts/AuthContext';
+import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { getUniqueUsers } from '../utils/cleanDuplicateUsers';
 import useAssignmentsSync from '../hooks/useAssignmentsSync';
 import toast from 'react-hot-toast';
@@ -88,9 +88,8 @@ const Assignments = () => {
     assignments, 
     loading: assignmentsLoading, 
     error: assignmentsError,
-    forceRefresh,
-    debugInfo
-  } = useAssignmentsSync(userFilter, 'assignments-page');
+    forceRefresh
+  } = useAssignmentsSync(userFilter);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, type: null, data: null });
@@ -154,7 +153,7 @@ const Assignments = () => {
   // Mapeo entre los nombres de tareas del AdminPanel y los del componente Assignments
   const ADMIN_TO_ASSIGNMENT_TASK_MAP = {
     traduccion: 'traduccion',
-    edicion: 'proofreading',
+    proofreading: 'proofreading',
     limpieza: 'cleanRedrawer',
     typesetting: 'type'
   };
@@ -1182,52 +1181,6 @@ const Assignments = () => {
             </IconButton>
           </Tooltip>
           
-          {/* Botón de debug para test manual */}
-          {process.env.NODE_ENV === 'development' && (
-            <Tooltip title="Test manual sincronización con logs detallados (solo desarrollo)">
-              <IconButton
-                onClick={async () => {
-                  // Debug console cleared for production
-                  //  message removed for production
-                  //  message removed for production
-                  //  message removed for production
-                  
-                  // Mostrar estado actual de datos
-                  //  message removed for production
-                  //  message removed for production
-                  //  message removed for production
-                  //  message removed for production
-                  
-                  if (assignments.length > 0) {
-                    //  message removed for production
-                    assignments.forEach((assignment, idx) => {
-                      //  message removed for production
-                    });
-                  }
-                  
-                  //  message removed for production
-                  await handleSyncAssignments();
-                  //  message removed for production
-                }}
-                disabled={syncLoading || assignmentsLoading}
-                sx={{
-                  backgroundColor: 'rgba(236, 72, 153, 0.1)',
-                  color: '#ec4899',
-                  '&:hover': {
-                    backgroundColor: 'rgba(236, 72, 153, 0.2)',
-                    transform: 'scale(1.05)'
-                  },
-                  '&:disabled': {
-                    backgroundColor: 'rgba(107, 114, 128, 0.1)',
-                    color: '#6b7280'
-                  },
-                  transition: 'all 0.3s ease'
-                }}
-              >
-                <Search sx={{ fontSize: '1.2rem' }} />
-              </IconButton>
-            </Tooltip>
-          )}
           
           {(hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR)) && (
             <Button

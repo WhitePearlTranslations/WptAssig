@@ -11,7 +11,7 @@ import {
   CloudUpload as CloudUploadIcon,
   Analytics as AnalyticsIcon,
 } from '@mui/icons-material';
-import { useAuth, ROLES } from '../contexts/AuthContext';
+import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import NewUploadsPanel from '../components/NewUploadsPanel';
 import UploadReportsPanel from '../components/UploadReportsPanel';
 import { ToastContainer } from 'react-toastify';

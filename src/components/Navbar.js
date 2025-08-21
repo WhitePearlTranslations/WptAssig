@@ -41,7 +41,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth } from '../services/firebase';
-import { useAuth, ROLES } from '../contexts/AuthContext';
+import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { usePendingReviewsCount } from '../hooks/usePendingReviews';
 
 const Navbar = () => {

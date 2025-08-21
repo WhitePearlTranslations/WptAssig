@@ -36,5 +36,87 @@
   <body>
     <noscript>Necesitas habilitar JavaScript para ejecutar esta aplicación.</noscript>
     <div id="root"></div>
+    
+    <!-- Service Worker Cleanup Script -->
+    <script>
+      (function() {
+        'use strict';
+        
+        // Enhanced mobile detection
+        const userAgent = navigator.userAgent;
+        const screenWidth = window.innerWidth;
+        const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(userAgent);
+        const isMobileScreen = screenWidth < 768;
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const isMobile = isMobileUserAgent || (isMobileScreen && isTouchDevice);
+        
+        console.log('[App] Iniciando limpieza de Service Worker...', 'Mobile:', isMobile);
+        
+        // Función para limpiar service workers
+        async function cleanupServiceWorkers() {
+          if ('serviceWorker' in navigator) {
+            try {
+              console.log('[App] Verificando service workers existentes...');
+              
+              // Obtener todas las registraciones
+              const registrations = await navigator.serviceWorker.getRegistrations();
+              console.log('[App] Service workers encontrados:', registrations.length);
+              
+              // Desregistrar todos los service workers
+              for (const registration of registrations) {
+                console.log('[App] Desregistrando SW:', registration.scope);
+                await registration.unregister();
+                console.log('[App] SW desregistrado exitosamente');
+              }
+              
+              // Limpiar caches
+              if ('caches' in window) {
+                console.log('[App] Limpiando caches...');
+                const cacheNames = await caches.keys();
+                console.log('[App] Caches encontrados:', cacheNames);
+                
+                await Promise.all(
+                  cacheNames.map(cacheName => {
+                    console.log('[App] Eliminando cache:', cacheName);
+                    return caches.delete(cacheName);
+                  })
+                );
+                console.log('[App] Todos los caches eliminados');
+              }
+              
+              console.log('[App] Limpieza completa');
+              
+            } catch (error) {
+              console.error('[App] Error durante limpieza:', error);
+            }
+          } else {
+            console.log('[App] Service Workers no soportados');
+          }
+        }
+        
+        // Ejecutar limpieza inmediatamente
+        cleanupServiceWorkers();
+        
+        // Escuchar mensajes del service worker de limpieza
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.addEventListener('message', function(event) {
+            console.log('[App] Mensaje del SW:', event.data);
+            
+            if (event.data && event.data.type === 'SW_CLEANUP_COMPLETE') {
+              console.log('[App] Limpieza del SW completada, recargando...');
+              setTimeout(() => {
+                window.location.reload(true);
+              }, 1000);
+            }
+            
+            if (event.data && event.data.type === 'UNREGISTER_SW') {
+              console.log('[App] Solicitud de desregistro recibida');
+              cleanupServiceWorkers();
+            }
+          });
+        }
+        
+      })();
+    </script>
   </body>
 </html>

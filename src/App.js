@@ -4,7 +4,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { CssBaseline, Box } from '@mui/material';
 import { Toaster } from 'react-hot-toast';
 
-import { AuthProvider, useAuth, ROLES } from './contexts/AuthContext';
+import { AuthProvider, useAuth, ROLES } from './contexts/AuthContextSimple';
 import './scripts/setupAdmin'; // Cargar script de configuración
 import './utils/migrateAssignmentTypes'; // Cargar utilidad de migración
 import Navbar from './components/Navbar';

@@ -48,7 +48,7 @@ import {
   AutoStories as ChapterIcon,
 } from '@mui/icons-material';
 import { realtimeService } from '../services/realtimeService';
-import { useAuth, ROLES } from '../contexts/AuthContext';
+import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 
 const UploadReportsPanel = () => {
   const { userProfile } = useAuth();

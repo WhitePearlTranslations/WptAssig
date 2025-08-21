@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { tourService } from '../services/tourService';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContextSimple';
 
 export const useTour = () => {
   const { userProfile } = useAuth();
