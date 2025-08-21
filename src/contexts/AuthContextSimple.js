@@ -93,50 +93,36 @@ export const AuthProvider = ({ children }) => {
             }
 
             const userRef = ref(realtimeDb, `users/${user.uid}`);
-            console.log('🔍 AuthContext - Conectando a Firebase path:', `users/${user.uid}`);
             
-            // Estrategia más robusta contra extensiones
+            // Estrategia robusta contra extensiones
             let retryCount = 0;
             const maxRetries = 3;
             let connectionTimeout;
 
             const attemptConnection = () => {
-              console.log(`🔍 AuthContext - Intento de conexión #${retryCount + 1}`);
-              
               // Timeout para detectar conexiones que se cuelgan
               connectionTimeout = setTimeout(() => {
-                console.log('⏰ AuthContext - Timeout de conexión, forzando fallback');
                 handleConnectionFallback();
               }, 5000);
 
               try {
                 profileUnsubscribe = onValue(userRef, (snapshot) => {
                   clearTimeout(connectionTimeout);
-                  console.log('📊 AuthContext - Datos recibidos:', {
-                    exists: snapshot.exists(),
-                    data: snapshot.exists() ? snapshot.val() : null,
-                    uid: user.uid,
-                    attempt: retryCount + 1
-                  });
                   
                   if (snapshot.exists()) {
                     const profileData = { uid: user.uid, ...snapshot.val() };
-                    console.log('✅ AuthContext - Perfil establecido:', profileData);
                     setUserProfile(profileData);
                   } else {
-                    console.log('⚠️ AuthContext - No existe perfil, usando UID básico');
                     setUserProfile({ uid: user.uid });
                   }
 
                   setLoading(false);
                 }, (error) => {
                   clearTimeout(connectionTimeout);
-                  console.error(`❌ AuthContext - Error Firebase (intento ${retryCount + 1}):`, error);
                   handleConnectionError(error);
                 });
               } catch (syncError) {
                 clearTimeout(connectionTimeout);
-                console.error('❌ AuthContext - Error síncrono:', syncError);
                 handleConnectionError(syncError);
               }
             };
@@ -155,14 +141,12 @@ export const AuthProvider = ({ children }) => {
               );
 
               if (isExtensionProblem && retryCount <= maxRetries) {
-                console.log(`🔄 AuthContext - Problema de extensión detectado, reintentando en ${retryCount * 2}s (${retryCount}/${maxRetries})`);
-                
                 // Clean up previous listener
                 if (profileUnsubscribe) {
                   try {
                     profileUnsubscribe();
                   } catch (e) {
-                    console.log('⚠️ AuthContext - Error limpiando listener:', e);
+                    // Silent cleanup
                   }
                   profileUnsubscribe = null;
                 }
@@ -171,14 +155,11 @@ export const AuthProvider = ({ children }) => {
                   attemptConnection();
                 }, retryCount * 2000); // Delay incremental
               } else {
-                console.log('❌ AuthContext - Máximo de reintentos alcanzado o error no recuperable');
                 handleConnectionFallback();
               }
             };
 
             const handleConnectionFallback = async () => {
-              console.log('🆘 AuthContext - Firebase bloqueado, intentando API REST...');
-              
               try {
                 // Intentar obtener datos vía REST API
                 const response = await fetch(`https://wptasignacion-default-rtdb.firebaseio.com/users/${user.uid}.json`);
@@ -187,16 +168,12 @@ export const AuthProvider = ({ children }) => {
                   const userData = await response.json();
                   if (userData) {
                     const profileData = { uid: user.uid, ...userData };
-                    console.log('✅ AuthContext - Perfil obtenido vía REST API:', profileData);
                     setUserProfile(profileData);
                     setLoading(false);
                     return;
                   }
                 }
               } catch (restError) {
-                console.error('❌ AuthContext - Error en REST API fallback:', restError);
-                console.log('📞 AuthContext - Intentando JSONP como último recurso...');
-                
                 // Fallback JSONP - esto bypasea completamente CSP
                 try {
                   const jsonpCallback = `firebase_callback_${Date.now()}`;
@@ -204,7 +181,6 @@ export const AuthProvider = ({ children }) => {
                   window[jsonpCallback] = (data) => {
                     if (data) {
                       const profileData = { uid: user.uid, ...data };
-                      console.log('✅ AuthContext - Perfil obtenido vía JSONP:', profileData);
                       setUserProfile(profileData);
                     } else {
                       setUserProfile({ uid: user.uid });
@@ -222,7 +198,6 @@ export const AuthProvider = ({ children }) => {
                   script.id = jsonpCallback;
                   script.src = `https://wptasignacion-default-rtdb.firebaseio.com/users/${user.uid}.json?callback=${jsonpCallback}`;
                   script.onerror = () => {
-                    console.error('❌ AuthContext - JSONP fallback también falló');
                     setUserProfile({ uid: user.uid });
                     setLoading(false);
                     delete window[jsonpCallback];
@@ -233,7 +208,6 @@ export const AuthProvider = ({ children }) => {
                   // Timeout para JSONP
                   setTimeout(() => {
                     if (window[jsonpCallback]) {
-                      console.log('⏰ AuthContext - Timeout JSONP, usando perfil básico');
                       setUserProfile({ uid: user.uid });
                       setLoading(false);
                       delete window[jsonpCallback];
@@ -246,22 +220,19 @@ export const AuthProvider = ({ children }) => {
                   
                   return; // Exit early, JSONP will handle the rest
                 } catch (jsonpError) {
-                  console.error('❌ AuthContext - Error en JSONP fallback:', jsonpError);
+                  // Continue to embedded fallback
                 }
               }
               
               // Ultimate fallback: datos embebidos para usuarios conocidos
-              console.log('💾 AuthContext - Intentando fallback con datos embebidos...');
               const embeddedUserData = getEmbeddedUserData(user.uid);
               if (embeddedUserData) {
                 const profileData = { uid: user.uid, ...embeddedUserData };
-                console.log('✅ AuthContext - Perfil obtenido de datos embebidos:', profileData);
                 setUserProfile(profileData);
                 setLoading(false);
                 return;
               }
               
-              console.log('🆘 AuthContext - Usando perfil básico como último recurso');
               setUserProfile({ uid: user.uid });
               setLoading(false);
             };
