@@ -22,6 +22,12 @@ export async function getFirebaseConfig() {
     return getFallbackConfig();
   }
 
+  // Fallback temporal para dominio problemático hasta que se configure CORS
+  if (window.location.hostname === 'wptassig.dpdns.org') {
+    console.log('🔧 Usando configuración embebida para dominio wptassig.dpdns.org');
+    return getEmbeddedConfig();
+  }
+
   // Verificar si tenemos configuración en cache válida
   if (configCache && cacheTimestamp && (Date.now() - cacheTimestamp < CACHE_DURATION)) {
     //  message removed for production
@@ -83,6 +89,23 @@ export async function getFirebaseConfig() {
     //  message removed for production
     return getFallbackConfig();
   }
+}
+
+/**
+ * Configuración embebida para el dominio wptassig.dpdns.org
+ * Solución temporal hasta que se configure CORS en el worker
+ */
+function getEmbeddedConfig() {
+  // Configuración de Firebase embebida directamente en el código
+  return {
+    apiKey: "AIzaSyChIT75G_dG-31ATjI3_TC0rBC5OMlfj74",
+    authDomain: "wptasignacion.firebaseapp.com",
+    databaseURL: "https://wptasignacion-default-rtdb.firebaseio.com",
+    projectId: "wptasignacion",
+    storageBucket: "wptasignacion.firebasestorage.app",
+    messagingSenderId: "73710953060",
+    appId: "1:73710953060:web:e0c529b782b6eb8eab7571"
+  };
 }
 
 /**
