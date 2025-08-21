@@ -71,14 +71,28 @@ export const AuthProvider = ({ children }) => {
             }
 
             const userRef = ref(realtimeDb, `users/${user.uid}`);
+            console.log('🔍 AuthContext - Conectando a Firebase path:', `users/${user.uid}`);
+            
             profileUnsubscribe = onValue(userRef, (snapshot) => {
+              console.log('📊 AuthContext - Datos recibidos:', {
+                exists: snapshot.exists(),
+                data: snapshot.exists() ? snapshot.val() : null,
+                uid: user.uid
+              });
+              
               if (snapshot.exists()) {
                 const profileData = { uid: user.uid, ...snapshot.val() };
+                console.log('✅ AuthContext - Perfil establecido:', profileData);
                 setUserProfile(profileData);
               } else {
+                console.log('⚠️ AuthContext - No existe perfil, usando UID básico');
                 setUserProfile({ uid: user.uid });
               }
 
+              setLoading(false);
+            }, (error) => {
+              console.error('❌ AuthContext - Error Firebase:', error);
+              setUserProfile({ uid: user.uid });
               setLoading(false);
             });
           } else {
