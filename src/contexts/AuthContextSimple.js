@@ -92,6 +92,30 @@ export const AuthProvider = ({ children }) => {
               setLoading(false);
             }, (error) => {
               console.error('❌ AuthContext - Error Firebase:', error);
+              
+              // Fallback para problemas de runtime de extensiones
+              if (error.message && error.message.includes('runtime.lastError')) {
+                console.log('🔄 AuthContext - Aplicando fallback para problema de extensiones');
+                // Reintentar después de un delay
+                setTimeout(() => {
+                  console.log('🔄 AuthContext - Reintentando conexión...');
+                  // Crear una nueva referencia y reintentar
+                  const retryRef = ref(realtimeDb, `users/${user.uid}`);
+                  onValue(retryRef, (retrySnapshot) => {
+                    if (retrySnapshot.exists()) {
+                      const profileData = { uid: user.uid, ...retrySnapshot.val() };
+                      console.log('✅ AuthContext - Perfil obtenido en reintento:', profileData);
+                      setUserProfile(profileData);
+                    } else {
+                      setUserProfile({ uid: user.uid });
+                    }
+                  }, (retryError) => {
+                    console.error('❌ AuthContext - Error en reintento:', retryError);
+                    setUserProfile({ uid: user.uid });
+                  });
+                }, 2000);
+              }
+              
               setUserProfile({ uid: user.uid });
               setLoading(false);
             });
