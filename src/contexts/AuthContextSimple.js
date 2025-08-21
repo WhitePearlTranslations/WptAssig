@@ -73,52 +73,115 @@ export const AuthProvider = ({ children }) => {
             const userRef = ref(realtimeDb, `users/${user.uid}`);
             console.log('🔍 AuthContext - Conectando a Firebase path:', `users/${user.uid}`);
             
-            profileUnsubscribe = onValue(userRef, (snapshot) => {
-              console.log('📊 AuthContext - Datos recibidos:', {
-                exists: snapshot.exists(),
-                data: snapshot.exists() ? snapshot.val() : null,
-                uid: user.uid
-              });
-              
-              if (snapshot.exists()) {
-                const profileData = { uid: user.uid, ...snapshot.val() };
-                console.log('✅ AuthContext - Perfil establecido:', profileData);
-                setUserProfile(profileData);
-              } else {
-                console.log('⚠️ AuthContext - No existe perfil, usando UID básico');
-                setUserProfile({ uid: user.uid });
-              }
+            // Estrategia más robusta contra extensiones
+            let retryCount = 0;
+            const maxRetries = 3;
+            let connectionTimeout;
 
-              setLoading(false);
-            }, (error) => {
-              console.error('❌ AuthContext - Error Firebase:', error);
+            const attemptConnection = () => {
+              console.log(`🔍 AuthContext - Intento de conexión #${retryCount + 1}`);
               
-              // Fallback para problemas de runtime de extensiones
-              if (error.message && error.message.includes('runtime.lastError')) {
-                console.log('🔄 AuthContext - Aplicando fallback para problema de extensiones');
-                // Reintentar después de un delay
-                setTimeout(() => {
-                  console.log('🔄 AuthContext - Reintentando conexión...');
-                  // Crear una nueva referencia y reintentar
-                  const retryRef = ref(realtimeDb, `users/${user.uid}`);
-                  onValue(retryRef, (retrySnapshot) => {
-                    if (retrySnapshot.exists()) {
-                      const profileData = { uid: user.uid, ...retrySnapshot.val() };
-                      console.log('✅ AuthContext - Perfil obtenido en reintento:', profileData);
-                      setUserProfile(profileData);
-                    } else {
-                      setUserProfile({ uid: user.uid });
-                    }
-                  }, (retryError) => {
-                    console.error('❌ AuthContext - Error en reintento:', retryError);
-                    setUserProfile({ uid: user.uid });
+              // Timeout para detectar conexiones que se cuelgan
+              connectionTimeout = setTimeout(() => {
+                console.log('⏰ AuthContext - Timeout de conexión, forzando fallback');
+                handleConnectionFallback();
+              }, 5000);
+
+              try {
+                profileUnsubscribe = onValue(userRef, (snapshot) => {
+                  clearTimeout(connectionTimeout);
+                  console.log('📊 AuthContext - Datos recibidos:', {
+                    exists: snapshot.exists(),
+                    data: snapshot.exists() ? snapshot.val() : null,
+                    uid: user.uid,
+                    attempt: retryCount + 1
                   });
-                }, 2000);
+                  
+                  if (snapshot.exists()) {
+                    const profileData = { uid: user.uid, ...snapshot.val() };
+                    console.log('✅ AuthContext - Perfil establecido:', profileData);
+                    setUserProfile(profileData);
+                  } else {
+                    console.log('⚠️ AuthContext - No existe perfil, usando UID básico');
+                    setUserProfile({ uid: user.uid });
+                  }
+
+                  setLoading(false);
+                }, (error) => {
+                  clearTimeout(connectionTimeout);
+                  console.error(`❌ AuthContext - Error Firebase (intento ${retryCount + 1}):`, error);
+                  handleConnectionError(error);
+                });
+              } catch (syncError) {
+                clearTimeout(connectionTimeout);
+                console.error('❌ AuthContext - Error síncrono:', syncError);
+                handleConnectionError(syncError);
+              }
+            };
+
+            const handleConnectionError = (error) => {
+              retryCount++;
+              
+              // Detectar varios tipos de problemas de extensiones
+              const isExtensionProblem = error.message && (
+                error.message.includes('runtime.lastError') ||
+                error.message.includes('Extension') ||
+                error.message.includes('chrome-extension') ||
+                error.message.includes('moz-extension') ||
+                error.message.includes('websocket') ||
+                error.code === 'NETWORK_ERROR'
+              );
+
+              if (isExtensionProblem && retryCount <= maxRetries) {
+                console.log(`🔄 AuthContext - Problema de extensión detectado, reintentando en ${retryCount * 2}s (${retryCount}/${maxRetries})`);
+                
+                // Clean up previous listener
+                if (profileUnsubscribe) {
+                  try {
+                    profileUnsubscribe();
+                  } catch (e) {
+                    console.log('⚠️ AuthContext - Error limpiando listener:', e);
+                  }
+                  profileUnsubscribe = null;
+                }
+
+                setTimeout(() => {
+                  attemptConnection();
+                }, retryCount * 2000); // Delay incremental
+              } else {
+                console.log('❌ AuthContext - Máximo de reintentos alcanzado o error no recuperable');
+                handleConnectionFallback();
+              }
+            };
+
+            const handleConnectionFallback = async () => {
+              console.log('🆘 AuthContext - Firebase bloqueado, intentando API REST...');
+              
+              try {
+                // Intentar obtener datos vía REST API como último recurso
+                const response = await fetch(`https://wptasignacion-default-rtdb.firebaseio.com/users/${user.uid}.json`);
+                
+                if (response.ok) {
+                  const userData = await response.json();
+                  if (userData) {
+                    const profileData = { uid: user.uid, ...userData };
+                    console.log('✅ AuthContext - Perfil obtenido vía REST API:', profileData);
+                    setUserProfile(profileData);
+                    setLoading(false);
+                    return;
+                  }
+                }
+              } catch (restError) {
+                console.error('❌ AuthContext - Error en REST API fallback:', restError);
               }
               
+              console.log('🆘 AuthContext - Usando perfil básico como último recurso');
               setUserProfile({ uid: user.uid });
               setLoading(false);
-            });
+            };
+
+            // Iniciar primer intento
+            attemptConnection();
           } else {
             if (profileUnsubscribe) {
               profileUnsubscribe();
