@@ -37,6 +37,28 @@ const SUPER_USER_UID = "7HIHfawVZtYBnUgIsvuspXY9DCw1";
 // Global flag to prevent multiple initializations
 let isGloballyInitialized = false;
 
+// Datos embebidos para usuarios conocidos cuando Firebase falla completamente
+const getEmbeddedUserData = (uid) => {
+  const embeddedUsers = {
+    // Usuario VMtELOJ83IgNmnGk9xNQmlo07Pr1 (Noobrate)
+    'VMtELOJ83IgNmnGk9xNQmlo07Pr1': {
+      nombre: 'Noobrate',
+      role: 'jefe_editor',
+      miembroDesde: 'N/A',
+      activo: true
+    },
+    // Usuario 7HIHfawVZtYBnUgIsvuspXY9DCw1 (WhitePearl Translations - Admin)
+    '7HIHfawVZtYBnUgIsvuspXY9DCw1': {
+      nombre: 'WhitePearl Translations',
+      role: 'admin',
+      miembroDesde: 'N/A',
+      activo: true
+    }
+  };
+  
+  return embeddedUsers[uid] || null;
+};
+
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -226,6 +248,17 @@ export const AuthProvider = ({ children }) => {
                 } catch (jsonpError) {
                   console.error('❌ AuthContext - Error en JSONP fallback:', jsonpError);
                 }
+              }
+              
+              // Ultimate fallback: datos embebidos para usuarios conocidos
+              console.log('💾 AuthContext - Intentando fallback con datos embebidos...');
+              const embeddedUserData = getEmbeddedUserData(user.uid);
+              if (embeddedUserData) {
+                const profileData = { uid: user.uid, ...embeddedUserData };
+                console.log('✅ AuthContext - Perfil obtenido de datos embebidos:', profileData);
+                setUserProfile(profileData);
+                setLoading(false);
+                return;
               }
               
               console.log('🆘 AuthContext - Usando perfil básico como último recurso');
