@@ -53,16 +53,12 @@ import { realtimeService } from '../services/realtimeService';
 import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { useNavigate } from 'react-router-dom';
 import { usePendingReviews } from '../hooks/usePendingReviews';
-import { ReviewNotificationCard } from '../components/NotificationBadge';
 import { useTour } from '../hooks/useTour';
-import { useNotificationMonitor } from '../hooks/useNotificationMonitor';
-import NotificationPermissionBanner from '../components/NotificationPermissionBanner';
 
 const Dashboard = () => {
   const { userProfile, isSuperAdmin, hasRole } = useAuth();
   const navigate = useNavigate();
   const [myActiveAssignments, setMyActiveAssignments] = useState([]);
-  const [allAssignments, setAllAssignments] = useState([]); // Para el monitoreo de notificaciones
   const [myStats, setMyStats] = useState({
     total: 0,
     pending: 0,
@@ -81,8 +77,6 @@ const Dashboard = () => {
   // Hook del tour
   const { startTour, isNewUser, isTourAvailable } = useTour();
   
-  // Hook para monitoreo de notificaciones
-  useNotificationMonitor(allAssignments, userProfile);
 
   // Efecto para mostrar tour automáticamente para nuevos usuarios
   useEffect(() => {
@@ -103,9 +97,6 @@ const Dashboard = () => {
       if (userProfile?.uid) {
         try {
           unsubscribeMyAssignments = await realtimeService.subscribeToAssignments((assignments) => {
-            // Guardar todas las asignaciones para el monitoreo de notificaciones
-            setAllAssignments(assignments);
-            
             const myAssignments = assignments.filter(assignment => 
               assignment.assignedTo === userProfile.uid
             );
@@ -148,7 +139,7 @@ const Dashboard = () => {
             setTypeDistribution(typeChart);
           });
         } catch (error) {
-          console.error('Error setting up subscriptions:', error);
+          // Error setting up subscriptions - silently handle
         }
       }
     };
@@ -163,7 +154,33 @@ const Dashboard = () => {
   }, [userProfile]);
 
   const getTypeIcon = (type) => {
-    return type === 'traduccion' ? <Translate /> : <Edit />;
+    switch (type) {
+      case 'traduccion':
+        return <Translate />;
+      case 'proofreading':
+        return <RateReview />;
+      case 'cleanRedrawer':
+        return <Edit />;
+      case 'type':
+        return <HourglassTop />;
+      default:
+        return <Edit />;
+    }
+  };
+
+  const getTypeLabel = (type) => {
+    switch (type) {
+      case 'traduccion':
+        return 'Traducción';
+      case 'proofreading':
+        return 'Proofreading';
+      case 'cleanRedrawer':
+        return 'Clean/Redraw';
+      case 'type':
+        return 'Typesetting';
+      default:
+        return 'Edición';
+    }
   };
 
   const getRoleDisplayName = (role) => {
@@ -417,8 +434,6 @@ const Dashboard = () => {
         </Box>
       </Box>
 
-      {/* Banner de Permisos de Notificación */}
-      <NotificationPermissionBanner />
 
       {/* Notificaciones para Jefes - Solo mostrar si hay revisiones pendientes */}
       {isChief && pendingReviews.count > 0 && (
@@ -449,7 +464,7 @@ const Dashboard = () => {
             <Button
               variant="contained"
               startIcon={<RateReview />}
-              onClick={() => navigate('/review')}
+              onClick={() => navigate('/reviews')}
               size="small"
               sx={{
                 background: 'linear-gradient(135deg, #f59e0b, #d97706)',
@@ -862,7 +877,10 @@ const Dashboard = () => {
                   <ListItemIcon sx={{ minWidth: 40 }}>
                     <Box
                       sx={{
-                        background: assignment.type === 'traduccion' ? '#6366f1' : '#ec4899',
+                        background: assignment.type === 'traduccion' ? '#6366f1' : 
+                                  assignment.type === 'proofreading' ? '#ec4899' :
+                                  assignment.type === 'cleanRedrawer' ? '#10b981' :
+                                  assignment.type === 'type' ? '#f59e0b' : '#8b5cf6',
                         borderRadius: '8px',
                         p: 1,
                         display: 'flex',
@@ -883,7 +901,7 @@ const Dashboard = () => {
                     }
                     secondary={
                       <Typography variant="body2" color="textSecondary">
-                        {assignment.type === 'traduccion' ? 'Traducción' : 'Edición'}
+                        {getTypeLabel(assignment.type)}
                       </Typography>
                     }
                   />

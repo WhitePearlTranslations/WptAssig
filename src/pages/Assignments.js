@@ -1124,61 +1124,65 @@ const Assignments = () => {
         </Box>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           {/* Botón de sincronización */}
-          <Tooltip title="Sincronizar asignaciones con capítulos publicados">
-            <IconButton
-              onClick={handleSyncAssignments}
-              disabled={syncLoading || assignmentsLoading}
-              sx={{
-                backgroundColor: syncLoading ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.1)',
-                color: '#6366f1',
-                '&:hover': {
-                  backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                  transform: syncLoading ? 'none' : 'scale(1.05)'
-                },
-                '&:disabled': {
-                  backgroundColor: 'rgba(107, 114, 128, 0.1)',
-                  color: '#6b7280'
-                },
-                transition: 'all 0.3s ease'
-              }}
-            >
-              <Sync 
-                sx={{ 
-                  fontSize: '1.2rem',
-                  animation: syncLoading ? 'spin 1s linear infinite' : 'none',
-                  '@keyframes spin': {
-                    '0%': { transform: 'rotate(0deg)' },
-                    '100%': { transform: 'rotate(360deg)' }
-                  }
-                }} 
-              />
-            </IconButton>
+          <Tooltip title={(syncLoading || assignmentsLoading) ? "Sincronizando..." : "Sincronizar asignaciones con capítulos publicados"}>
+            <span>
+              <IconButton
+                onClick={handleSyncAssignments}
+                disabled={syncLoading || assignmentsLoading}
+                sx={{
+                  backgroundColor: syncLoading ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.1)',
+                  color: '#6366f1',
+                  '&:hover': {
+                    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                    transform: syncLoading ? 'none' : 'scale(1.05)'
+                  },
+                  '&:disabled': {
+                    backgroundColor: 'rgba(107, 114, 128, 0.1)',
+                    color: '#6b7280'
+                  },
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <Sync 
+                  sx={{ 
+                    fontSize: '1.2rem',
+                    animation: syncLoading ? 'spin 1s linear infinite' : 'none',
+                    '@keyframes spin': {
+                      '0%': { transform: 'rotate(0deg)' },
+                      '100%': { transform: 'rotate(360deg)' }
+                    }
+                  }} 
+                />
+              </IconButton>
+            </span>
           </Tooltip>
           
           {/* Botón de refresh */}
-          <Tooltip title="Forzar actualización de asignaciones">
-            <IconButton
-              onClick={() => {
-                forceRefresh();
-                toast.success('Actualizando asignaciones...');
-              }}
-              disabled={assignmentsLoading}
-              sx={{
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                color: '#10b981',
-                '&:hover': {
-                  backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                  transform: 'scale(1.05)'
-                },
-                '&:disabled': {
-                  backgroundColor: 'rgba(107, 114, 128, 0.1)',
-                  color: '#6b7280'
-                },
-                transition: 'all 0.3s ease'
-              }}
-            >
-              <Refresh sx={{ fontSize: '1.2rem' }} />
-            </IconButton>
+          <Tooltip title={assignmentsLoading ? "Actualizando..." : "Forzar actualización de asignaciones"}>
+            <span>
+              <IconButton
+                onClick={() => {
+                  forceRefresh();
+                  toast.success('Actualizando asignaciones...');
+                }}
+                disabled={assignmentsLoading}
+                sx={{
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                  color: '#10b981',
+                  '&:hover': {
+                    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                    transform: 'scale(1.05)'
+                  },
+                  '&:disabled': {
+                    backgroundColor: 'rgba(107, 114, 128, 0.1)',
+                    color: '#6b7280'
+                  },
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <Refresh sx={{ fontSize: '1.2rem' }} />
+              </IconButton>
+            </span>
           </Tooltip>
           
           

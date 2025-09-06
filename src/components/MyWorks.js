@@ -71,9 +71,11 @@ import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { realtimeService } from '../services/realtimeService';
 import { ASSIGNMENT_STATUS, STATUS_CONFIG, TASK_TYPES, isChiefRole, matchChiefRoleForAssignmentType } from '../utils/constants';
 import toast from 'react-hot-toast';
+import FileUploader from './FileUploader';
+import GoogleDriveTest from './GoogleDriveTest';
 
 // Componente para mostrar un capítulo agrupado con todas sus tareas (del SeriesManagement)
-const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, onResubmitForReview }) => {
+const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, onResubmitForReview, onOpenUpload }) => {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
 
@@ -136,6 +138,16 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
       assignment.status === 'completado' || 
       assignment.status === 'aprobado'
     );
+  };
+  
+  // Nueva función para mostrar botón de upload directo
+  const canShowUpload = (assignment) => {
+    const validStatuses = [
+      'pending', 'pendiente', 'rechazado',
+      'PENDING', 'PENDIENTE', 'RECHAZADO'
+    ];
+    
+    return validStatuses.includes(assignment.status);
   };
 
   // Determinar si alguna tarea está atrasada
@@ -394,6 +406,30 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
                 </Button>
               )}
 
+              {/* Botón de upload directo para asignaciones pendientes/rechazadas */}
+              {chapterGroup.assignments.filter(a => canShowUpload(a)).length > 0 && (
+                <Button
+                  size="small"
+                  variant="contained"
+                  startIcon={<UploadIcon />}
+                  onClick={() => {
+                    // Si hay múltiples asignaciones, abrir la primera que se pueda subir
+                    const uploadableTask = chapterGroup.assignments.find(a => canShowUpload(a));
+                    if (uploadableTask && onOpenUpload) {
+                      onOpenUpload(uploadableTask);
+                    }
+                  }}
+                  sx={{
+                    background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #0891b2, #0e7490)',
+                    },
+                  }}
+                >
+                  Subir Archivos
+                </Button>
+              )}
+
               {chapterGroup.assignments.filter(a => canMarkUploaded(a)).length > 0 && (
                 <Button
                   size="small"
@@ -621,6 +657,24 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
               )}
               <Grid item xs={12}>
                 <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                  {canShowUpload(selectedTask) && onOpenUpload && (
+                    <Button
+                      variant="contained"
+                      startIcon={<UploadIcon />}
+                      onClick={() => {
+                        onOpenUpload(selectedTask);
+                        setDetailsOpen(false);
+                      }}
+                      sx={{
+                        background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #0891b2, #0e7490)',
+                        },
+                      }}
+                    >
+                      Subir Archivos
+                    </Button>
+                  )}
                   {canMarkComplete(selectedTask) && (
                     <Button
                       variant="contained"
@@ -702,6 +756,23 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
                         </TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', gap: 1 }}>
+                            {canShowUpload(assignment) && onOpenUpload && (
+                              <Button
+                                size="small"
+                                variant="contained"
+                                onClick={() => {
+                                  onOpenUpload(assignment);
+                                }}
+                                sx={{
+                                  background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+                                  color: 'white',
+                                  minWidth: '90px',
+                                  fontSize: '0.75rem'
+                                }}
+                              >
+                                Subir
+                              </Button>
+                            )}
                             {canMarkComplete(assignment) && (
                               <Button
                                 size="small"
@@ -756,6 +827,10 @@ const MyWorks = () => {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [selectedChapterGroup, setSelectedChapterGroup] = useState(null);
+  // Estados para FileUploader
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [assignmentToUpload, setAssignmentToUpload] = useState(null);
+  const [assignmentsGroupToUpload, setAssignmentsGroupToUpload] = useState(null);
   const [formData, setFormData] = useState({
     mangaId: '',
     chapter: '',
@@ -1128,8 +1203,146 @@ const MyWorks = () => {
       );
     } catch (error) {
       //  message removed for production
-      toast.error(`❌ Error al marcar como subida: ${error.message || 'Error desconocido'}`);
+      toast.error(`❌ Error al reenviar para revisión: ${error.message || 'Error desconocido'}`);
     }
+  };
+
+  // Funciones para el manejo de upload directo
+  const handleOpenUpload = (assignmentOrGroup) => {
+    // Si es un array, es un grupo de asignaciones
+    if (Array.isArray(assignmentOrGroup)) {
+      setAssignmentsGroupToUpload(assignmentOrGroup);
+      
+      // Crear un objeto de asignación formateado para mostrar información del grupo
+      const firstAssignment = assignmentOrGroup[0];
+      const taskTypes = [...new Set(assignmentOrGroup.map(a => TASK_TYPES[a.type] || a.type))];
+      
+      const groupInfo = {
+        ...firstAssignment,
+        isGroup: true,
+        totalTasks: assignmentOrGroup.length,
+        taskTypes: taskTypes,
+        type: assignmentOrGroup.length === 1 ? firstAssignment.type : 'Múltiples'
+      };
+      
+      setAssignmentToUpload(groupInfo);
+      console.log('📋 Abriendo upload para grupo de asignaciones:', assignmentOrGroup.length, 'tareas:', taskTypes.join(', '));
+    } else {
+      // Es una asignación individual
+      setAssignmentToUpload(assignmentOrGroup);
+      setAssignmentsGroupToUpload(null);
+      console.log('📋 Abriendo upload para asignación individual:', assignmentOrGroup.type);
+    }
+    setUploadDialogOpen(true);
+  };
+
+  const handleUploadComplete = async (uploadData) => {
+    try {
+      const assignmentsToUpdate = assignmentsGroupToUpload || [assignmentToUpload];
+      
+      if (!assignmentsToUpdate || assignmentsToUpdate.length === 0) {
+        throw new Error('No se encontraron asignaciones para actualizar');
+      }
+
+      console.log('🎉 Procesando upload completo para', assignmentsToUpdate.length, 'asignaciones');
+      
+      let updatedCount = 0;
+      let errors = [];
+      
+      // Procesar cada asignación
+      for (const assignment of assignmentsToUpdate) {
+        try {
+          // Determinar si necesita aprobación o se puede marcar directamente como completado
+          const userIsChief = isChiefRole(userProfile.role);
+          const isCreatorOfAssignment = assignment.createdBy === userProfile.uid;
+          const isSelfAssignedByChief = userIsChief && assignment.assignedTo === userProfile.uid;
+          const assignmentNeedsChiefApproval = !userIsChief && !isCreatorOfAssignment && assignment.assignedTo === userProfile.uid;
+          
+          let newStatus;
+          
+          if (userIsChief || isCreatorOfAssignment || isSelfAssignedByChief) {
+            newStatus = ASSIGNMENT_STATUS.COMPLETADO;
+          } else if (assignmentNeedsChiefApproval) {
+            newStatus = ASSIGNMENT_STATUS.PENDIENTE_APROBACION;
+          } else {
+            newStatus = ASSIGNMENT_STATUS.COMPLETADO;
+          }
+          
+          // Actualizar la asignación con el nuevo estado
+          await realtimeService.updateAssignment(assignment.id, {
+            status: newStatus,
+            progress: 100,
+            completedDate: new Date().toISOString(),
+            completedBy: userProfile.uid,
+            uploadedFiles: uploadData.results.map(result => ({
+              name: result.file,
+              success: result.success,
+              driveId: result.success ? result.result.id : null,
+              webViewLink: result.success ? result.result.webViewLink : null
+            })),
+            uploadedAt: new Date().toISOString(),
+            ...(newStatus === ASSIGNMENT_STATUS.PENDIENTE_APROBACION && {
+              pendingApprovalSince: new Date().toISOString(),
+              reviewRequiredBy: matchChiefRoleForAssignmentType(assignment.type)
+            })
+          });
+          
+          updatedCount++;
+          console.log(`✅ Asignación ${assignment.type} actualizada correctamente`);
+          
+        } catch (error) {
+          console.error(`❌ Error actualizando asignación ${assignment.type}:`, error);
+          errors.push(`${assignment.type}: ${error.message}`);
+        }
+      }
+      
+      // Mostrar mensaje de resultado
+      const assignment = assignmentsToUpdate[0];
+      const chapterInfo = `${assignment.mangaTitle} Cap.${assignment.chapter}`;
+      
+      if (updatedCount === assignmentsToUpdate.length) {
+        // Todas exitosas
+        const statusText = assignmentsToUpdate[0].status === ASSIGNMENT_STATUS.PENDIENTE_APROBACION ? 
+          'enviadas para revisión' : 'completadas';
+        const message = assignmentsToUpdate.length === 1 ?
+          `✅ Archivos subidos y tarea ${statusText}: ${chapterInfo} - ${TASK_TYPES[assignmentsToUpdate[0].type]}` :
+          `🎉 Archivos subidos y ${updatedCount} tareas ${statusText}: ${chapterInfo}`;
+          
+        toast.success(message, { duration: 4000, icon: '🎉' });
+      } else if (updatedCount > 0) {
+        // Algunas exitosas
+        toast.success(
+          `✅ ${updatedCount}/${assignmentsToUpdate.length} tareas actualizadas: ${chapterInfo}`,
+          { duration: 4000, icon: '⚠️' }
+        );
+        if (errors.length > 0) {
+          toast.error(`Errores: ${errors.join(', ')}`, { duration: 6000 });
+        }
+      } else {
+        // Todas fallaron
+        toast.error(`❌ No se pudieron actualizar las tareas: ${errors.join(', ')}`, { duration: 6000 });
+      }
+      
+      // Cerrar el dialog de upload
+      setUploadDialogOpen(false);
+      setAssignmentToUpload(null);
+      setAssignmentsGroupToUpload(null);
+      
+    } catch (error) {
+      console.error('Error al procesar upload completo:', error);
+      toast.error(`❌ Error al completar la tarea: ${error.message || 'Error desconocido'}`);
+    }
+  };
+
+  const handleUploadError = (error) => {
+    console.error('Error en upload:', error);
+    toast.error(`❌ Error en la subida de archivos: ${error.message || 'Error desconocido'}`);
+  };
+
+  const handleCloseUpload = () => {
+    setUploadDialogOpen(false);
+    setAssignmentToUpload(null);
+    setAssignmentsGroupToUpload(null);
   };
 
   // Función para reenviar una asignación rechazada a revisión
@@ -1348,20 +1561,22 @@ const MyWorks = () => {
           </Typography>
         </Box>
         
-        {/* Botón Nueva Asignación para Jefes */}
-        {(hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR)) && (
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => setOpenAssignDialog(true)}
-            sx={{
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-              px: 3
-            }}
-          >
-            Nueva Asignación
-          </Button>
-        )}
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          {/* Botón Nueva Asignación para Jefes */}
+          {(hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR)) && (
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => setOpenAssignDialog(true)}
+              sx={{
+                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                px: 3
+              }}
+            >
+              Nueva Asignación
+            </Button>
+          )}
+        </Box>
       </Box>
 
       {/* Controles de vista y filtros avanzados */}
@@ -1601,6 +1816,7 @@ const MyWorks = () => {
                     onMarkComplete={handleMarkComplete}
                     onMarkUploaded={handleMarkUploaded}
                     onResubmitForReview={handleResubmitForReview}
+                    onOpenUpload={handleOpenUpload}
                   />
                 </Box>
               ))}
@@ -1686,9 +1902,41 @@ const MyWorks = () => {
                           ))}
                         </Box>
                         {chapterGroup.assignments.length > 0 && (
-                          <Typography variant="caption" sx={{ color: '#6366f1', fontWeight: 500, fontSize: '0.7rem' }}>
-                            Click para ver detalles y acciones
-                          </Typography>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+                            <Typography variant="caption" sx={{ color: '#6366f1', fontWeight: 500, fontSize: '0.7rem' }}>
+                              Click para detalles
+                            </Typography>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              startIcon={<UploadIcon />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Si hay una sola tarea, usar esa. Si hay múltiples, pasar todo el grupo
+                                if (chapterGroup.assignments.length === 1) {
+                                  handleOpenUpload(chapterGroup.assignments[0]);
+                                } else {
+                                  // Pasar todas las asignaciones pendientes del grupo
+                                  const pendingAssignments = chapterGroup.assignments.filter(a => 
+                                    a.status === 'pendiente' || a.status === 'pending'
+                                  );
+                                  handleOpenUpload(pendingAssignments.length > 0 ? pendingAssignments : chapterGroup.assignments);
+                                }
+                              }}
+                              sx={{
+                                background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+                                color: 'white',
+                                minWidth: '80px',
+                                fontSize: '0.7rem',
+                                height: '24px',
+                                '&:hover': {
+                                  background: 'linear-gradient(135deg, #0891b2, #0e7490)'
+                                }
+                              }}
+                            >
+                              Subir
+                            </Button>
+                          </Box>
                         )}
                       </CardContent>
                     </Card>
@@ -2002,6 +2250,40 @@ const MyWorks = () => {
                             }
                           </Box>
                         )}
+                        
+                        {/* Botón de subir archivos para rechazadas */}
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            startIcon={<UploadIcon />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // Si hay una sola tarea, usar esa. Si hay múltiples, pasar todo el grupo
+                              if (chapterGroup.assignments.length === 1) {
+                                handleOpenUpload(chapterGroup.assignments[0]);
+                              } else {
+                                // Pasar todas las asignaciones rechazadas del grupo
+                                const rejectedAssignments = chapterGroup.assignments.filter(a => 
+                                  a.status === 'rechazado' || a.reviewComment
+                                );
+                                handleOpenUpload(rejectedAssignments.length > 0 ? rejectedAssignments : chapterGroup.assignments);
+                              }
+                            }}
+                            sx={{
+                              background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+                              color: 'white',
+                              minWidth: '90px',
+                              fontSize: '0.7rem',
+                              height: '26px',
+                              '&:hover': {
+                                background: 'linear-gradient(135deg, #0891b2, #0e7490)'
+                              }
+                            }}
+                          >
+                            Resubir
+                          </Button>
+                        </Box>
                       </CardContent>
                     </Card>
                   ))}
@@ -2360,6 +2642,27 @@ const MyWorks = () => {
               {/* Acciones disponibles */}
               <Grid item xs={12}>
                 <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                  {/* Botón para subir archivos si está pendiente o rechazada */}
+                  {((selectedTask.status === 'pendiente' || selectedTask.status === 'pending') || 
+                    (selectedTask.status === 'rechazado' || selectedTask.reviewComment)) && (
+                    <Button
+                      variant="contained"
+                      startIcon={<UploadIcon />}
+                      onClick={() => {
+                        handleOpenUpload(selectedTask);
+                        setDetailsOpen(false);
+                      }}
+                      sx={{
+                        background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #0891b2, #0e7490)',
+                        },
+                      }}
+                    >
+                      {selectedTask.reviewComment ? 'Resubir Archivos' : 'Subir Archivos'}
+                    </Button>
+                  )}
+                  
                   {/* Botón para completar si está pendiente (sin comentarios de rechazo) */}
                   {(selectedTask.status === 'pendiente' || selectedTask.status === 'pending') && !selectedTask.reviewComment && (
                     <Button
@@ -2588,8 +2891,25 @@ const MyWorks = () => {
                               </Typography>
                             )}
                             
-                            {/* Botón para reenviar a revisión individual */}
-                            <Box sx={{ mt: 2 }}>
+                            {/* Botones para tareas rechazadas */}
+                            <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                              <Button
+                                variant="contained"
+                                startIcon={<UploadIcon />}
+                                onClick={() => {
+                                  console.log('📝 KANBAN Rejected: Opening upload for:', assignment);
+                                  handleOpenUpload(assignment);
+                                  setDetailsOpen(false);
+                                }}
+                                sx={{
+                                  background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+                                  '&:hover': {
+                                    background: 'linear-gradient(135deg, #0891b2, #0e7490)',
+                                  },
+                                }}
+                              >
+                                Subir Archivos
+                              </Button>
                               <Button
                                 variant="contained"
                                 startIcon={<Assignment />}
@@ -2719,7 +3039,24 @@ const MyWorks = () => {
                             <Typography variant="body2" sx={{ mt: 1 }}>
                               Esta tarea está esperando a ser completada. ¡Puedes empezar a trabajar en ella!
                             </Typography>
-                            <Box sx={{ mt: 2 }}>
+                            <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                              <Button
+                                variant="contained"
+                                startIcon={<UploadIcon />}
+                                onClick={() => {
+                                  console.log('📝 KANBAN Individual: Opening upload for:', assignment);
+                                  handleOpenUpload(assignment);
+                                  setDetailsOpen(false);
+                                }}
+                                sx={{
+                                  background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+                                  '&:hover': {
+                                    background: 'linear-gradient(135deg, #0891b2, #0e7490)',
+                                  },
+                                }}
+                              >
+                                Subir Archivos
+                              </Button>
                               <Button
                                 variant="contained"
                                 startIcon={<PlayArrow />}
@@ -2771,6 +3108,35 @@ const MyWorks = () => {
                       }}
                     >
                       Reenviar Todas las Rechazadas
+                    </Button>
+                  )}
+                  
+                  {/* Botón de upload directo para tareas pendientes/rechazadas */}
+                  {selectedChapterGroup.assignments.some(a => 
+                    a.status === 'pendiente' || a.status === 'pending' || a.status === 'rechazado'
+                  ) && (
+                    <Button
+                      variant="contained"
+                      startIcon={<UploadIcon />}
+                      onClick={() => {
+                        // Buscar todas las tareas que se puedan subir
+                        const uploadableTasks = selectedChapterGroup.assignments.filter(a => 
+                          a.status === 'pendiente' || a.status === 'pending' || a.status === 'rechazado'
+                        );
+                        if (uploadableTasks.length > 0) {
+                          console.log('📋 KANBAN: Opening upload for group:', uploadableTasks.length, 'tareas');
+                          handleOpenUpload(uploadableTasks);
+                          setDetailsOpen(false);
+                        }
+                      }}
+                      sx={{
+                        background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #0891b2, #0e7490)',
+                        },
+                      }}
+                    >
+                      Subir Archivos (Pendientes)
                     </Button>
                   )}
                   
@@ -3091,6 +3457,15 @@ const MyWorks = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      
+      {/* Componente FileUploader */}
+      <FileUploader 
+        assignment={assignmentToUpload}
+        onUploadComplete={handleUploadComplete}
+        onUploadError={handleUploadError}
+        open={uploadDialogOpen}
+        onClose={handleCloseUpload}
+      />
     </Container>
   );
 };

@@ -15,7 +15,6 @@ import {
   Grow
 } from '@mui/material';
 import { 
-  Book, 
   Email, 
   Lock, 
   Visibility, 
@@ -27,6 +26,7 @@ import {
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { auth } from '../services/firebase';
+import StarsBackground from '../components/StarsBackground';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -94,44 +94,39 @@ const Login = () => {
   };
 
   return (
-    <Box
-      sx={{
+    <StarsBackground 
+      style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #2c2c54 0%, #40407a 50%, #2c2c54 100%)',
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: { xs: 1, sm: 2 },
-        // Simplify background effects on mobile
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: {
-            xs: 'none', // Remove complex gradients on mobile
-            sm: 'radial-gradient(circle at 20% 50%, rgba(60, 60, 120, 0.2), transparent 50%), radial-gradient(circle at 80% 20%, rgba(100, 60, 120, 0.2), transparent 50%), radial-gradient(circle at 40% 80%, rgba(60, 100, 140, 0.2), transparent 50%)'
-          },
-          pointerEvents: 'none'
-        }
+        background: 'linear-gradient(135deg, #0f0820 0%, #1a0d3d 50%, #0f0820 100%)'
       }}
+      speed={40}
+      starColor="#ffffff"
+      factor={0.03}
     >
+      <Box
+        sx={{
+          minHeight: '100vh',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: { xs: 1, sm: 2 },
+          background: 'transparent'
+        }}
+      >
       <Container maxWidth="sm">
         <Zoom in timeout={800}>
           <Paper
             elevation={24}
             sx={{
               padding: { xs: 2, sm: 3, md: 4 },
-              borderRadius: { xs: 2, sm: 4 },
-              background: 'rgba(255, 255, 255, 0.08)',
-              backdropFilter: { xs: 'blur(10px)', sm: 'blur(20px)' },
-              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: { xs: 3, sm: 5 },
+              background: 'rgba(15, 8, 32, 0.2)',
+              backdropFilter: { xs: 'blur(15px)', sm: 'blur(25px)' },
+              border: '1px solid rgba(138, 43, 226, 0.2)',
               boxShadow: {
-                xs: '0 4px 16px rgba(0, 0, 0, 0.1)',
-                sm: '0 8px 32px rgba(0, 0, 0, 0.15)'
+                xs: '0 8px 32px rgba(75, 0, 130, 0.3)',
+                sm: '0 12px 48px rgba(75, 0, 130, 0.4)'
               },
               position: 'relative',
               overflow: 'hidden',
@@ -141,7 +136,8 @@ const Login = () => {
               '@media (hover: hover)': {
                 '&:hover': {
                   transform: 'translateY(-5px)',
-                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.2)'
+                  boxShadow: '0 16px 64px rgba(75, 0, 130, 0.6)',
+                  border: '1px solid rgba(138, 43, 226, 0.4)'
                 },
                 '&:hover::before': {
                   left: '100%'
@@ -164,7 +160,7 @@ const Login = () => {
                 left: '-100%',
                 width: '100%',
                 height: '100%',
-                background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent)',
+                background: 'linear-gradient(90deg, transparent, rgba(138, 43, 226, 0.15), transparent)',
                 transition: 'left 0.8s',
                 // Hide shimmer effect on mobile
                 '@media (max-width: 768px)': {
@@ -187,38 +183,38 @@ const Login = () => {
                   <Box
                     sx={{
                       display: 'flex',
+                      flexDirection: 'column',
                       alignItems: 'center',
                       mb: 2,
-                      p: 2,
-                      borderRadius: '50px',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      backdropFilter: 'blur(10px)',
+                      p: 3,
+                      borderRadius: '24px',
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      backdropFilter: 'blur(15px)',
                       border: '1px solid rgba(255, 255, 255, 0.2)',
                       transition: 'all 0.3s ease',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
                       '&:hover': {
-                        background: 'rgba(255, 255, 255, 0.15)',
-                        transform: 'scale(1.05)'
+                        background: 'rgba(255, 255, 255, 0.12)',
+                        transform: 'scale(1.02)',
+                        boxShadow: '0 12px 40px rgba(0, 0, 0, 0.4)'
                       }
                     }}
                   >
-                    <Book sx={{ 
-                      fontSize: 42, 
-                      color: '#fff',
-                      mr: 1,
-                      filter: 'drop-shadow(0 0 10px rgba(25, 118, 210, 0.5))'
-                    }} />
-                    <Typography
-                      variant="h4"
-                      component="h1"
+                    <Box
+                      component="img"
+                      src="/logo-text.webp"
+                      alt="WhitePearl Logo"
                       sx={{
-                        fontWeight: 'bold',
-                        color: '#fff',
-                        textShadow: '0 0 20px rgba(255, 255, 255, 0.5)',
-                        letterSpacing: '0.5px'
+                        height: { xs: 60, sm: 80, md: 100 },
+                        width: 'auto',
+                        maxWidth: '100%',
+                        filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.3))',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          filter: 'drop-shadow(0 0 30px rgba(255, 255, 255, 0.5))'
+                        }
                       }}
-                    >
-                      WhitePearl
-                    </Typography>
+                    />
                   </Box>
                 </Grow>
                 <Typography 
@@ -496,7 +492,8 @@ const Login = () => {
           </Paper>
         </Zoom>
       </Container>
-    </Box>
+      </Box>
+    </StarsBackground>
   );
 };
 

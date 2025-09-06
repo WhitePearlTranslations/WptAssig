@@ -163,16 +163,17 @@ const Navbar = () => {
 
   // Mobile Drawer Content
   const drawer = (
-    <Box
-      sx={{
-        width: 280,
-        height: '100%',
-        background: 'rgba(15, 15, 25, 0.95)',
-        backdropFilter: 'blur(20px)',
-        display: 'flex',
-        flexDirection: 'column'
-      }}
-    >
+      <Box
+        sx={{
+          width: 280,
+          height: '100%',
+          background: 'rgba(15, 15, 25, 0.95)',
+          backdropFilter: 'blur(20px)',
+          display: 'flex',
+          flexDirection: 'column',
+          borderRadius: 0
+        }}
+      >
       {/* Mobile Header */}
       <Box sx={{ p: 3, borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -180,11 +181,7 @@ const Navbar = () => {
               sx={{
                 display: 'flex',
                 alignItems: 'center',
-                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                borderRadius: '12px',
-                p: 0.5,
-                mr: 2,
-                overflow: 'hidden'
+                mr: 2
               }}
             >
               <img 
@@ -193,7 +190,6 @@ const Navbar = () => {
                 style={{
                   width: '32px',
                   height: '32px',
-                  borderRadius: '8px',
                   objectFit: 'cover'
                 }}
                 onError={(e) => {
@@ -260,13 +256,8 @@ const Navbar = () => {
                 borderRadius: '12px',
                 mb: 1,
                 cursor: 'pointer',
-                transition: 'all 0.3s ease',
                 background: isActive ? `${item.color}20` : 'transparent',
-                border: isActive ? `1px solid ${item.color}40` : '1px solid transparent',
-                '&:hover': {
-                  background: `${item.color}10`,
-                  transform: 'translateX(8px)'
-                }
+                border: isActive ? `1px solid ${item.color}40` : '1px solid transparent'
               }}
               onClick={() => handleNavigation(item.path)}
             >
@@ -314,8 +305,7 @@ const Navbar = () => {
           sx={{
             borderRadius: '12px',
             mb: 1,
-            cursor: 'pointer',
-            '&:hover': { background: 'rgba(99, 102, 241, 0.1)' }
+            cursor: 'pointer'
           }}
           onClick={() => handleNavigation('/profile')}
         >
@@ -331,8 +321,7 @@ const Navbar = () => {
             sx={{
               borderRadius: '12px',
               mb: 1,
-              cursor: 'pointer',
-              '&:hover': { background: 'rgba(239, 68, 68, 0.1)' }
+              cursor: 'pointer'
             }}
             onClick={() => handleNavigation('/admin')}
           >
@@ -349,8 +338,7 @@ const Navbar = () => {
         <ListItem
           sx={{
             borderRadius: '12px',
-            cursor: 'pointer',
-            '&:hover': { background: 'rgba(239, 68, 68, 0.1)' }
+            cursor: 'pointer'
           }}
           onClick={handleLogout}
         >
@@ -369,16 +357,31 @@ const Navbar = () => {
   return (
     <>
       <AppBar 
-        position="static" 
-        className="animate-fade-in"
+        position="fixed" 
         sx={{ 
           background: 'rgba(15, 15, 25, 0.9)',
           backdropFilter: 'blur(20px)',
           borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
           boxShadow: 'none',
+          borderRadius: 0,
+          transition: 'none !important',
+          transform: 'none !important',
+          '&:hover': {
+            transform: 'none !important',
+            background: 'rgba(15, 15, 25, 0.9)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: 'none',
+          },
         }}
       >
-        <Toolbar sx={{ py: { xs: 0.5, md: 1 } }}>
+        <Toolbar sx={{ 
+          py: { xs: 0.5, md: 1 },
+          transition: 'none !important',
+          transform: 'none !important',
+          '&:hover': {
+            transform: 'none !important'
+          }
+        }}>
           {/* Logo and Title */}
           <Box 
             data-tour="dashboard"
@@ -388,19 +391,13 @@ const Navbar = () => {
               flexGrow: 1,
               cursor: 'pointer'
             }}
-            className="animate-slide-in-left"
             onClick={() => handleNavigation('/dashboard')}
           >
             <Box
               sx={{
                 display: 'flex',
                 alignItems: 'center',
-                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                borderRadius: { xs: '8px', md: '12px' },
-                p: { xs: 0.5, md: 1 },
-                mr: { xs: 1, md: 2 },
-                animation: 'float 3s ease-in-out infinite',
-                overflow: 'hidden'
+                mr: { xs: 1, md: 2 }
               }}
             >
               <img 
@@ -409,7 +406,6 @@ const Navbar = () => {
                 style={{
                   width: '28px',
                   height: '28px',
-                  borderRadius: '6px',
                   objectFit: 'cover'
                 }}
                 onError={(e) => {
@@ -457,9 +453,8 @@ const Navbar = () => {
             sx={{ 
               display: { xs: 'none', lg: 'flex' },
               alignItems: 'center', 
-              gap: 0.5,
+              gap: 0.5
             }}
-            className="animate-slide-in-right"
           >
             {navigationItems.filter(item => item.show).map((item) => {
               const Icon = item.icon;
@@ -499,30 +494,9 @@ const Navbar = () => {
                     px: 2,
                     py: 1,
                     minWidth: 'auto',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    position: 'relative',
-                    overflow: 'hidden',
                     background: isActive ? `${item.color}20` : 'transparent',
                     border: isActive ? `1px solid ${item.color}40` : '1px solid transparent',
                     color: isActive ? item.color : 'inherit',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      background: `${item.color}10`,
-                      opacity: 0,
-                      transition: 'opacity 0.3s ease',
-                    },
-                    '&:hover::before': {
-                      opacity: 1,
-                    },
-                    '&:hover': {
-                      transform: 'translateY(-1px)',
-                      color: item.color,
-                    },
                   }}
                 >
                   {item.text}
@@ -535,16 +509,11 @@ const Navbar = () => {
           {isChief && pendingReviewsCount > 0 && (
             <Box sx={{ display: { xs: 'flex', lg: 'none' }, mr: 1 }}>
               <Tooltip title={`${pendingReviewsCount} revisión${pendingReviewsCount > 1 ? 'es' : ''} pendiente${pendingReviewsCount > 1 ? 's' : ''}`}>
-                <IconButton
-                  onClick={() => handleNavigation('/reviews')}
-                  sx={{
-                    borderRadius: '12px',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      background: 'rgba(245, 158, 11, 0.1)',
-                      transform: 'scale(1.05)'
-                    }
-                  }}
+              <IconButton
+                onClick={() => handleNavigation('/reviews')}
+                sx={{
+                  borderRadius: '12px'
+                }}
                 >
                   <Badge 
                     badgeContent={pendingReviewsCount} 
@@ -576,12 +545,7 @@ const Navbar = () => {
               color="inherit"
               onClick={handleMobileToggle}
               sx={{
-                borderRadius: '12px',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  background: 'rgba(99, 102, 241, 0.1)',
-                  transform: 'scale(1.05)'
-                }
+                borderRadius: '12px'
               }}
             >
               <MenuIcon />
@@ -590,31 +554,22 @@ const Navbar = () => {
 
           {/* Desktop User Menu */}
           <Box sx={{ display: { xs: 'none', lg: 'flex' }, ml: 1 }}>
-            <IconButton
-              size="large"
-              onClick={handleMenu}
-              color="inherit"
-              data-tour="profile-menu"
-              sx={{
-                borderRadius: '12px',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                '&:hover': {
-                  transform: 'scale(1.05)',
-                  background: 'rgba(99, 102, 241, 0.1)',
-                },
-              }}
-            >
+              <IconButton
+                size="large"
+                onClick={handleMenu}
+                color="inherit"
+                data-tour="profile-menu"
+                sx={{
+                  borderRadius: '12px'
+                }}
+              >
               <Avatar 
                 src={userProfile?.profileImage}
                 sx={{ 
                   width: 36, 
                   height: 36, 
                   background: userProfile?.profileImage ? 'transparent' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                  border: '2px solid rgba(148, 163, 184, 0.2)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    boxShadow: '0 0 20px rgba(99, 102, 241, 0.4)',
-                  },
+                  border: '2px solid rgba(148, 163, 184, 0.2)'
                 }}
               >
                 {!userProfile?.profileImage && (
@@ -636,26 +591,20 @@ const Navbar = () => {
               }}
               open={Boolean(anchorEl)}
               onClose={handleClose}
-              className="animate-scale-in"
               sx={{
                 '& .MuiPaper-root': {
                   background: 'rgba(15, 15, 25, 0.9)',
                   backdropFilter: 'blur(20px)',
                   border: '1px solid rgba(148, 163, 184, 0.2)',
-                  borderRadius: '16px',
+                  borderRadius: 0,
                   boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
                   mt: 1,
-                  minWidth: 200,
+                  minWidth: 200
                 },
                 '& .MuiMenuItem-root': {
-                  borderRadius: '12px',
+                  borderRadius: '8px',
                   mx: 1,
                   my: 0.5,
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  '&:hover': {
-                    background: 'rgba(99, 102, 241, 0.1)',
-                    transform: 'translateX(4px)',
-                  },
                   '&.Mui-disabled': {
                     opacity: 1,
                     background: 'rgba(99, 102, 241, 0.05)',
@@ -725,6 +674,9 @@ const Navbar = () => {
             boxSizing: 'border-box',
             width: 280,
             border: 'none',
+            background: 'rgba(15, 15, 25, 0.95)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: 'none'
           },
         }}
       >

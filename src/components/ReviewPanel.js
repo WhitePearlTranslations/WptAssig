@@ -54,7 +54,9 @@ import {
   Search as SearchIcon,
   Refresh as RefreshIcon,
   Timeline as TimelineIcon,
-  TrendingUp as TrendingUpIcon
+  TrendingUp as TrendingUpIcon,
+  Close as CloseIcon,
+  OpenInNew as OpenInNewIcon
 } from '@mui/icons-material';
 import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { ASSIGNMENT_STATUS, STATUS_CONFIG, TASK_TYPES, isChiefRole } from '../utils/constants';
@@ -62,6 +64,7 @@ import realtimeService from '../services/realtimeService';
 import { toast } from 'react-hot-toast';
 import { format, formatDistanceToNow, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
+import FilePreview from './FilePreview';
 
 const ReviewPanel = () => {
   const { userProfile, hasRole } = useAuth();
@@ -76,6 +79,10 @@ const ReviewPanel = () => {
   });
   const [reviewComment, setReviewComment] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [filePreview, setFilePreview] = useState({
+    open: false,
+    assignment: null
+  });
   const [filters, setFilters] = useState({
     status: 'pendiente_aprobacion',
     taskType: '',
@@ -101,70 +108,16 @@ const ReviewPanel = () => {
         // Subscribe to ALL assignments without user filter
         // IMPORTANT: Don't pass second parameter to get ALL assignments
         unsubscribeAssignments = await realtimeService.subscribeToAssignments((allAssignments) => {
-          console.log('👀 ReviewPanel - Current user:', {
-            uid: userProfile.uid,
-            name: userProfile.name,
-            role: userProfile.role,
-            isAdmin: hasRole(ROLES.ADMIN),
-            isJefeTraductor: hasRole(ROLES.JEFE_TRADUCTOR),
-            isJefeEditor: hasRole(ROLES.JEFE_EDITOR)
-          });
-          
-          // Detailed role debug log
-          console.log('🔍 Role debug:', {
-            'userProfile.role': userProfile.role,
-            'ROLES.JEFE_EDITOR': ROLES.JEFE_EDITOR,
-            'ROLES.JEFE_TRADUCTOR': ROLES.JEFE_TRADUCTOR,
-            'userProfile.role === ROLES.JEFE_EDITOR': userProfile.role === ROLES.JEFE_EDITOR,
-            'hasRole(ROLES.JEFE_EDITOR)': hasRole(ROLES.JEFE_EDITOR),
-            'hasRole(ROLES.JEFE_TRADUCTOR)': hasRole(ROLES.JEFE_TRADUCTOR)
-          });
-          console.log('📋 ReviewPanel - Total assignments received:', allAssignments.length);
-          
-          // Status and type summary log
-          const statusSummary = allAssignments.reduce((acc, assignment) => {
-            const key = `${assignment.status}_${assignment.type}`;
-            acc[key] = (acc[key] || 0) + 1;
-            return acc;
-          }, {});
-          console.log('📊 Summary by status and type:', statusSummary);
-          
-          // Log specific pending approval assignments
-          const pendingApproval = allAssignments.filter(a => a.status === ASSIGNMENT_STATUS.PENDIENTE_APROBACION);
-          console.log('⏳ Pending approval assignments:', pendingApproval.length);
-          pendingApproval.forEach(assignment => {
-            console.log(`  - ${assignment.type}: ${assignment.mangaTitle} Ch. ${assignment.chapter} (${assignment.id})`);
-          });
-          
-          // Log specific cleanRedrawer assignments
-          const cleanAssignments = allAssignments.filter(a => a.type === 'cleanRedrawer');
-          console.log('🧹 CleanRedrawer assignments (all):', cleanAssignments.length);
-          cleanAssignments.forEach(assignment => {
-            console.log(`  - cleanRedrawer: ${assignment.mangaTitle} Ch. ${assignment.chapter} | Status: ${assignment.status} | ID: ${assignment.id}`);
-          });
           
           // Filter assignments that require review by current chief type
           const filteredAssignments = allAssignments.filter(assignment => {
-            console.log('🔍 Reviewing assignment:', {
-              id: assignment.id,
-              manga: assignment.mangaTitle,
-              chapter: assignment.chapter,
-              status: assignment.status,
-              type: assignment.type,
-              assignedTo: assignment.assignedTo,
-              pendingApprovalSince: assignment.pendingApprovalSince,
-              reviewRequiredBy: assignment.reviewRequiredBy
-            });
-            
             // Only show assignments that are pending approval
             if (assignment.status !== ASSIGNMENT_STATUS.PENDIENTE_APROBACION) {
-              console.log('❌ Status is not pending approval:', assignment.status);
               return false;
             }
 
             // Admins can see everything
             if (hasRole(ROLES.ADMIN)) {
-              console.log('✅ Admin can see everything');
               return true;
             }
 
@@ -175,30 +128,9 @@ const ReviewPanel = () => {
             
             const canReview = canReviewAsTraductor || canReviewAsEditor;
             
-            console.log('🔍 Permission review:', {
-              type: assignment.type,
-              isJefeTraductor: hasRole(ROLES.JEFE_TRADUCTOR),
-              isJefeEditor: hasRole(ROLES.JEFE_EDITOR),
-              canReviewAsTraductor,
-              canReviewAsEditor,
-              canReview
-            });
-            
             return canReview;
-
-            console.log('❌ No permission to review');
-            return false;
           });
 
-          console.log('✅ Filtered assignments for review:', filteredAssignments.length);
-          console.log('📊 Details:', filteredAssignments.map(a => ({
-            id: a.id,
-            manga: a.mangaTitle,
-            chapter: a.chapter,
-            type: a.type,
-            status: a.status
-          })));
-          
           setAssignments(filteredAssignments);
           setLoading(false);
         });
@@ -206,7 +138,6 @@ const ReviewPanel = () => {
         // Subscribe to users to show names
         unsubscribeUsers = await realtimeService.subscribeToUsers(setUsers);
       } catch (error) {
-        console.error('Error setting up subscriptions:', error);
         setLoading(false);
       }
     };
@@ -232,6 +163,20 @@ const ReviewPanel = () => {
       open: true,
       action: 'reject',
       assignment
+    });
+  };
+
+  const handlePreviewFiles = (assignment) => {
+    setFilePreview({
+      open: true,
+      assignment
+    });
+  };
+
+  const handleClosePreview = () => {
+    setFilePreview({
+      open: false,
+      assignment: null
     });
   };
 
@@ -270,7 +215,6 @@ const ReviewPanel = () => {
       setReviewDialog({ open: false, action: null, assignment: null });
       setReviewComment('');
     } catch (error) {
-      console.error('Error al revisar asignación:', error);
       toast.error('Error al procesar la revisión');
     } finally {
       setProcessing(false);
@@ -410,26 +354,28 @@ const ReviewPanel = () => {
           )}
         </Box>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <Tooltip title="Actualizar solicitudes">
-            <IconButton
-              onClick={() => window.location.reload()}
-              disabled={loading}
-              sx={{
-                backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                color: '#f59e0b',
-                '&:hover': {
-                  backgroundColor: 'rgba(245, 158, 11, 0.2)',
-                  transform: 'scale(1.05)'
-                },
-                '&:disabled': {
-                  backgroundColor: 'rgba(107, 114, 128, 0.1)',
-                  color: '#6b7280'
-                },
-                transition: 'all 0.3s ease'
-              }}
-            >
-              <RefreshIcon />
-            </IconButton>
+          <Tooltip title={loading ? "Cargando..." : "Actualizar solicitudes"}>
+            <span>
+              <IconButton
+                onClick={() => window.location.reload()}
+                disabled={loading}
+                sx={{
+                  backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                  color: '#f59e0b',
+                  '&:hover': {
+                    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                    transform: 'scale(1.05)'
+                  },
+                  '&:disabled': {
+                    backgroundColor: 'rgba(107, 114, 128, 0.1)',
+                    color: '#6b7280'
+                  },
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <RefreshIcon />
+              </IconButton>
+            </span>
           </Tooltip>
         </Box>
       </Box>
@@ -731,6 +677,25 @@ const ReviewPanel = () => {
                   </TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={1}>
+                      {/* Vista previa de archivos */}
+                      {assignment.driveLink && (
+                        <Tooltip title="Vista previa de archivos">
+                          <IconButton
+                            onClick={() => handlePreviewFiles(assignment)}
+                            sx={{
+                              color: '#6366f1',
+                              backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                              '&:hover': {
+                                backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                                transform: 'scale(1.1)'
+                              },
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            <ViewIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                       <Tooltip title="Aprobar asignación">
                         <IconButton
                           onClick={() => handleApprove(assignment)}
@@ -776,8 +741,14 @@ const ReviewPanel = () => {
       <Dialog
         open={reviewDialog.open}
         onClose={() => !processing && setReviewDialog({ open: false, action: null, assignment: null })}
-        maxWidth="sm"
+        maxWidth={reviewDialog.assignment?.driveLink ? "lg" : "sm"}
         fullWidth
+        PaperProps={{
+          sx: {
+            maxHeight: '90vh',
+            height: reviewDialog.assignment?.driveLink ? 'auto' : undefined
+          }
+        }}
       >
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -791,58 +762,86 @@ const ReviewPanel = () => {
         </DialogTitle>
         <DialogContent>
           {reviewDialog.assignment && (
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                <strong>Asignación:</strong> {reviewDialog.assignment.mangaTitle} - Capítulo {reviewDialog.assignment.chapter}
-              </Typography>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                <strong>Tipo:</strong> {TASK_TYPES[reviewDialog.assignment.type] || reviewDialog.assignment.type}
-              </Typography>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                <strong>Trabajador:</strong> {getUserName(reviewDialog.assignment.assignedTo)}
-              </Typography>
-              <Typography variant="body1" sx={{ mb: 2 }}>
-                <strong>Enviado:</strong> {getTimeAgo(reviewDialog.assignment.pendingApprovalSince)}
-              </Typography>
-            </Box>
-          )}
-          
-          <Divider sx={{ my: 2 }} />
-          
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            label={reviewDialog.action === 'approve' ? 'Comentario de aprobación (opcional)' : 'Motivo del rechazo'}
-            value={reviewComment}
-            onChange={(e) => setReviewComment(e.target.value)}
-            placeholder={
-              reviewDialog.action === 'approve' 
-                ? 'Excelente trabajo, todo perfecto...' 
-                : 'Por favor revisa los siguientes puntos...'
-            }
-            required={reviewDialog.action === 'reject'}
-            helperText={
-              reviewDialog.action === 'reject' 
-                ? 'Es obligatorio proporcionar un motivo para el rechazo'
-                : 'Opcional: Agrega comentarios para el trabajador'
-            }
-          />
-          
-          {reviewDialog.action === 'approve' && (
-            <Alert severity="success" sx={{ mt: 2 }}>
-              <AlertTitle>Aprobar Asignación</AlertTitle>
-              Esta acción marcará la asignación como <strong>APROBADA</strong>. 
-              El trabajador será notificado de la aprobación.
-            </Alert>
-          )}
-          
-          {reviewDialog.action === 'reject' && (
-            <Alert severity="warning" sx={{ mt: 2 }}>
-              <AlertTitle>Rechazar Asignación</AlertTitle>
-              Esta acción devolverá la asignación al estado <strong>PENDIENTE</strong>. 
-              El trabajador deberá corregir los puntos mencionados y enviar nuevamente.
-            </Alert>
+            <Grid container spacing={3}>
+              {/* Vista previa de archivos (si existe driveLink) */}
+              {reviewDialog.assignment.driveLink && (
+                <Grid item xs={12} md={7}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <ViewIcon color="primary" />
+                      Vista previa de archivos
+                    </Typography>
+                    <FilePreview 
+                      assignment={reviewDialog.assignment}
+                      maxHeight="60vh"
+                      showControls={true}
+                      autoDetectMultiple={true}
+                    />
+                  </Box>
+                </Grid>
+              )}
+              
+              {/* Formulario de revisión */}
+              <Grid item xs={12} md={reviewDialog.assignment.driveLink ? 5 : 12}>
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="body1" sx={{ mb: 2 }}>
+                    <strong>Asignación:</strong> {reviewDialog.assignment.mangaTitle} - Capítulo {reviewDialog.assignment.chapter}
+                  </Typography>
+                  <Typography variant="body1" sx={{ mb: 2 }}>
+                    <strong>Tipo:</strong> {TASK_TYPES[reviewDialog.assignment.type] || reviewDialog.assignment.type}
+                  </Typography>
+                  <Typography variant="body1" sx={{ mb: 2 }}>
+                    <strong>Trabajador:</strong> {getUserName(reviewDialog.assignment.assignedTo)}
+                  </Typography>
+                  <Typography variant="body1" sx={{ mb: 2 }}>
+                    <strong>Enviado:</strong> {getTimeAgo(reviewDialog.assignment.pendingApprovalSince)}
+                  </Typography>
+                  {reviewDialog.assignment.driveLink && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      ¡Puedes revisar los archivos en la vista previa de la izquierda mientras escribes tu comentario!
+                    </Typography>
+                  )}
+                </Box>
+                
+                <Divider sx={{ my: 2 }} />
+                
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={4}
+                  label={reviewDialog.action === 'approve' ? 'Comentario de aprobación (opcional)' : 'Motivo del rechazo'}
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder={
+                    reviewDialog.action === 'approve' 
+                      ? 'Excelente trabajo, todo perfecto...' 
+                      : 'Por favor revisa los siguientes puntos...'
+                  }
+                  required={reviewDialog.action === 'reject'}
+                  helperText={
+                    reviewDialog.action === 'reject' 
+                      ? 'Es obligatorio proporcionar un motivo para el rechazo'
+                      : 'Opcional: Agrega comentarios para el trabajador'
+                  }
+                />
+                
+                {reviewDialog.action === 'approve' && (
+                  <Alert severity="success" sx={{ mt: 2 }}>
+                    <AlertTitle>Aprobar Asignación</AlertTitle>
+                    Esta acción marcará la asignación como <strong>APROBADA</strong>. 
+                    El trabajador será notificado de la aprobación.
+                  </Alert>
+                )}
+                
+                {reviewDialog.action === 'reject' && (
+                  <Alert severity="warning" sx={{ mt: 2 }}>
+                    <AlertTitle>Rechazar Asignación</AlertTitle>
+                    Esta acción devolverá la asignación al estado <strong>PENDIENTE</strong>. 
+                    El trabajador deberá corregir los puntos mencionados y enviar nuevamente.
+                  </Alert>
+                )}
+              </Grid>
+            </Grid>
           )}
         </DialogContent>
         <DialogActions>
@@ -868,6 +867,87 @@ const ReviewPanel = () => {
              reviewDialog.action === 'approve' ? 'Aprobar' : 'Rechazar'
             }
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog independiente para vista previa de archivos */}
+      <Dialog
+        open={filePreview.open}
+        onClose={handleClosePreview}
+        maxWidth="xl"
+        fullWidth
+        PaperProps={{
+          sx: {
+            maxHeight: '95vh',
+            height: '90vh'
+          }
+        }}
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <ViewIcon color="primary" />
+              <Box>
+                <Typography variant="h6" component="span">
+                  Vista previa de archivos
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ display: 'block' }}>
+                  {filePreview.assignment?.mangaTitle} - Capítulo {filePreview.assignment?.chapter}
+                </Typography>
+              </Box>
+            </Box>
+            <IconButton onClick={handleClosePreview} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
+          {filePreview.assignment && (
+            <FilePreview 
+              assignment={filePreview.assignment}
+              maxHeight="75vh"
+              showControls={true}
+              autoDetectMultiple={true}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          {filePreview.assignment && (
+            <Stack direction="row" spacing={2}>
+              <Button
+                variant="outlined"
+                startIcon={<ThumbUpIcon />}
+                onClick={() => {
+                  handleClosePreview();
+                  handleApprove(filePreview.assignment);
+                }}
+                sx={{ color: '#10b981', borderColor: '#10b981' }}
+              >
+                Aprobar
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<ThumbDownIcon />}
+                onClick={() => {
+                  handleClosePreview();
+                  handleReject(filePreview.assignment);
+                }}
+                sx={{ color: '#ef4444', borderColor: '#ef4444' }}
+              >
+                Rechazar
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<OpenInNewIcon />}
+                href={filePreview.assignment?.driveLink}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Abrir en Drive
+              </Button>
+            </Stack>
+          )}
+          <Button onClick={handleClosePreview}>Cerrar</Button>
         </DialogActions>
       </Dialog>
     </Container>

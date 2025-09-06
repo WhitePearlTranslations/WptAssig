@@ -20,10 +20,8 @@ import AdminPanel from './components/AdminPanel';
 import MyWorks from './components/MyWorks';
 import Uploads from './pages/Uploads';
 import ReviewPanel from './components/ReviewPanel';
-import GlobalNotificationProvider from './components/GlobalNotificationProvider';
 import TourFloatingButton from './components/TourFloatingButton';
 import PageTourButton from './components/PageTourButton';
-import NotificationTester from './components/NotificationTester';
 
 const theme = createTheme({
   palette: {
@@ -232,6 +230,12 @@ const theme = createTheme({
           backdropFilter: 'blur(20px)',
           borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
           boxShadow: 'none',
+          transition: 'none',
+          '&:hover': {
+            transform: 'none',
+            background: 'rgba(15, 15, 25, 0.9)',
+            backdropFilter: 'blur(20px)',
+          },
         },
       },
     },
@@ -312,9 +316,10 @@ const AppLayout = ({ children }) => {
           bgcolor: 'background.default',
           overflow: 'auto',
           position: 'relative',
-          // Add responsive padding
+          // Add responsive padding and top margin for fixed header
           px: { xs: 1, sm: 2, md: 3 },
-          py: { xs: 2, md: 3 }
+          py: { xs: 2, md: 3 },
+          pt: { xs: '80px', md: '88px' } // Space for fixed header
         }}
       >
         <Box sx={{ maxWidth: '100%', mx: 'auto' }}>
@@ -333,8 +338,7 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <Router>
-          <GlobalNotificationProvider>
-            <Routes>
+          <Routes>
             {/* Ruta de login sin layout */}
             <Route path="/login" element={<Login />} />
             
@@ -445,25 +449,14 @@ function App() {
               }
             />
             
-            <Route
-              path="/test-notifications"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <NotificationTester />
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
             
             {/* Redirección por defecto */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             
             {/* Ruta 404 */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-            </GlobalNotificationProvider>
-          </Router>
+          </Routes>
+        </Router>
         
         {/* Toast notifications */}
         <Toaster

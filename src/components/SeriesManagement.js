@@ -1885,6 +1885,7 @@ const SeriesManagement = () => {
   
   // Estado para filtro del panel de trabajo
   const [staffFilter, setStaffFilter] = useState('all');
+  
 
   // Función para editar texto de tarea no disponible
   const handleEditUnavailableTask = (manga, chapter, taskType) => {
