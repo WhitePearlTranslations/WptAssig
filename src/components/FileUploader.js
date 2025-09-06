@@ -500,7 +500,7 @@ const FileUploader = ({
                 <input
                   type="file"
                   multiple
-                  accept=".jpg,.jpeg,.png,.gif,.pdf,.zip,.rar,.7z,.psd,.ai,.eps"
+                  accept=".jpg,.jpeg,.png,.gif,.pdf,.zip,.rar,.7z,.psd,.ai,.eps,.docx,.txt"
                   onChange={(e) => {
                     const files = Array.from(e.target.files);
                     
