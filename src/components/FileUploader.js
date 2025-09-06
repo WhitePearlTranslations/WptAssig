@@ -571,7 +571,7 @@ const FileUploader = ({
                     
                     fileList.forEach(file => {
                       // Filtrar solo archivos permitidos
-                      const allowedTypes = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.zip', '.rar', '.7z', '.psd', '.ai', '.eps'];
+                      const allowedTypes = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.zip', '.rar', '.7z', '.psd', '.ai', '.eps','.docx','.txt'];
                       const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
                       
                       if (allowedTypes.includes(fileExtension)) {
