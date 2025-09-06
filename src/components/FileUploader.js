@@ -121,7 +121,7 @@ const FileUploader = ({
         restrictions: {
           maxFileSize: parseInt(process.env.REACT_APP_UPPY_MAX_FILE_SIZE) || 100000000, // 100MB
           maxNumberOfFiles: parseInt(process.env.REACT_APP_UPPY_MAX_FILES) || 50,
-          allowedFileTypes: ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.zip', '.rar', '.7z', '.psd', '.ai', '.eps']
+          allowedFileTypes: ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.zip', '.rar', '.7z', '.psd', '.ai', '.eps', '.docx', '.txt']
         },
         meta: {
           assignmentId: assignment?.id,
