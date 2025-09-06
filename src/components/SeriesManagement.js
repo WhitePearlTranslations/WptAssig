@@ -283,8 +283,25 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
 
   // Normalizar availableTasks si es un manga joint
   const normalizedAvailableTasks = manga.isJoint && manga.availableTasks 
-    ? manga.availableTasks.map(task => taskMapping[task] || task).filter(Boolean)
+    ? manga.availableTasks
+        .filter(task => task !== 'edicion') // Filtrar completamente la tarea 'edicion'
+        .map(task => taskMapping[task] || task)
+        .filter(Boolean)
     : null;
+    
+  // DEBUG: Log para entender el problema con mangas joint
+  if (manga.isJoint) {
+    console.log('🔍 DEBUG - Manga Joint:', {
+      title: manga.title,
+      isJoint: manga.isJoint,
+      availableTasks: manga.availableTasks,
+      normalizedAvailableTasks,
+      taskMapping
+    });
+    
+    console.log('📋 DETALLE availableTasks:', manga.availableTasks);
+    console.log('📋 DETALLE normalizedAvailableTasks:', normalizedAvailableTasks);
+  }
 
   // Filtrar asignaciones de este manga
   let mangaAssignments = assignments.filter(assignment => assignment.mangaId === manga.id);
@@ -385,13 +402,18 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
             
             
             // Verificar si todo el capítulo está completado
+            // Para mangas joint, considerar solo las tareas disponibles configuradas
+            const validTaskTypes = manga.isJoint && normalizedAvailableTasks
+              ? normalizedAvailableTasks
+              : ['traduccion', 'proofreading', 'cleanRedrawer', 'type'];
+            
             // FILTRAR SOLO ASIGNACIONES VÁLIDAS (con type definido y que no sean datos de capítulo)
             const allAssignments = Object.values(chapterData).filter(assignment => 
               assignment !== null && 
               assignment.type && // Debe tener tipo definido
               assignment.type !== undefined && // No debe ser undefined
               typeof assignment.type === 'string' && // Debe ser string
-              ['traduccion', 'proofreading', 'cleanRedrawer', 'type'].includes(assignment.type) // Solo tipos válidos
+              validTaskTypes.includes(assignment.type) // Solo tipos válidos para este manga
             );
             
             const assignedAssignments = allAssignments.filter(assignment => 
@@ -399,19 +421,13 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
             );
             
             // Verificar diferentes estados del capítulo
-            // Para mangas joint, el total de asignaciones posibles depende de availableTasks
-            const totalPossibleAssignments = manga.isJoint && normalizedAvailableTasks 
-              ? normalizedAvailableTasks.length 
-              : 4; // traduccion, proofreading, cleanRedrawer, type
             const assignedCount = assignedAssignments.length;
             
-            // CORREGIDO: Un capítulo está completado (verde) SOLO si:
-            // 1. Tiene TODAS las tareas necesarias para un capítulo completo (4 tareas para mangas normales, o las disponibles para mangas joint)
-            // 2. TODAS las tareas necesarias están asignadas a usuarios
-            // 3. TODAS las tareas necesarias están completadas
+            // LÓGICA CORREGIDA: Un capítulo está completado (verde) si:
+            // - Para mangas NORMALES: Tiene las 4 tareas completas (traduccion, proofreading, cleanRedrawer, type)
+            // - Para mangas JOINT: Tiene todas las tareas configuradas en availableTasks completas
             // 
-            // NOTA: Ya no se marca como completado solo porque las asignaciones existentes estén completadas
-            // Debe tener el número completo de tareas para considerarse completado
+            // Para mangas joint, el total de asignaciones requeridas depende de availableTasks
             const requiredTaskCount = manga.isJoint && normalizedAvailableTasks 
               ? normalizedAvailableTasks.length 
               : 4; // traduccion, proofreading, cleanRedrawer, type
@@ -421,6 +437,30 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
               assignedAssignments.every(assignment => 
                 assignment.status === 'completado' || assignment.status === 'aprobado'
               );
+              
+            // DEBUG: Log para entender por qué el capítulo no está verde
+            if (manga.isJoint && (chapter === '12' || chapter === '11.5')) {
+              console.log(`🔍 DEBUG - Capítulo ${chapter} de "${manga.title}":`, {
+                mangaTitle: manga.title,
+                chapter: chapter,
+                validTaskTypes,
+                allAssignments: allAssignments.map(a => ({ type: a.type, status: a.status, assignedTo: a.assignedTo })),
+                assignedAssignments: assignedAssignments.map(a => ({ type: a.type, status: a.status, assignedTo: a.assignedTo })),
+                requiredTaskCount,
+                allAssignmentsLength: allAssignments.length,
+                assignedAssignmentsLength: assignedAssignments.length,
+                allCompleted: assignedAssignments.every(a => a.status === 'completado' || a.status === 'aprobado'),
+                isChapterCompleted
+              });
+              
+              console.log(`📊 DETALLE validTaskTypes para capítulo ${chapter}:`, validTaskTypes);
+              console.log(`📊 DETALLE tipos de asignaciones encontradas:`, allAssignments.map(a => a.type));
+              console.log(`📊 DIFERENCIA - Tareas esperadas vs encontradas:`);
+              validTaskTypes.forEach(expectedType => {
+                const found = allAssignments.find(a => a.type === expectedType);
+                console.log(`   ${expectedType}: ${found ? '✅ ENCONTRADA' : '❌ FALTANTE'}`);
+              });
+            }
             
             // Un capítulo está subido (azul) si:
             // 1. Tiene al menos una asignación, Y
@@ -2375,7 +2415,10 @@ const SeriesManagement = () => {
 
     // Normalizar availableTasks si es un manga joint
     const normalizedAvailableTasks = manga.isJoint && manga.availableTasks 
-      ? manga.availableTasks.map(task => taskMapping[task] || task).filter(Boolean)
+      ? manga.availableTasks
+          .filter(task => task !== 'edicion') // Filtrar completamente la tarea 'edicion'
+          .map(task => taskMapping[task] || task)
+          .filter(Boolean)
       : null;
 
     const mangaAssignments = assignments.filter(a => a.mangaId === manga.id);
@@ -2412,10 +2455,9 @@ const SeriesManagement = () => {
     const allChapters = Object.keys(chapterGroups);
     const totalChapters = allChapters.length;
     
-    // CORREGIDO: Un capítulo está completado SOLO si:
-    // 1. Tiene TODAS las tareas necesarias para un capítulo completo
-    // 2. TODAS las tareas necesarias están asignadas a usuarios
-    // 3. TODAS las tareas necesarias están completadas
+    // LÓGICA CORREGIDA: Un capítulo está completado si:
+    // - Para mangas NORMALES: Tiene las 4 tareas completas (traduccion, proofreading, cleanRedrawer, type)
+    // - Para mangas JOINT: Tiene todas las tareas configuradas en availableTasks completas
     const requiredTaskCount = manga.isJoint && normalizedAvailableTasks 
       ? normalizedAvailableTasks.length 
       : 4; // traduccion, proofreading, cleanRedrawer, type
@@ -2423,13 +2465,18 @@ const SeriesManagement = () => {
     const completedChapters = allChapters.filter(chapter => {
       const chapterData = chapterGroups[chapter];
       
+      // Para mangas joint, considerar solo las tareas disponibles configuradas
+      const validTaskTypes = manga.isJoint && normalizedAvailableTasks
+        ? normalizedAvailableTasks
+        : ['traduccion', 'proofreading', 'cleanRedrawer', 'type'];
+      
       // Filtrar solo asignaciones válidas (con type definido y que no sean datos de capítulo)
       const allAssignments = Object.values(chapterData).filter(assignment => 
         assignment !== null && 
         assignment.type && // Debe tener tipo definido
         assignment.type !== undefined && // No debe ser undefined
         typeof assignment.type === 'string' && // Debe ser string
-        ['traduccion', 'proofreading', 'cleanRedrawer', 'type'].includes(assignment.type) // Solo tipos válidos
+        validTaskTypes.includes(assignment.type) // Solo tipos válidos para este manga
       );
       
       const assignedAssignments = allAssignments.filter(assignment => 
@@ -2437,7 +2484,7 @@ const SeriesManagement = () => {
       );
       
       // Un capítulo está completado SOLO si:
-      // 1. Tiene el número completo de tareas requeridas
+      // 1. Tiene el número completo de tareas requeridas (4 para normales, availableTasks.length para joint)
       // 2. Todas están asignadas
       // 3. Todas están completadas, aprobadas O subidas
       return allAssignments.length === requiredTaskCount && 
@@ -2471,13 +2518,35 @@ const SeriesManagement = () => {
       return 'created';
     }
     
+    // Obtener manga para determinar tipos válidos
+    const manga = mangas.find(m => m.id === mangaId);
+    
+    // Para mangas joint, considerar solo las tareas disponibles configuradas
+    const taskMapping = {
+      'traduccion': 'traduccion',
+      'proofreading': 'proofreading', 
+      'limpieza': 'cleanRedrawer',
+      'clean': 'cleanRedrawer',
+      'cleanRedrawer': 'cleanRedrawer',
+      'typesetting': 'type',
+      'type': 'type'
+    };
+    
+    const normalizedAvailableTasks = manga?.isJoint && manga.availableTasks 
+      ? manga.availableTasks.map(task => taskMapping[task] || task).filter(Boolean)
+      : null;
+    
+    const validTaskTypes = manga?.isJoint && normalizedAvailableTasks
+      ? normalizedAvailableTasks
+      : ['traduccion', 'proofreading', 'cleanRedrawer', 'type'];
+    
     // Filtrar solo asignaciones válidas (con tipo definido)
     const validAssignments = chapterAssignments.filter(assignment => 
       assignment && 
       assignment.type && 
       assignment.type !== undefined && 
       typeof assignment.type === 'string' && 
-      ['traduccion', 'proofreading', 'cleanRedrawer', 'type'].includes(assignment.type)
+      validTaskTypes.includes(assignment.type)
     );
     
     if (validAssignments.length === 0) {

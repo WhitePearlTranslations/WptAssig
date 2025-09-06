@@ -136,7 +136,10 @@ const NewUploadsPanel = () => {
 
         // Normalizar availableTasks si es un manga joint
         const normalizedAvailableTasks = manga?.isJoint && manga?.availableTasks 
-          ? manga.availableTasks.map(task => taskMapping[task] || task).filter(Boolean)
+          ? manga.availableTasks
+              .filter(task => task !== 'edicion') // Filtrar completamente la tarea 'edicion'
+              .map(task => taskMapping[task] || task)
+              .filter(Boolean)
           : null;
         
         // Filtrar solo asignaciones válidas (con tipo definido)

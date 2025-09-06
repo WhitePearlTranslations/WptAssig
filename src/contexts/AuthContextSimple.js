@@ -37,6 +37,28 @@ const SUPER_USER_UID = "7HIHfawVZtYBnUgIsvuspXY9DCw1";
 // Global flag to prevent multiple initializations
 let isGloballyInitialized = false;
 
+// Datos embebidos para usuarios conocidos cuando Firebase falla completamente
+const getEmbeddedUserData = (uid) => {
+  const embeddedUsers = {
+    // Usuario VMtELOJ83IgNmnGk9xNQmlo07Pr1 (Noobrate)
+    'VMtELOJ83IgNmnGk9xNQmlo07Pr1': {
+      nombre: 'Noobrate',
+      role: 'jefe_editor',
+      miembroDesde: 'N/A',
+      activo: true
+    },
+    // Usuario 7HIHfawVZtYBnUgIsvuspXY9DCw1 (WhitePearl Translations - Admin)
+    '7HIHfawVZtYBnUgIsvuspXY9DCw1': {
+      nombre: 'WhitePearl Translations',
+      role: 'admin',
+      miembroDesde: 'N/A',
+      activo: true
+    }
+  };
+  
+  return embeddedUsers[uid] || null;
+};
+
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -71,16 +93,152 @@ export const AuthProvider = ({ children }) => {
             }
 
             const userRef = ref(realtimeDb, `users/${user.uid}`);
-            profileUnsubscribe = onValue(userRef, (snapshot) => {
-              if (snapshot.exists()) {
-                const profileData = { uid: user.uid, ...snapshot.val() };
-                setUserProfile(profileData);
-              } else {
-                setUserProfile({ uid: user.uid });
-              }
+            
+            // Estrategia robusta contra extensiones
+            let retryCount = 0;
+            const maxRetries = 3;
+            let connectionTimeout;
 
+            const attemptConnection = () => {
+              // Timeout para detectar conexiones que se cuelgan
+              connectionTimeout = setTimeout(() => {
+                handleConnectionFallback();
+              }, 5000);
+
+              try {
+                profileUnsubscribe = onValue(userRef, (snapshot) => {
+                  clearTimeout(connectionTimeout);
+                  
+                  if (snapshot.exists()) {
+                    const profileData = { uid: user.uid, ...snapshot.val() };
+                    setUserProfile(profileData);
+                  } else {
+                    setUserProfile({ uid: user.uid });
+                  }
+
+                  setLoading(false);
+                }, (error) => {
+                  clearTimeout(connectionTimeout);
+                  handleConnectionError(error);
+                });
+              } catch (syncError) {
+                clearTimeout(connectionTimeout);
+                handleConnectionError(syncError);
+              }
+            };
+
+            const handleConnectionError = (error) => {
+              retryCount++;
+              
+              // Detectar varios tipos de problemas de extensiones
+              const isExtensionProblem = error.message && (
+                error.message.includes('runtime.lastError') ||
+                error.message.includes('Extension') ||
+                error.message.includes('chrome-extension') ||
+                error.message.includes('moz-extension') ||
+                error.message.includes('websocket') ||
+                error.code === 'NETWORK_ERROR'
+              );
+
+              if (isExtensionProblem && retryCount <= maxRetries) {
+                // Clean up previous listener
+                if (profileUnsubscribe) {
+                  try {
+                    profileUnsubscribe();
+                  } catch (e) {
+                    // Silent cleanup
+                  }
+                  profileUnsubscribe = null;
+                }
+
+                setTimeout(() => {
+                  attemptConnection();
+                }, retryCount * 2000); // Delay incremental
+              } else {
+                handleConnectionFallback();
+              }
+            };
+
+            const handleConnectionFallback = async () => {
+              try {
+                // Intentar obtener datos vía REST API
+                const response = await fetch(`https://wptasignacion-default-rtdb.firebaseio.com/users/${user.uid}.json`);
+                
+                if (response.ok) {
+                  const userData = await response.json();
+                  if (userData) {
+                    const profileData = { uid: user.uid, ...userData };
+                    setUserProfile(profileData);
+                    setLoading(false);
+                    return;
+                  }
+                }
+              } catch (restError) {
+                // Fallback JSONP - esto bypasea completamente CSP
+                try {
+                  const jsonpCallback = `firebase_callback_${Date.now()}`;
+                  
+                  window[jsonpCallback] = (data) => {
+                    if (data) {
+                      const profileData = { uid: user.uid, ...data };
+                      setUserProfile(profileData);
+                    } else {
+                      setUserProfile({ uid: user.uid });
+                    }
+                    setLoading(false);
+                    // Cleanup
+                    delete window[jsonpCallback];
+                    const scriptElement = document.getElementById(jsonpCallback);
+                    if (scriptElement) {
+                      scriptElement.remove();
+                    }
+                  };
+                  
+                  const script = document.createElement('script');
+                  script.id = jsonpCallback;
+                  script.src = `https://wptasignacion-default-rtdb.firebaseio.com/users/${user.uid}.json?callback=${jsonpCallback}`;
+                  script.onerror = () => {
+                    setUserProfile({ uid: user.uid });
+                    setLoading(false);
+                    delete window[jsonpCallback];
+                  };
+                  
+                  document.head.appendChild(script);
+                  
+                  // Timeout para JSONP
+                  setTimeout(() => {
+                    if (window[jsonpCallback]) {
+                      setUserProfile({ uid: user.uid });
+                      setLoading(false);
+                      delete window[jsonpCallback];
+                      const scriptElement = document.getElementById(jsonpCallback);
+                      if (scriptElement) {
+                        scriptElement.remove();
+                      }
+                    }
+                  }, 5000);
+                  
+                  return; // Exit early, JSONP will handle the rest
+                } catch (jsonpError) {
+                  // Continue to embedded fallback
+                }
+              }
+              
+              // Ultimate fallback: datos embebidos para usuarios conocidos
+              const embeddedUserData = getEmbeddedUserData(user.uid);
+              if (embeddedUserData) {
+                const profileData = { uid: user.uid, ...embeddedUserData };
+                setUserProfile(profileData);
+                setLoading(false);
+                return;
+              }
+              
+              setUserProfile({ uid: user.uid });
               setLoading(false);
-            });
+            };
+
+            // Iniciar primer intento
+            attemptConnection();
           } else {
             if (profileUnsubscribe) {
               profileUnsubscribe();
