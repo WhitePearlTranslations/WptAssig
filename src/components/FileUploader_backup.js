@@ -121,7 +121,7 @@ const FileUploader = ({
         restrictions: {
           maxFileSize: parseInt(process.env.REACT_APP_UPPY_MAX_FILE_SIZE) || 100000000, // 100MB
           maxNumberOfFiles: parseInt(process.env.REACT_APP_UPPY_MAX_FILES) || 50,
-          allowedFileTypes: ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.zip', '.rar', '.7z', '.psd', '.ai', '.eps']
+          allowedFileTypes: ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.zip', '.rar', '.7z', '.psd', '.ai', '.eps', '.docx','.txt']
         },
         meta: {
           assignmentId: assignment?.id,
@@ -480,7 +480,7 @@ const FileUploader = ({
                 <input
                   type="file"
                   multiple
-                  accept=".jpg,.jpeg,.png,.gif,.pdf,.zip,.rar,.7z,.psd,.ai,.eps"
+                  accept=".jpg,.jpeg,.png,.gif,.pdf,.zip,.rar,.7z,.psd,.ai,.eps,.docx,.txt"
                   onChange={(e) => {
                     Array.from(e.target.files).forEach(file => {
                       uppy.addFile({
@@ -532,7 +532,7 @@ const FileUploader = ({
                     
                     fileList.forEach(file => {
                       // Filtrar solo archivos permitidos
-                      const allowedTypes = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.zip', '.rar', '.7z', '.psd', '.ai', '.eps'];
+                      const allowedTypes = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.zip', '.rar', '.7z', '.psd', '.ai', '.eps','.docx','.txt'];
                       const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
                       
                       if (allowedTypes.includes(fileExtension)) {
