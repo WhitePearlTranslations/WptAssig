@@ -13,9 +13,9 @@
     "@testing-library/jest-dom": "^5.16.4",
     "@testing-library/react": "^13.3.0",
     "@testing-library/user-event": "^13.5.0",
-    "@uppy/core": "^4.5.3",
+    "@uppy/core": "^3.13.1",
     "@uppy/dashboard": "^3.9.1",
-    "@uppy/drag-drop": "^5.0.1",
+    "@uppy/drag-drop": "^3.1.0",
     "@uppy/file-input": "^3.1.2",
     "@uppy/progress-bar": "^3.1.1",
     "@uppy/react": "^3.4.0",
@@ -81,6 +81,7 @@
     ]
   },
   "devDependencies": {
+    "ajv": "^8.17.1",
     "cross-env": "^10.0.0"
   }
 }
