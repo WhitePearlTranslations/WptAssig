@@ -457,8 +457,7 @@ const NewUploadsPanel = () => {
     
     try {
       setSaveProgressLoading(true);
-      console.log('Iniciando guardado de progreso para usuario:', userProfile.uid);
-      console.log('Rol del usuario:', userProfile.role);
+      // Starting progress save
       
       // Validar datos antes del guardado
       if (!selectedChapters || selectedChapters.length === 0) {
@@ -506,20 +505,14 @@ const NewUploadsPanel = () => {
       // Aplicar limpieza final a todo el objeto progressData
       const cleanProgressData = cleanUndefinedValues(progressData);
       
-      console.log('Datos a guardar:', {
-        userId: userProfile.uid,
-        selectedChaptersCount: cleanSelectedChapters.length,
-        currentChapterIndex,
-        workflow: currentWorkflow,
-        layoutChecklistCompleted: Object.values(layoutChecklist).every(v => v)
-      });
+      // Data validation complete
       
       // Intentar guardar los datos
       const success = await realtimeService.setData(`uploadProgress/${userProfile.uid}`, cleanProgressData);
       
       if (success) {
         setSavedProgress(cleanProgressData);
-        console.log('Progreso guardado exitosamente');
+        // Progress saved successfully
         
         // Mostrar feedback de éxito
         setSaveProgressSuccess(true);

@@ -289,19 +289,7 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
         .filter(Boolean)
     : null;
     
-  // DEBUG: Log para entender el problema con mangas joint
-  if (manga.isJoint) {
-    console.log('🔍 DEBUG - Manga Joint:', {
-      title: manga.title,
-      isJoint: manga.isJoint,
-      availableTasks: manga.availableTasks,
-      normalizedAvailableTasks,
-      taskMapping
-    });
-    
-    console.log('📋 DETALLE availableTasks:', manga.availableTasks);
-    console.log('📋 DETALLE normalizedAvailableTasks:', normalizedAvailableTasks);
-  }
+  // Debug information removed for production
 
   // Filtrar asignaciones de este manga
   let mangaAssignments = assignments.filter(assignment => assignment.mangaId === manga.id);
@@ -438,29 +426,7 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                 assignment.status === 'completado' || assignment.status === 'aprobado'
               );
               
-            // DEBUG: Log para entender por qué el capítulo no está verde
-            if (manga.isJoint && (chapter === '12' || chapter === '11.5')) {
-              console.log(`🔍 DEBUG - Capítulo ${chapter} de "${manga.title}":`, {
-                mangaTitle: manga.title,
-                chapter: chapter,
-                validTaskTypes,
-                allAssignments: allAssignments.map(a => ({ type: a.type, status: a.status, assignedTo: a.assignedTo })),
-                assignedAssignments: assignedAssignments.map(a => ({ type: a.type, status: a.status, assignedTo: a.assignedTo })),
-                requiredTaskCount,
-                allAssignmentsLength: allAssignments.length,
-                assignedAssignmentsLength: assignedAssignments.length,
-                allCompleted: assignedAssignments.every(a => a.status === 'completado' || a.status === 'aprobado'),
-                isChapterCompleted
-              });
-              
-              console.log(`📊 DETALLE validTaskTypes para capítulo ${chapter}:`, validTaskTypes);
-              console.log(`📊 DETALLE tipos de asignaciones encontradas:`, allAssignments.map(a => a.type));
-              console.log(`📊 DIFERENCIA - Tareas esperadas vs encontradas:`);
-              validTaskTypes.forEach(expectedType => {
-                const found = allAssignments.find(a => a.type === expectedType);
-                console.log(`   ${expectedType}: ${found ? '✅ ENCONTRADA' : '❌ FALTANTE'}`);
-              });
-            }
+            // Debug information removed for production
             
             // Un capítulo está subido (azul) si:
             // 1. Tiene al menos una asignación, Y

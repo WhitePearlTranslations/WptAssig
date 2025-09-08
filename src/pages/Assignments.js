@@ -338,7 +338,7 @@ const Assignments = () => {
         // Obtener usuarios (siempre para mostrar nombres correctamente)
         unsubscribeUsers = await realtimeService.subscribeToUsers(setUsers);
       } catch (error) {
-        console.error('Error setting up subscriptions:', error);
+        // Error setting up subscriptions - silently handle
       }
     };
 

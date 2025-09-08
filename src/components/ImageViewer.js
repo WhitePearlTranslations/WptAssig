@@ -58,24 +58,19 @@ const ImageViewer = ({
   }, [file.id]);
 
   const handleImageError = () => {
-    console.log(`❌ Error cargando imagen desde: ${currentUrl}`);
-    
     // Intentar con la siguiente URL disponible
     const nextIndex = urlIndex + 1;
     if (nextIndex < imageUrls.length) {
-      console.log(`🔄 Intentando URL alternativa ${nextIndex + 1}/${imageUrls.length}`);
       setUrlIndex(nextIndex);
       setCurrentUrl(imageUrls[nextIndex]);
       setLoading(true);
     } else {
-      console.log(`💥 Todas las URLs fallaron para: ${file.name}`);
       setError(true);
       setLoading(false);
     }
   };
 
   const handleImageLoad = () => {
-    console.log(`✅ Imagen cargada exitosamente desde: ${currentUrl}`);
     setLoading(false);
     setError(false);
   };

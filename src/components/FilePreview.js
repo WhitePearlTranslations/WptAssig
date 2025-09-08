@@ -54,7 +54,6 @@ const FilePreview = ({
   // Procesar URLs al montar el componente
   useEffect(() => {
     const processUrls = async () => {
-      console.log('🔍 Procesando archivos...', { url, urls, assignment });
       setLoading(true);
       setError(null);
       
@@ -63,24 +62,19 @@ const FilePreview = ({
         
         // Si se proporciona una URL individual
         if (url) {
-          console.log('📁 URL individual proporcionada:', url);
           urlsToProcess.push(url);
         }
         
         // Si se proporciona un array de URLs
         if (urls && urls.length > 0) {
-          console.log('📁 Array de URLs proporcionado:', urls);
           urlsToProcess.push(...urls);
         }
         
         // Auto-detectar URLs múltiples desde assignment
         if (autoDetectMultiple && assignment) {
-          console.log('🔍 Detectando URLs automáticamente desde assignment...');
           // Buscar en driveLink
           if (assignment.driveLink) {
-            console.log('📎 DriveLink encontrado:', assignment.driveLink);
             const detectedUrls = parseDriveUrls(assignment.driveLink);
-            console.log('🔗 URLs detectadas:', detectedUrls);
             if (detectedUrls.length > 0) {
               urlsToProcess.push(...detectedUrls.map(info => info.originalUrl));
             }
@@ -88,24 +82,20 @@ const FilePreview = ({
           
           // Buscar en comentarios o notas adicionales si existen
           if (assignment.comments) {
-            console.log('💬 Comentarios encontrados, buscando URLs...');
             const detectedUrls = parseDriveUrls(assignment.comments);
             urlsToProcess.push(...detectedUrls.map(info => info.originalUrl));
           }
           
           // Si no hay URLs detectadas pero hay driveLink, usar como URL directa
           if (urlsToProcess.length === 0 && assignment.driveLink) {
-            console.log('⚠️ No se detectaron URLs válidas, usando driveLink directamente');
             urlsToProcess.push(assignment.driveLink);
           }
         }
         
         // Eliminar duplicados
         urlsToProcess = [...new Set(urlsToProcess)];
-        console.log('📋 URLs finales a procesar:', urlsToProcess);
         
         if (urlsToProcess.length === 0) {
-          console.error('❌ No se encontraron URLs para procesar');
           setError('No se encontraron archivos para mostrar');
           setLoading(false);
           return;
@@ -114,21 +104,15 @@ const FilePreview = ({
         // Procesar información de cada archivo
         const processedFiles = urlsToProcess
           .map(fileUrl => {
-            console.log('🔄 Procesando URL:', fileUrl);
             const info = getDriveFileInfo(fileUrl);
-            console.log('ℹ️ Información procesada:', info);
             return info;
           })
           .filter(info => {
             const isValid = info.fileId;
-            console.log(`${isValid ? '✅' : '❌'} Archivo ${isValid ? 'válido' : 'inválido'}:`, info);
             return isValid;
           });
         
-        console.log('📦 Archivos procesados finales:', processedFiles);
-        
         if (processedFiles.length === 0) {
-          console.error('❌ No se pudieron procesar archivos válidos');
           setError('No se pudieron procesar los archivos proporcionados. Verifica que las URLs sean de Google Drive válidas.');
           setLoading(false);
           return;
@@ -137,10 +121,8 @@ const FilePreview = ({
         setFileInfos(processedFiles);
         setCurrentFileIndex(0);
         setLoading(false);
-        console.log('✅ Archivos cargados exitosamente');
         
       } catch (err) {
-        console.error('💥 Error procesando archivos:', err);
         setError(`Error al procesar los archivos: ${err.message}`);
         setLoading(false);
       }

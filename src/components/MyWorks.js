@@ -1008,18 +1008,7 @@ const MyWorks = () => {
         })
       };
       
-      console.log('🚀 MyWorks - Enviando actualización:', {
-        assignmentId: assignment.id,
-        manga: assignment.mangaTitle,
-        chapter: assignment.chapter,
-        oldStatus: assignment.status,
-        newStatus: newStatus,
-        isChief: userIsChief,
-        isCreator: isCreatorOfAssignment,
-        isSelfAssigned: isSelfAssignedByChief,
-        needsApproval: assignmentNeedsChiefApproval,
-        updateData: updateData
-      });
+      // Update data prepared for assignment
       
       await realtimeService.updateAssignment(assignment.id, updateData);
       
@@ -1028,7 +1017,7 @@ const MyWorks = () => {
       setSelectedAssignment(null);
       setNewProgress(0);
     } catch (error) {
-      console.error('Error al completar la tarea:', error);
+      // Error handling - log removed for production
       toast.error('Error al completar la tarea');
     }
   };
@@ -1226,12 +1215,10 @@ const MyWorks = () => {
       };
       
       setAssignmentToUpload(groupInfo);
-      console.log('📋 Abriendo upload para grupo de asignaciones:', assignmentOrGroup.length, 'tareas:', taskTypes.join(', '));
     } else {
       // Es una asignación individual
       setAssignmentToUpload(assignmentOrGroup);
       setAssignmentsGroupToUpload(null);
-      console.log('📋 Abriendo upload para asignación individual:', assignmentOrGroup.type);
     }
     setUploadDialogOpen(true);
   };
@@ -1244,7 +1231,7 @@ const MyWorks = () => {
         throw new Error('No se encontraron asignaciones para actualizar');
       }
 
-      console.log('🎉 Procesando upload completo para', assignmentsToUpdate.length, 'asignaciones');
+      // Processing upload for multiple assignments
       
       let updatedCount = 0;
       let errors = [];
@@ -1288,7 +1275,6 @@ const MyWorks = () => {
           });
           
           updatedCount++;
-          console.log(`✅ Asignación ${assignment.type} actualizada correctamente`);
           
         } catch (error) {
           console.error(`❌ Error actualizando asignación ${assignment.type}:`, error);
@@ -2896,9 +2882,8 @@ const MyWorks = () => {
                               <Button
                                 variant="contained"
                                 startIcon={<UploadIcon />}
-                                onClick={() => {
-                                  console.log('📝 KANBAN Rejected: Opening upload for:', assignment);
-                                  handleOpenUpload(assignment);
+                onClick={() => {
+                  handleOpenUpload(assignment);
                                   setDetailsOpen(false);
                                 }}
                                 sx={{
@@ -3043,9 +3028,8 @@ const MyWorks = () => {
                               <Button
                                 variant="contained"
                                 startIcon={<UploadIcon />}
-                                onClick={() => {
-                                  console.log('📝 KANBAN Individual: Opening upload for:', assignment);
-                                  handleOpenUpload(assignment);
+                onClick={() => {
+                  handleOpenUpload(assignment);
                                   setDetailsOpen(false);
                                 }}
                                 sx={{
@@ -3124,7 +3108,6 @@ const MyWorks = () => {
                           a.status === 'pendiente' || a.status === 'pending' || a.status === 'rechazado'
                         );
                         if (uploadableTasks.length > 0) {
-                          console.log('📋 KANBAN: Opening upload for group:', uploadableTasks.length, 'tareas');
                           handleOpenUpload(uploadableTasks);
                           setDetailsOpen(false);
                         }

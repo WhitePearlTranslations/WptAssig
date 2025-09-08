@@ -68,7 +68,6 @@ const AuthenticatedImageViewer = ({
         await tryDataUrl();
       }
     } catch (err) {
-      console.error('🖼️ Error cargando imagen:', err);
       setError(err.message);
       setLoading(false);
     }
@@ -87,20 +86,17 @@ const AuthenticatedImageViewer = ({
         }
 
         const url = publicUrls[urlIndex];
-        console.log(`🔍 Intentando URL pública ${urlIndex + 1}/${publicUrls.length}:`, url);
 
         const img = new Image();
         img.crossOrigin = 'anonymous';
         
         img.onload = () => {
-          console.log('✅ Imagen cargada con URL pública:', url);
           setImageUrl(url);
           setLoading(false);
           resolve();
         };
         
         img.onerror = () => {
-          console.log(`❌ Error con URL pública ${urlIndex + 1}:`, url);
           urlIndex++;
           tryNextUrl();
         };
@@ -114,13 +110,10 @@ const AuthenticatedImageViewer = ({
 
   const tryAuthenticatedUrl = async () => {
     try {
-      console.log('🔐 Intentando carga autenticada para:', file.id);
       const authenticatedUrl = await googleDriveService.getAuthenticatedImageUrl(file.id);
       setImageUrl(authenticatedUrl);
       setLoading(false);
-      console.log('✅ Imagen cargada con autenticación');
     } catch (err) {
-      console.log('❌ Error con carga autenticada, intentando Data URL');
       setLoadStrategy('dataurl');
       loadImage();
     }
@@ -128,13 +121,10 @@ const AuthenticatedImageViewer = ({
 
   const tryDataUrl = async () => {
     try {
-      console.log('🔗 Intentando carga como Data URL para:', file.id);
       const dataUrl = await googleDriveService.getImageAsDataUrl(file.id);
       setImageUrl(dataUrl);
       setLoading(false);
-      console.log('✅ Imagen cargada como Data URL');
     } catch (err) {
-      console.log('❌ Error con Data URL');
       setError('No se pudo cargar la imagen. Verifica los permisos de acceso.');
       setLoading(false);
     }

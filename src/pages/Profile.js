@@ -109,7 +109,7 @@ const Profile = () => {
         // Get manga information to show correct titles
         unsubscribeMangas = await realtimeService.subscribeToMangas(setMangas);
       } catch (error) {
-        console.error('Error setting up subscriptions:', error);
+        // Error setting up subscriptions - silently handle
       }
     };
 

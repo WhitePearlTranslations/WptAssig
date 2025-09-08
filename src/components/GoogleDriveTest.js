@@ -16,8 +16,7 @@ const GoogleDriveTest = () => {
       const apiKey = process.env.REACT_APP_GOOGLE_DRIVE_API_KEY;
       const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
       
-      console.log('🔑 API Key:', apiKey ? `${apiKey.substring(0, 10)}...` : 'NO CONFIGURADO');
-      console.log('🆔 Client ID:', clientId ? `${clientId.substring(0, 20)}...` : 'NO CONFIGURADO');
+      // API Key and Client ID validation
       
       if (!apiKey || !clientId) {
         throw new Error('Credenciales no configuradas en .env');

@@ -106,7 +106,6 @@ const DriveFileList = ({
     setAuthNeeded(false);
 
     try {
-      console.log('📂 Cargando archivos de carpeta:', folderIdToUse);
       
       // Verificar autenticación
       if (!googleDriveService.isSignedIn || !googleDriveService.isTokenValid()) {
@@ -117,7 +116,6 @@ const DriveFileList = ({
 
       const result = await googleDriveService.listFolderFiles(folderIdToUse, 50);
       setFiles(result.files || []);
-      console.log('✅ Archivos cargados:', result.files?.length || 0);
       
       // Actualizar estado de navegación
       setCurrentFolderId(folderIdToUse);
@@ -132,7 +130,6 @@ const DriveFileList = ({
           }
           return prev;
         });
-        console.log('📍 Navegando a subcarpeta:', targetFolderId, folderName);
       }
       
     } catch (err) {
@@ -167,7 +164,6 @@ const DriveFileList = ({
     
     // Si es una carpeta, cargar su contenido
     if (file.type === 'folder' || file.category === 'folder' || file.isFolder) {
-      console.log('📁 Clic en carpeta:', file.name);
       // Navegar a la subcarpeta
       loadFiles(file.id, file.name);
       return;
@@ -183,7 +179,6 @@ const DriveFileList = ({
   };
 
   const handleBreadcrumbClick = (breadcrumbItem, index) => {
-    console.log('🍞 Navegando a:', breadcrumbItem.name);
     
     // Actualizar breadcrumb quitando elementos posteriores
     setBreadcrumb(prev => prev.slice(0, index + 1));
