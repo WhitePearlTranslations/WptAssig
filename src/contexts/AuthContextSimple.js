@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { ref, onValue } from 'firebase/database';
 import { getFirebaseAuth, getRealtimeDb } from '../services/firebase';
 
@@ -295,6 +295,16 @@ export const AuthProvider = ({ children }) => {
            userProfile?.role === ROLES.ADMIN;
   };
 
+  const signOut = async () => {
+    try {
+      const auth = await getFirebaseAuth();
+      await firebaseSignOut(auth);
+    } catch (error) {
+      console.error('Error signing out:', error);
+      throw error;
+    }
+  };
+
   const value = {
     currentUser,
     userProfile,
@@ -302,7 +312,8 @@ export const AuthProvider = ({ children }) => {
     authError,
     hasRole,
     canManageUser,
-    isSuperAdmin
+    isSuperAdmin,
+    signOut
   };
 
   // Show loading screen

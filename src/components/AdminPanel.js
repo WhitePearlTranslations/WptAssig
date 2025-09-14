@@ -1945,6 +1945,928 @@ const StaffManagement = () => {
   );
 };
 
+// Componente para la configuración del sistema
+const SystemConfiguration = () => {
+  const { userProfile } = useAuth();
+  const [currentSection, setCurrentSection] = useState('general');
+  const [configurations, setConfigurations] = useState({
+    general: {},
+    firebase: {},
+    apis: {},
+    security: {},
+    metadata: {}
+  });
+  const [loading, setLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+  const [unsavedChanges, setUnsavedChanges] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', onConfirm: null });
+  const [validationErrors, setValidationErrors] = useState([]);
+  const [validationWarnings, setValidationWarnings] = useState([]);
+
+  // Cargar configuraciones al inicializar
+  useEffect(() => {
+    loadConfigurations();
+  }, []);
+  
+  // Detectar cambios de URL en tiempo real (para SPAs con routing)
+  useEffect(() => {
+    const checkUrlChange = async () => {
+      if (configurations.general?.baseUrl && window.location.origin !== configurations.general.baseUrl) {
+        const currentUrl = window.location.origin;
+        console.log('🔄 Detectado cambio de entorno:', {
+          configurado: configurations.general.baseUrl,
+          actual: currentUrl
+        });
+        
+        // Solo mostrar notificación, no actualizar automáticamente
+        // El usuario puede decidir si quiere actualizar
+        setSnackbar({
+          open: true,
+          message: `Detectado cambio de entorno. URL actual: ${currentUrl}. ¿Quieres actualizar la configuración?`,
+          severity: 'info'
+        });
+      }
+    };
+    
+    // Verificar cuando se cargan las configuraciones
+    if (configurations.general?.baseUrl) {
+      checkUrlChange();
+    }
+  }, [configurations.general?.baseUrl]);
+
+  const loadConfigurations = async () => {
+    setLoading(true);
+    try {
+      const { getSystemConfigurations } = await import('../services/systemConfigService');
+      const result = await getSystemConfigurations();
+      
+      if (result.success) {
+        setConfigurations(result.configurations);
+        setUnsavedChanges(false);
+        setValidationErrors([]);
+        setValidationWarnings([]);
+        
+        setSnackbar({
+          open: true,
+          message: 'Configuraciones cargadas exitosamente',
+          severity: 'success'
+        });
+      } else {
+        throw new Error(result.error || 'Error desconocido');
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Error cargando configuraciones: ' + error.message,
+        severity: 'error'
+      });
+    }
+    setLoading(false);
+  };
+
+  const handleConfigChange = async (section, key, value) => {
+    const newConfigurations = {
+      ...configurations,
+      [section]: {
+        ...configurations[section],
+        [key]: value
+      }
+    };
+    
+    setConfigurations(newConfigurations);
+    setUnsavedChanges(true);
+    
+    // Validación en tiempo real (con debounce)
+    if (window.validationTimeout) {
+      clearTimeout(window.validationTimeout);
+    }
+    
+    window.validationTimeout = setTimeout(async () => {
+      try {
+        const { validateConfigurations } = await import('../services/systemConfigService');
+        const validation = validateConfigurations(newConfigurations);
+        
+        setValidationErrors(validation.errors);
+        setValidationWarnings(validation.warnings);
+      } catch (error) {
+        console.error('Error en validación en tiempo real:', error);
+      }
+    }, 500); // Esperar 500ms después del último cambio
+  };
+
+  const handleSaveConfiguration = async () => {
+    // Validar configuraciones antes de guardar
+    const { validateConfigurations } = await import('../services/systemConfigService');
+    const validation = validateConfigurations(configurations);
+    
+    setValidationErrors(validation.errors);
+    setValidationWarnings(validation.warnings);
+    
+    if (!validation.isValid) {
+      setSnackbar({
+        open: true,
+        message: `Error de validación: ${validation.errors.join(', ')}`,
+        severity: 'error'
+      });
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const { saveSystemConfigurations } = await import('../services/systemConfigService');
+      const result = await saveSystemConfigurations(configurations, userProfile?.uid);
+      
+      if (result.success) {
+        setSnackbar({
+          open: true,
+          message: 'Configuraciones guardadas exitosamente',
+          severity: 'success'
+        });
+        setUnsavedChanges(false);
+        
+        // Mostrar advertencias si las hay
+        if (validation.warnings.length > 0) {
+          setTimeout(() => {
+            setSnackbar({
+              open: true,
+              message: `Advertencias: ${validation.warnings.join(', ')}`,
+              severity: 'warning'
+            });
+          }, 2000);
+        }
+      } else {
+        throw new Error(result.error || 'Error desconocido');
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Error guardando configuraciones: ' + error.message,
+        severity: 'error'
+      });
+    }
+    setLoading(false);
+  };
+
+  const handleResetToDefaults = () => {
+    setConfirmDialog({
+      open: true,
+      title: 'Restaurar Configuraciones por Defecto',
+      message: '¿Estás seguro de que quieres restaurar todas las configuraciones a sus valores por defecto? Esta acción no se puede deshacer.',
+      onConfirm: () => {
+        // Resetear configuraciones
+        loadConfigurations();
+        setUnsavedChanges(false);
+        setSnackbar({
+          open: true,
+          message: 'Configuraciones restauradas a valores por defecto',
+          severity: 'info'
+        });
+        setConfirmDialog({ ...confirmDialog, open: false });
+      }
+    });
+  };
+
+  const handleExportConfig = () => {
+    const configData = JSON.stringify(configurations, null, 2);
+    const blob = new Blob([configData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `wpt-config-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    setSnackbar({
+      open: true,
+      message: 'Configuraciones exportadas exitosamente',
+      severity: 'success'
+    });
+  };
+
+  const handleImportConfig = async (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const importedConfig = JSON.parse(e.target.result);
+          
+          // Validar configuraciones importadas
+          const { validateConfigurations } = await import('../services/systemConfigService');
+          const validation = validateConfigurations(importedConfig);
+          
+          setConfigurations(importedConfig);
+          setUnsavedChanges(true);
+          setValidationErrors(validation.errors);
+          setValidationWarnings(validation.warnings);
+          
+          if (validation.isValid) {
+            setSnackbar({
+              open: true,
+              message: 'Configuraciones importadas exitosamente. Recuerda guardar los cambios.',
+              severity: 'success'
+            });
+          } else {
+            setSnackbar({
+              open: true,
+              message: `Configuraciones importadas con ${validation.errors.length} errores. Revisa y corrige antes de guardar.`,
+              severity: 'warning'
+            });
+          }
+        } catch (error) {
+          setSnackbar({
+            open: true,
+            message: 'Error importando configuraciones: Archivo inválido',
+            severity: 'error'
+          });
+        }
+      };
+      reader.readAsText(file);
+    }
+    // Limpiar el input file
+    event.target.value = '';
+  };
+
+  const sectionIcons = {
+    general: <SettingsIcon />,
+    firebase: <SecurityIcon />,
+    apis: <CreateIcon />,
+    security: <ShieldIcon />
+  };
+
+  const renderGeneralSection = () => (
+    <Grid container spacing={3}>
+      <Grid item xs={12}>
+        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <InfoOutlinedIcon color="primary" />
+          Configuraciones Generales del Sistema
+        </Typography>
+      </Grid>
+      
+      <Grid item xs={12} sm={6}>
+        <TextField
+          fullWidth
+          label="Nombre del Sistema"
+          value={configurations.general?.systemName || ''}
+          onChange={(e) => handleConfigChange('general', 'systemName', e.target.value)}
+          helperText="Nombre que aparece en la interfaz del sistema"
+          InputLabelProps={{ shrink: true }}
+        />
+      </Grid>
+      
+      <Grid item xs={12} sm={6}>
+        <TextField
+          fullWidth
+          label="Versión del Sistema"
+          value={configurations.general?.systemVersion || ''}
+          onChange={(e) => handleConfigChange('general', 'systemVersion', e.target.value)}
+          helperText="Versión actual del sistema"
+          InputLabelProps={{ shrink: true }}
+        />
+      </Grid>
+      
+      <Grid item xs={12}>
+        <TextField
+          fullWidth
+          label="URL Base del Sistema"
+          value={configurations.general?.baseUrl || ''}
+          onChange={(e) => handleConfigChange('general', 'baseUrl', e.target.value)}
+          helperText="URL principal donde está alojado el sistema. Se actualiza automáticamente según el entorno."
+          InputLabelProps={{ shrink: true }}
+        />
+        <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography variant="caption" color="textSecondary">
+            🌐 <strong>Detección automática:</strong> localhost (desarrollo), wptassig.dpdns.org (producción), Firebase Hosting, Vercel, Netlify
+          </Typography>
+          {configurations.general?.baseUrl !== window.location.origin && (
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => handleConfigChange('general', 'baseUrl', window.location.origin)}
+              sx={{ ml: 2 }}
+            >
+              Usar URL actual ({window.location.origin})
+            </Button>
+          )}
+        </Box>
+      </Grid>
+      
+      <Grid item xs={12} sm={6}>
+        <TextField
+          fullWidth
+          label="Email de Soporte"
+          type="email"
+          value={configurations.general?.supportEmail || ''}
+          onChange={(e) => handleConfigChange('general', 'supportEmail', e.target.value)}
+          helperText="Email para contacto de soporte técnico"
+          InputLabelProps={{ shrink: true }}
+        />
+      </Grid>
+      
+      <Grid item xs={12} sm={6}>
+        <TextField
+          fullWidth
+          label="Tamaño máximo de archivo (MB)"
+          type="number"
+          value={configurations.general?.maxFileSize || ''}
+          onChange={(e) => handleConfigChange('general', 'maxFileSize', parseInt(e.target.value))}
+          helperText="Límite de tamaño para archivos subidos"
+          InputLabelProps={{ shrink: true }}
+        />
+      </Grid>
+      
+      <Grid item xs={12} sm={6}>
+        <TextField
+          fullWidth
+          label="Máximo usuarios por proyecto"
+          type="number"
+          value={configurations.general?.maxUsersPerProject || ''}
+          onChange={(e) => handleConfigChange('general', 'maxUsersPerProject', parseInt(e.target.value))}
+          helperText="Límite de usuarios que pueden trabajar en un proyecto"
+          InputLabelProps={{ shrink: true }}
+        />
+      </Grid>
+      
+      <Grid item xs={12}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ p: 2, border: '2px solid', borderColor: 'warning.main', borderRadius: 2, bgcolor: 'rgba(255, 193, 7, 0.1)' }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={configurations.general?.maintenanceMode || false}
+                  onChange={(e) => handleConfigChange('general', 'maintenanceMode', e.target.checked)}
+                  color="warning"
+                  size="large"
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body1" fontWeight={600} color="warning.main">
+                    🚧 Modo Mantenimiento
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                    Activar para realizar mantenimiento del sistema. Solo administradores podrán acceder.
+                  </Typography>
+                  {configurations.general?.maintenanceMode && (
+                    <Typography variant="body2" color="warning.main" fontWeight={600} sx={{ mt: 1 }}>
+                      ⚠️ SISTEMA ACTUALMENTE EN MANTENIMIENTO
+                    </Typography>
+                  )}
+                </Box>
+              }
+            />
+            {configurations.general?.maintenanceMode && (
+              <Alert severity="warning" sx={{ mt: 2 }}>
+                <Typography variant="body2">
+                  <strong>🚨 Atención:</strong> El modo mantenimiento está ACTIVO. Los usuarios regulares no pueden acceder al sistema. Solo tú (como super administrador) puedes usar el sistema en este momento.
+                </Typography>
+              </Alert>
+            )}
+            
+          </Box>
+          
+          <FormControlLabel
+            control={
+              <Switch
+                checked={configurations.general.registrationEnabled}
+                onChange={(e) => handleConfigChange('general', 'registrationEnabled', e.target.checked)}
+                color="primary"
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body1" fontWeight={500}>Permitir Registro de Usuarios</Typography>
+                <Typography variant="caption" color="textSecondary">
+                  Permitir que nuevos usuarios se registren en el sistema
+                </Typography>
+              </Box>
+            }
+          />
+        </Box>
+      </Grid>
+    </Grid>
+  );
+
+  const renderFirebaseSection = () => (
+    <Grid container spacing={3}>
+      <Grid item xs={12}>
+        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <SecurityIcon color="error" />
+          Configuraciones de Firebase
+        </Typography>
+      </Grid>
+      
+      <Grid item xs={12}>
+        <TextField
+          fullWidth
+          label="URL del Cloudflare Worker"
+          value={configurations.firebase?.workerUrl || ''}
+          onChange={(e) => handleConfigChange('firebase', 'workerUrl', e.target.value)}
+          helperText="URL del worker que maneja las configuraciones de Firebase"
+          InputLabelProps={{ shrink: true }}
+        />
+      </Grid>
+      
+      <Grid item xs={12} sm={6}>
+        <TextField
+          fullWidth
+          label="Versión de Reglas de Base de Datos"
+          value={configurations.firebase?.databaseRulesVersion || ''}
+          onChange={(e) => handleConfigChange('firebase', 'databaseRulesVersion', e.target.value)}
+          helperText="Versión actual de las reglas de Realtime Database"
+          InputLabelProps={{ shrink: true }}
+        />
+      </Grid>
+      
+      <Grid item xs={12} sm={6}>
+        <TextField
+          fullWidth
+          label="Versión de Reglas de Storage"
+          value={configurations.firebase?.storageRulesVersion || ''}
+          onChange={(e) => handleConfigChange('firebase', 'storageRulesVersion', e.target.value)}
+          helperText="Versión actual de las reglas de Firebase Storage"
+          InputLabelProps={{ shrink: true }}
+        />
+      </Grid>
+      
+      <Grid item xs={12} sm={6}>
+        <FormControl fullWidth>
+          <InputLabel>Frecuencia de Backup</InputLabel>
+          <Select
+            value={configurations.firebase.backupFrequency}
+            onChange={(e) => handleConfigChange('firebase', 'backupFrequency', e.target.value)}
+            label="Frecuencia de Backup"
+          >
+            <MenuItem value="hourly">Cada hora</MenuItem>
+            <MenuItem value="daily">Diario</MenuItem>
+            <MenuItem value="weekly">Semanal</MenuItem>
+            <MenuItem value="monthly">Mensual</MenuItem>
+          </Select>
+        </FormControl>
+      </Grid>
+      
+      <Grid item xs={12}>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={configurations.firebase.enableRealtimeSync}
+              onChange={(e) => handleConfigChange('firebase', 'enableRealtimeSync', e.target.checked)}
+              color="primary"
+            />
+          }
+          label={
+            <Box>
+              <Typography variant="body1" fontWeight={500}>Sincronización en Tiempo Real</Typography>
+              <Typography variant="caption" color="textSecondary">
+                Habilitar sincronización automática de datos en tiempo real
+              </Typography>
+            </Box>
+          }
+        />
+      </Grid>
+    </Grid>
+  );
+
+  const renderApisSection = () => (
+    <Grid container spacing={3}>
+      <Grid item xs={12}>
+        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CreateIcon color="secondary" />
+          Configuraciones de APIs Externas
+        </Typography>
+      </Grid>
+      
+      <Grid item xs={12}>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Typography variant="body2">
+            🔧 <strong>Configuraciones de APIs:</strong> Estas configuraciones controlan la integración con servicios externos.
+          </Typography>
+        </Alert>
+      </Grid>
+      
+      <Grid item xs={12}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>ImageKit Configuration</Typography>
+      </Grid>
+      
+      <Grid item xs={12}>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={configurations.apis.imagekitEnabled}
+              onChange={(e) => handleConfigChange('apis', 'imagekitEnabled', e.target.checked)}
+              color="primary"
+            />
+          }
+          label={
+            <Box>
+              <Typography variant="body1" fontWeight={500}>Habilitar ImageKit</Typography>
+              <Typography variant="caption" color="textSecondary">
+                Usar ImageKit para optimización y almacenamiento de imágenes
+              </Typography>
+            </Box>
+          }
+        />
+      </Grid>
+      
+      {configurations.apis.imagekitEnabled && (
+        <>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="ImageKit Public Key"
+              value={configurations.apis?.imagekitPublicKey || ''}
+              onChange={(e) => handleConfigChange('apis', 'imagekitPublicKey', e.target.value)}
+              helperText="Clave pública de ImageKit"
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="ImageKit Endpoint"
+              value={configurations.apis?.imagekitEndpoint || ''}
+              onChange={(e) => handleConfigChange('apis', 'imagekitEndpoint', e.target.value)}
+              helperText="URL del endpoint de ImageKit"
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+        </>
+      )}
+      
+      <Grid item xs={12}>
+        <Divider sx={{ my: 2 }} />
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>Otros Servicios</Typography>
+      </Grid>
+      
+      <Grid item xs={12} sm={6}>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={configurations.apis.googleDriveEnabled}
+              onChange={(e) => handleConfigChange('apis', 'googleDriveEnabled', e.target.checked)}
+              color="primary"
+            />
+          }
+          label={
+            <Box>
+              <Typography variant="body1" fontWeight={500}>Google Drive Integration</Typography>
+              <Typography variant="caption" color="textSecondary">
+                Habilitar integración con Google Drive
+              </Typography>
+            </Box>
+          }
+        />
+      </Grid>
+      
+      <Grid item xs={12} sm={6}>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={configurations.apis.cloudflareWorkerEnabled}
+              onChange={(e) => handleConfigChange('apis', 'cloudflareWorkerEnabled', e.target.checked)}
+              color="primary"
+            />
+          }
+          label={
+            <Box>
+              <Typography variant="body1" fontWeight={500}>Cloudflare Worker</Typography>
+              <Typography variant="caption" color="textSecondary">
+                Habilitar servicios de Cloudflare Worker
+              </Typography>
+            </Box>
+          }
+        />
+      </Grid>
+      
+      <Grid item xs={12}>
+        <TextField
+          fullWidth
+          label="Email para Notificaciones"
+          type="email"
+          value={configurations.apis?.notificationEmail || ''}
+          onChange={(e) => handleConfigChange('apis', 'notificationEmail', e.target.value)}
+          helperText="Email donde se envían notificaciones del sistema"
+          InputLabelProps={{ shrink: true }}
+        />
+      </Grid>
+    </Grid>
+  );
+
+  const renderSecuritySection = () => (
+    <Grid container spacing={3}>
+      <Grid item xs={12}>
+        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ShieldIcon color="warning" />
+          Configuraciones de Seguridad
+        </Typography>
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <Typography variant="body2">
+            ⚠️ <strong>Precaución:</strong> Los cambios en la configuración de seguridad afectan a todos los usuarios del sistema.
+          </Typography>
+        </Alert>
+      </Grid>
+      
+      <Grid item xs={12} sm={6}>
+        <TextField
+          fullWidth
+          label="Timeout de Sesión (horas)"
+          type="number"
+          value={configurations.security?.sessionTimeout || ''}
+          onChange={(e) => handleConfigChange('security', 'sessionTimeout', parseInt(e.target.value))}
+          helperText="Tiempo de inactividad antes de cerrar sesión automáticamente"
+          InputLabelProps={{ shrink: true }}
+        />
+      </Grid>
+      
+      <Grid item xs={12} sm={6}>
+        <TextField
+          fullWidth
+          label="Longitud mínima de contraseña"
+          type="number"
+          value={configurations.security?.passwordMinLength || ''}
+          onChange={(e) => handleConfigChange('security', 'passwordMinLength', parseInt(e.target.value))}
+          helperText="Mínimo de caracteres requeridos en contraseñas"
+          InputLabelProps={{ shrink: true }}
+        />
+      </Grid>
+      
+      <Grid item xs={12} sm={6}>
+        <TextField
+          fullWidth
+          label="Máximo intentos de login"
+          type="number"
+          value={configurations.security?.maxLoginAttempts || ''}
+          onChange={(e) => handleConfigChange('security', 'maxLoginAttempts', parseInt(e.target.value))}
+          helperText="Intentos fallidos antes de bloquear cuenta"
+          InputLabelProps={{ shrink: true }}
+        />
+      </Grid>
+      
+      <Grid item xs={12} sm={6}>
+        <TextField
+          fullWidth
+          label="Duración de bloqueo (minutos)"
+          type="number"
+          value={configurations.security?.lockoutDuration || ''}
+          onChange={(e) => handleConfigChange('security', 'lockoutDuration', parseInt(e.target.value))}
+          helperText="Tiempo que permanece bloqueada una cuenta"
+          InputLabelProps={{ shrink: true }}
+        />
+      </Grid>
+      
+      <Grid item xs={12}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>Requisitos de Contraseña</Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={configurations.security.requireUppercase}
+                onChange={(e) => handleConfigChange('security', 'requireUppercase', e.target.checked)}
+                color="primary"
+              />
+            }
+            label="Requiere mayúsculas"
+          />
+          
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={configurations.security.requireNumbers}
+                onChange={(e) => handleConfigChange('security', 'requireNumbers', e.target.checked)}
+                color="primary"
+              />
+            }
+            label="Requiere números"
+          />
+          
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={configurations.security.requireSpecialChars}
+                onChange={(e) => handleConfigChange('security', 'requireSpecialChars', e.target.checked)}
+                color="primary"
+              />
+            }
+            label="Requiere caracteres especiales"
+          />
+        </Box>
+      </Grid>
+      
+      <Grid item xs={12}>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={configurations.security.enableTwoFactor}
+              onChange={(e) => handleConfigChange('security', 'enableTwoFactor', e.target.checked)}
+              color="secondary"
+            />
+          }
+          label={
+            <Box>
+              <Typography variant="body1" fontWeight={500}>Autenticación de Dos Factores</Typography>
+              <Typography variant="caption" color="textSecondary">
+                Habilitar 2FA para mayor seguridad (requerirá configuración adicional)
+              </Typography>
+            </Box>
+          }
+        />
+      </Grid>
+    </Grid>
+  );
+
+  const renderCurrentSection = () => {
+    switch (currentSection) {
+      case 'general':
+        return renderGeneralSection();
+      case 'firebase':
+        return renderFirebaseSection();
+      case 'apis':
+        return renderApisSection();
+      case 'security':
+        return renderSecuritySection();
+      default:
+        return renderGeneralSection();
+    }
+  };
+
+  return (
+    <Box>
+      {/* Header con acciones principales */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h5" fontWeight={600}>
+          Configuración del Sistema
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={handleResetToDefaults}
+            color="warning"
+            size="small"
+          >
+            Restaurar Predeterminados
+          </Button>
+          
+          <Button
+            variant="outlined"
+            onClick={handleExportConfig}
+            startIcon={<VisibilityIcon />}
+            size="small"
+          >
+            Exportar
+          </Button>
+          
+          <input
+            type="file"
+            accept=".json"
+            style={{ display: 'none' }}
+            id="import-config"
+            onChange={handleImportConfig}
+          />
+          <label htmlFor="import-config">
+            <Button
+              component="span"
+              variant="outlined"
+              startIcon={<UploadIcon />}
+              size="small"
+            >
+              Importar
+            </Button>
+          </label>
+        </Box>
+      </Box>
+
+      {/* Navegación por secciones */}
+      <Card sx={{ mb: 3 }}>
+        <Tabs
+          value={currentSection}
+          onChange={(e, newValue) => setCurrentSection(newValue)}
+          indicatorColor="primary"
+          textColor="primary"
+          variant="scrollable"
+          scrollButtons="auto"
+        >
+          <Tab 
+            value="general"
+            icon={sectionIcons.general}
+            label="General" 
+            iconPosition="start"
+          />
+          <Tab 
+            value="firebase"
+            icon={sectionIcons.firebase}
+            label="Firebase" 
+            iconPosition="start"
+          />
+          <Tab 
+            value="apis"
+            icon={sectionIcons.apis}
+            label="APIs" 
+            iconPosition="start"
+          />
+          <Tab 
+            value="security"
+            icon={sectionIcons.security}
+            label="Seguridad" 
+            iconPosition="start"
+          />
+        </Tabs>
+      </Card>
+
+      {/* Contenido de la sección actual */}
+      <Card sx={{ p: 3, mb: 3 }}>
+        {renderCurrentSection()}
+      </Card>
+
+      {/* Alertas de validación */}
+      {(validationErrors.length > 0 || validationWarnings.length > 0) && (
+        <Box sx={{ mb: 3 }}>
+          {validationErrors.length > 0 && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              <Typography variant="body2" fontWeight={600}>Errores de validación:</Typography>
+              <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+                {validationErrors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </Alert>
+          )}
+          
+          {validationWarnings.length > 0 && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <Typography variant="body2" fontWeight={600}>Advertencias:</Typography>
+              <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+                {validationWarnings.map((warning, index) => (
+                  <li key={index}>{warning}</li>
+                ))}
+              </ul>
+            </Alert>
+          )}
+        </Box>
+      )}
+
+      {/* Acciones de guardado */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+        {unsavedChanges && (
+          <Alert severity="warning" sx={{ mr: 'auto' }}>
+            <Typography variant="body2">
+              ⚠️ Tienes cambios sin guardar
+            </Typography>
+          </Alert>
+        )}
+        
+        <Button
+          variant="outlined"
+          onClick={loadConfigurations}
+          disabled={loading}
+        >
+          Recargar
+        </Button>
+        
+        <Button
+          variant="contained"
+          onClick={handleSaveConfiguration}
+          disabled={loading || !unsavedChanges}
+          sx={{
+            background: unsavedChanges ? 'linear-gradient(135deg, #10b981, #059669)' : undefined,
+            '&:hover': {
+              background: unsavedChanges ? 'linear-gradient(135deg, #059669, #047857)' : undefined,
+            },
+          }}
+        >
+          {loading ? 'Guardando...' : 'Guardar Configuración'}
+        </Button>
+      </Box>
+
+      {/* Dialog de confirmación */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+      />
+      
+      {/* Snackbar para notificaciones */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
+};
+
 // Componente principal del panel de administrador
 const AdminPanel = () => {
   const { userProfile, isSuperAdmin } = useAuth();
@@ -2035,17 +2957,7 @@ const AdminPanel = () => {
       <Box sx={{ mt: 3 }}>
         {currentTab === 0 && <MangaManagement />}
         {currentTab === 1 && <StaffManagement />}
-        {currentTab === 2 && (
-          <Box sx={{ textAlign: 'center', py: 8 }}>
-            <SettingsIcon sx={{ fontSize: 64, color: 'textSecondary', mb: 2 }} />
-            <Typography variant="h5" color="textSecondary">
-              Configuración del Sistema
-            </Typography>
-            <Typography color="textSecondary">
-              Esta sección estará disponible próximamente...
-            </Typography>
-          </Box>
-        )}
+        {currentTab === 2 && <SystemConfiguration />}
       </Box>
     </Container>
   );

@@ -149,6 +149,139 @@
     "config": {
       ".read": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
       ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')"
+    },
+    
+    // Estado público del modo mantenimiento - Todos los usuarios autenticados pueden leer
+    "maintenanceStatus": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+      "isActive": {
+        ".validate": "newData.isBoolean()"
+      },
+      "lastUpdated": {
+        ".validate": "newData.isString()"
+      }
+    },
+    
+    // Configuraciones del sistema (nuevo sistema) - Solo administradores
+    "systemConfig": {
+      ".read": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+      ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+      
+      // Sección General
+      "general": {
+        ".validate": "newData.hasChildren(['systemName', 'systemVersion', 'baseUrl', 'lastUpdated']) || !newData.exists()",
+        "systemName": {
+          ".validate": "newData.isString() && newData.val().length >= 3"
+        },
+        "maxFileSize": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 500"
+        },
+        "supportEmail": {
+          ".validate": "newData.isString()"
+        },
+        "maintenanceMode": {
+          ".validate": "newData.isBoolean()"
+        },
+        "registrationEnabled": {
+          ".validate": "newData.isBoolean()"
+        }
+      },
+      
+      // Sección Firebase
+      "firebase": {
+        ".validate": "newData.hasChildren(['workerUrl', 'enableRealtimeSync', 'lastUpdated']) || !newData.exists()",
+        "workerUrl": {
+          ".validate": "newData.isString()"
+        },
+        "enableRealtimeSync": {
+          ".validate": "newData.isBoolean()"
+        },
+        "backupFrequency": {
+          ".validate": "newData.isString() && (newData.val() == 'hourly' || newData.val() == 'daily' || newData.val() == 'weekly' || newData.val() == 'monthly')"
+        }
+      },
+      
+      // Sección APIs
+      "apis": {
+        ".validate": "newData.hasChildren(['imagekitEnabled', 'googleDriveEnabled', 'lastUpdated']) || !newData.exists()",
+        "imagekitEnabled": {
+          ".validate": "newData.isBoolean()"
+        },
+        "googleDriveEnabled": {
+          ".validate": "newData.isBoolean()"
+        },
+        "cloudflareWorkerEnabled": {
+          ".validate": "newData.isBoolean()"
+        },
+        "notificationEmail": {
+          ".validate": "newData.isString()"
+        }
+      },
+      
+      // Sección Seguridad
+      "security": {
+        ".validate": "newData.hasChildren(['sessionTimeout', 'passwordMinLength', 'lastUpdated']) || !newData.exists()",
+        "sessionTimeout": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 168"
+        },
+        "passwordMinLength": {
+          ".validate": "newData.isNumber() && newData.val() >= 6 && newData.val() <= 50"
+        },
+        "maxLoginAttempts": {
+          ".validate": "newData.isNumber() && newData.val() >= 3 && newData.val() <= 20"
+        },
+        "lockoutDuration": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 1440"
+        },
+        "requireUppercase": {
+          ".validate": "newData.isBoolean()"
+        },
+        "requireNumbers": {
+          ".validate": "newData.isBoolean()"
+        },
+        "requireSpecialChars": {
+          ".validate": "newData.isBoolean()"
+        },
+        "enableTwoFactor": {
+          ".validate": "newData.isBoolean()"
+        }
+      },
+      
+      // Metadata del sistema
+      "metadata": {
+        ".validate": "newData.hasChildren(['version', 'lastUpdated']) || !newData.exists()",
+        "version": {
+          ".validate": "newData.isString()"
+        },
+        "lastUpdated": {
+          ".validate": "newData.isString()"
+        },
+        "backupCount": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        }
+      }
+    },
+    
+    // Backups de configuraciones del sistema - Solo administradores
+    "systemConfigBackups": {
+      ".read": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+      ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+      "$backupId": {
+        ".validate": "newData.hasChildren(['backupMetadata']) || !newData.exists()",
+        "backupMetadata": {
+          ".validate": "newData.hasChildren(['backupId', 'createdAt'])",
+          "backupId": {
+            ".validate": "newData.isString()"
+          },
+          "createdAt": {
+            ".validate": "newData.isString()"
+          },
+          "createdBy": {
+            ".validate": "newData.isString()"
+          }
+        }
+      }
     }
   }
 }

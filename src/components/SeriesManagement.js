@@ -71,6 +71,7 @@ import {
 import { realtimeService } from '../services/realtimeService';
 import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { getUniqueUsers } from '../utils/cleanDuplicateUsers';
+import { formatLocalDate, isoStringToDateInput, dateInputToISOString } from '../utils/dateUtils';
 
 // Estados y configuraciones
 const ASSIGNMENT_STATUS = {
@@ -1108,7 +1109,7 @@ const AssignmentDialog = ({ open, onClose, assignment, manga, users, onSave, pre
         chapter: assignment.chapter || '',
         type: assignment.type || 'traduccion',
         assignedTo: assignment.assignedTo || '',
-        dueDate: assignment.dueDate || '',
+        dueDate: assignment.dueDate ? isoStringToDateInput(assignment.dueDate) : '',
         notes: assignment.notes || '',
         driveLink: assignment.driveLink || '',
         rawLink: assignment.rawLink || ''
@@ -1138,7 +1139,15 @@ const AssignmentDialog = ({ open, onClose, assignment, manga, users, onSave, pre
       alert('Por favor asigna un usuario para la tarea');
       return;
     }
-    onSave(formData, assignment);
+    
+    // Preparar datos para enviar, convirtiendo la fecha si existe
+    const dataToSave = {
+      ...formData,
+      // Si hay fecha, mantenerla en formato YYYY-MM-DD para evitar problemas de zona horaria
+      dueDate: formData.dueDate || ''
+    };
+    
+    onSave(dataToSave, assignment);
   };
 
   // Filtrar usuarios que pueden ser asignados (editores, traductores, etc.)
@@ -2315,7 +2324,7 @@ const SeriesManagement = () => {
           type: formData.type,
           assignedTo: formData.assignedTo,
           assignedToName: assignedUser?.name || 'Usuario desconocido',
-          dueDate: formData.dueDate,
+          dueDate: formData.dueDate ? dateInputToISOString(formData.dueDate) : null,
           notes: formData.notes,
           driveLink: formData.driveLink,
           rawLink: formData.rawLink,
@@ -2335,7 +2344,7 @@ const SeriesManagement = () => {
           type: formData.type,
           assignedTo: formData.assignedTo || null,
           assignedToName: assignedUser?.name || null,
-          dueDate: formData.dueDate,
+          dueDate: formData.dueDate ? dateInputToISOString(formData.dueDate) : null,
           notes: formData.notes,
           driveLink: formData.driveLink,
           rawLink: formData.rawLink,

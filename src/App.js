@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline, Box } from '@mui/material';
+import { CssBaseline, Box, Typography } from '@mui/material';
 import { Toaster } from 'react-hot-toast';
 
 import { AuthProvider, useAuth, ROLES } from './contexts/AuthContextSimple';
@@ -22,6 +22,8 @@ import Uploads from './pages/Uploads';
 import ReviewPanel from './components/ReviewPanel';
 import TourFloatingButton from './components/TourFloatingButton';
 import PageTourButton from './components/PageTourButton';
+import MaintenanceMode from './components/MaintenanceMode';
+import { useMaintenanceMode } from './hooks/useMaintenanceMode';
 
 const theme = createTheme({
   palette: {
@@ -299,6 +301,77 @@ const RoleProtectedRoute = ({ children, requiredRoles }) => {
   return children;
 };
 
+// Componente que verifica el modo mantenimiento
+const MaintenanceWrapper = ({ children }) => {
+  const { isMaintenanceMode, loading, error } = useMaintenanceMode();
+  const { isSuperAdmin } = useAuth();
+  
+  // Debug logs
+  console.log('🔧 MaintenanceWrapper Debug:', {
+    isMaintenanceMode,
+    loading,
+    error,
+    isSuperAdmin: isSuperAdmin()
+  });
+  
+  // Mostrar loading mientras verifica el modo mantenimiento
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(135deg, #0a0a0f 0%, #1e1b4b 50%, #0f0f23 100%)'
+        }}
+      >
+        <Typography variant="h6" color="textSecondary">
+          Cargando sistema...
+        </Typography>
+      </Box>
+    );
+  }
+  
+  // Si el modo mantenimiento está activo y el usuario no es super admin
+  if (isMaintenanceMode && !isSuperAdmin()) {
+    console.log('🚧 ACTIVANDO PANTALLA DE MANTENIMIENTO - Usuario no es admin');
+    return <MaintenanceMode />;
+  }
+  
+  // Si el usuario es super admin, mostrar una barra de advertencia
+  if (isMaintenanceMode && isSuperAdmin()) {
+    console.log('🚨 MODO MANTENIMIENTO ACTIVO - Mostrando barra de advertencia para admin');
+    return (
+      <Box>
+        {/* Barra de advertencia para administradores */}
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bgcolor: 'error.main',
+            color: 'error.contrastText',
+            zIndex: 9999,
+            py: 1,
+            textAlign: 'center'
+          }}
+        >
+          <Typography variant="body2" fontWeight={600}>
+            🚧 MODO MANTENIMIENTO ACTIVO - Solo administradores pueden acceder
+          </Typography>
+        </Box>
+        <Box sx={{ mt: '40px' }}>
+          {children}
+        </Box>
+      </Box>
+    );
+  }
+  
+  return children;
+};
+
 // Layout principal con navbar
 const AppLayout = ({ children }) => {
   return (
@@ -345,14 +418,16 @@ function App() {
             {/* Ruta de asignación compartida (sin autenticación) */}
             <Route path="/shared/:shareableId" element={<SharedAssignment />} />
             
-            {/* Rutas protegidas con layout */}
+            {/* Rutas protegidas con layout y verificación de mantenimiento */}
             <Route
               path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <AppLayout>
-                    <Dashboard />
-                  </AppLayout>
+                  <MaintenanceWrapper>
+                    <AppLayout>
+                      <Dashboard />
+                    </AppLayout>
+                  </MaintenanceWrapper>
                 </ProtectedRoute>
               }
             />
@@ -361,9 +436,11 @@ function App() {
               path="/assignments"
               element={
                 <ProtectedRoute>
-                  <AppLayout>
-                    <Assignments />
-                  </AppLayout>
+                  <MaintenanceWrapper>
+                    <AppLayout>
+                      <Assignments />
+                    </AppLayout>
+                  </MaintenanceWrapper>
                 </ProtectedRoute>
               }
             />
@@ -372,9 +449,11 @@ function App() {
               path="/series-management"
               element={
                 <ProtectedRoute>
-                  <AppLayout>
-                    <SeriesManagement />
-                  </AppLayout>
+                  <MaintenanceWrapper>
+                    <AppLayout>
+                      <SeriesManagement />
+                    </AppLayout>
+                  </MaintenanceWrapper>
                 </ProtectedRoute>
               }
             />
@@ -383,9 +462,11 @@ function App() {
               path="/users"
               element={
                 <ProtectedRoute>
-                  <AppLayout>
-                    <Users />
-                  </AppLayout>
+                  <MaintenanceWrapper>
+                    <AppLayout>
+                      <Users />
+                    </AppLayout>
+                  </MaintenanceWrapper>
                 </ProtectedRoute>
               }
             />
@@ -394,9 +475,11 @@ function App() {
               path="/profile"
               element={
                 <ProtectedRoute>
-                  <AppLayout>
-                    <Profile />
-                  </AppLayout>
+                  <MaintenanceWrapper>
+                    <AppLayout>
+                      <Profile />
+                    </AppLayout>
+                  </MaintenanceWrapper>
                 </ProtectedRoute>
               }
             />
@@ -405,9 +488,11 @@ function App() {
               path="/admin"
               element={
                 <ProtectedRoute>
-                  <AppLayout>
-                    <AdminPanel />
-                  </AppLayout>
+                  <MaintenanceWrapper>
+                    <AppLayout>
+                      <AdminPanel />
+                    </AppLayout>
+                  </MaintenanceWrapper>
                 </ProtectedRoute>
               }
             />
@@ -417,9 +502,11 @@ function App() {
               element={
                 <ProtectedRoute>
                   <RoleProtectedRoute requiredRoles={[ROLES.ADMIN, ROLES.JEFE_EDITOR, ROLES.JEFE_TRADUCTOR, ROLES.EDITOR, ROLES.TRADUCTOR]}>
-                    <AppLayout>
-                      <MyWorks />
-                    </AppLayout>
+                    <MaintenanceWrapper>
+                      <AppLayout>
+                        <MyWorks />
+                      </AppLayout>
+                    </MaintenanceWrapper>
                   </RoleProtectedRoute>
                 </ProtectedRoute>
               }
@@ -429,9 +516,11 @@ function App() {
               path="/uploads"
               element={
                 <ProtectedRoute>
-                  <AppLayout>
-                    <Uploads />
-                  </AppLayout>
+                  <MaintenanceWrapper>
+                    <AppLayout>
+                      <Uploads />
+                    </AppLayout>
+                  </MaintenanceWrapper>
                 </ProtectedRoute>
               }
             />
@@ -441,9 +530,11 @@ function App() {
               element={
                 <ProtectedRoute>
                   <RoleProtectedRoute requiredRoles={[ROLES.ADMIN, ROLES.JEFE_EDITOR, ROLES.JEFE_TRADUCTOR]}>
-                    <AppLayout>
-                      <ReviewPanel />
-                    </AppLayout>
+                    <MaintenanceWrapper>
+                      <AppLayout>
+                        <ReviewPanel />
+                      </AppLayout>
+                    </MaintenanceWrapper>
                   </RoleProtectedRoute>
                 </ProtectedRoute>
               }

@@ -354,7 +354,7 @@ const Profile = () => {
               width: 120,
               height: 120,
               bgcolor: getRoleColor(userProfile.role) + '.main',
-              border: '4px solid white',
+              border: '4px black solid',
               boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
             }}
           >
@@ -371,7 +371,7 @@ const Profile = () => {
               label={getRoleDisplayName(userProfile.role)}
               color={getRoleColor(userProfile.role)}
               icon={<Badge />}
-              sx={{ bgcolor: 'rgba(255,255,255,0.9)', color: 'text.primary' }}
+              sx={{ bgcolor: 'rgba(10, 112, 32, 0.9)', color: 'text.primary' }}
             />
           </Box>
         </Box>
@@ -385,12 +385,18 @@ const Profile = () => {
               variant="contained"
               data-tour="profile-edit-button"
               sx={{
-                bgcolor: 'rgba(255,255,255,0.1)',
+                bgcolor: '#FFC107 !important', // Amarillo sólido
+                background: 'linear-gradient(135deg, #FFC107 0%, #FF9800 100%) !important',
                 backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                color: 'white',
+                border: 'none',
+                color: 'white !important',
+                fontWeight: 600,
+                boxShadow: '0 4px 12px rgba(255, 193, 7, 0.3)',
                 '&:hover': {
-                  bgcolor: 'rgba(255,255,255,0.2)'
+                  bgcolor: '#FFB300 !important',
+                  background: 'linear-gradient(135deg, #FFB300 0%, #F57C00 100%) !important',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 6px 20px rgba(255, 193, 7, 0.4)'
                 }
               }}
             >
@@ -402,11 +408,20 @@ const Profile = () => {
                 startIcon={<Save />}
                 onClick={handleSave}
                 variant="contained"
-                color="success"
                 sx={{
-                  bgcolor: 'rgba(76, 175, 80, 0.9)',
+                  bgcolor: '#4CAF50 !important', // Verde sólido
+                  background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%) !important',
                   backdropFilter: 'blur(10px)',
-                  '&:hover': { bgcolor: 'rgba(76, 175, 80, 1)' }
+                  border: 'none',
+                  color: 'white !important',
+                  fontWeight: 600,
+                  boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
+                  '&:hover': { 
+                    bgcolor: '#43A047 !important',
+                    background: 'linear-gradient(135deg, #43A047 0%, #1B5E20 100%) !important',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 6px 20px rgba(76, 175, 80, 0.4)'
+                  }
                 }}
               >
                 Guardar
@@ -415,11 +430,20 @@ const Profile = () => {
                 startIcon={<Cancel />}
                 onClick={handleCancel}
                 variant="contained"
-                color="error"
                 sx={{
-                  bgcolor: 'rgba(244, 67, 54, 0.9)',
+                  bgcolor: '#F44336 !important', // Rojo sólido
+                  background: 'linear-gradient(135deg, #F44336 0%, #C62828 100%) !important',
                   backdropFilter: 'blur(10px)',
-                  '&:hover': { bgcolor: 'rgba(244, 67, 54, 1)' }
+                  border: 'none',
+                  color: 'white !important',
+                  fontWeight: 600,
+                  boxShadow: '0 4px 12px rgba(244, 67, 54, 0.3)',
+                  '&:hover': { 
+                    bgcolor: '#E53935 !important',
+                    background: 'linear-gradient(135deg, #E53935 0%, #B71C1C 100%) !important',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 6px 20px rgba(244, 67, 54, 0.4)'
+                  }
                 }}
               >
                 Cancelar

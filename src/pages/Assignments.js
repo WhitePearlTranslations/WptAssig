@@ -70,6 +70,7 @@ import { realtimeService } from '../services/realtimeService';
 import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { getUniqueUsers } from '../utils/cleanDuplicateUsers';
 import useAssignmentsSync from '../hooks/useAssignmentsSync';
+import { formatLocalDate, isoStringToDateInput, dateInputToISOString } from '../utils/dateUtils';
 import toast from 'react-hot-toast';
 
 // Importar componentes adicionales para el nuevo diálogo
@@ -469,7 +470,7 @@ const Assignments = () => {
         tasks: assignment.tasks || [assignment.type], // Compatibilidad con versión anterior
         assignedTo: assignment.assignedTo,
         driveLink: assignment.driveLink || '',
-        dueDate: assignment.dueDate || '',
+        dueDate: assignment.dueDate ? isoStringToDateInput(assignment.dueDate) : '',
         priority: assignment.priority || 'normal'
       });
     } else {
@@ -542,7 +543,8 @@ const Assignments = () => {
         status: editingAssignment?.status || 'pendiente',
         progress: editingAssignment?.progress || 0,
         createdBy: userProfile.uid,
-        createdAt: editingAssignment?.createdAt || new Date().toISOString()
+        createdAt: editingAssignment?.createdAt || new Date().toISOString(),
+        dueDate: formData.dueDate ? dateInputToISOString(formData.dueDate) : null
       };
 
       if (editingAssignment) {
@@ -1040,7 +1042,7 @@ const Assignments = () => {
           tasks: [task], // Array con una sola tarea para compatibilidad
           assignedTo: newAssignmentForm.assignedTo || null,
           assignedToName: assignedUser?.name || null,
-          dueDate: newAssignmentForm.dueDate,
+          dueDate: newAssignmentForm.dueDate ? dateInputToISOString(newAssignmentForm.dueDate) : null,
           notes: newAssignmentForm.notes,
           driveLink: newAssignmentForm.driveLink,
           rawLink: task === 'traduccion' ? newAssignmentForm.rawLink : '', // Solo agregar rawLink para traducciones
