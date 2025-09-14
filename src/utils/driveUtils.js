@@ -11,8 +11,6 @@
 export const extractDriveFileId = (url) => {
   if (!url || typeof url !== 'string') return null;
   
-  console.log('🔍 Extrayendo ID de:', url);
-  
   // Diferentes formatos de URLs de Google Drive
   const patterns = [
     /\/file\/d\/([a-zA-Z0-9-_]+)/,           // https://drive.google.com/file/d/ID/view
@@ -29,12 +27,10 @@ export const extractDriveFileId = (url) => {
   for (const pattern of patterns) {
     const match = url.match(pattern);
     if (match) {
-      console.log('✅ ID encontrado:', match[1]);
       return match[1];
     }
   }
 
-  console.log('❌ No se pudo extraer ID de la URL');
   return null;
 };
 
@@ -46,8 +42,6 @@ export const extractDriveFileId = (url) => {
 export const isDriveFolder = (url) => {
   if (!url) return false;
   
-  console.log('🔍 Verificando si es carpeta:', url);
-  
   const folderPatterns = [
     /\/drive\/folders\//,
     /\/drive\/u\/\d+\/folders\//,
@@ -57,7 +51,6 @@ export const isDriveFolder = (url) => {
   ];
   
   const isFolder = folderPatterns.some(pattern => pattern.test(url));
-  console.log(`${isFolder ? '✅' : '❌'} Es carpeta:`, isFolder);
   
   return isFolder;
 };
@@ -342,8 +335,6 @@ export const getDriveFileInfo = (url) => {
 export const parseDriveUrls = (text) => {
   if (!text) return [];
   
-  console.log('🔍 Parseando URLs de texto:', text);
-  
   // Patrones más amplios para URLs de Google Drive
   const driveUrlPatterns = [
     /https?:\/\/(?:drive|docs)\.google\.com\/[^\s\)\]\}"']+/g,
@@ -361,11 +352,8 @@ export const parseDriveUrls = (text) => {
   // Eliminar duplicados
   urls = [...new Set(urls)];
   
-  console.log('🔗 URLs encontradas:', urls);
-  
   // Si no se encuentran URLs con patrones, intentar buscar IDs directamente
   if (urls.length === 0) {
-    console.log('⚠️ No se encontraron URLs completas, buscando IDs...');
     
     // Buscar IDs de archivos directamente
     const idPatterns = [
@@ -385,20 +373,14 @@ export const parseDriveUrls = (text) => {
   
   // Si aún no hay URLs pero el texto parece ser una URL de Drive incompleta
   if (urls.length === 0 && text.includes('drive.google.com')) {
-    console.log('⚠️ Intentando usar el texto completo como URL');
     urls.push(text.trim());
   }
   
-  console.log('📋 URLs finales para procesar:', urls);
-  
   return urls.map(url => {
-    console.log('🔄 Procesando URL:', url);
     const info = getDriveFileInfo(url);
-    console.log('ℹ️ Info obtenida:', info);
     return info;
   }).filter(info => {
     const isValid = info.fileId;
-    console.log(`${isValid ? '✅' : '❌'} Archivo ${isValid ? 'válido' : 'inválido'}:`, info.fileId);
     return isValid;
   });
 };

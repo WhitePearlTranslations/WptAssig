@@ -56,7 +56,7 @@ import { usePendingReviews } from '../hooks/usePendingReviews';
 import { useTour } from '../hooks/useTour';
 
 const Dashboard = () => {
-  const { userProfile, isSuperAdmin, hasRole } = useAuth();
+  const { userProfile, isSuperAdmin, hasRole, userPermissions, refreshPermissions } = useAuth();
   const navigate = useNavigate();
   const [myActiveAssignments, setMyActiveAssignments] = useState([]);
   const [myStats, setMyStats] = useState({
@@ -285,7 +285,8 @@ const Dashboard = () => {
 
 
   return (
-    <Container maxWidth="lg" sx={{ mt: { xs: 2, md: 4 }, mb: 4, px: { xs: 2, sm: 3 } }} data-tour="dashboard">
+    <>
+      <Container maxWidth="lg" sx={{ mt: { xs: 2, md: 4 }, mb: 4, px: { xs: 2, sm: 3 } }} data-tour="dashboard">
       <Box className="animate-fade-in" sx={{ mb: { xs: 4, md: 6 } }}>
         <Box sx={{ 
           display: 'flex', 
@@ -912,7 +913,8 @@ const Dashboard = () => {
         </Box>
       )}
 
-    </Container>
+      </Container>
+    </>
   );
 };
 

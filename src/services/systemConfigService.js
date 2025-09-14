@@ -68,7 +68,6 @@ const DEFAULT_CONFIGURATIONS = {
  */
 export async function getSystemConfigurations() {
   try {
-    console.log('🔧 Obteniendo configuraciones del sistema...');
     
     const database = await getRealtimeDb();
     const configRef = ref(database, SYSTEM_CONFIG_PATH);
@@ -89,10 +88,6 @@ export async function getSystemConfigurations() {
       // Actualizar automáticamente la URL base si ha cambiado el entorno
       const currentBaseUrl = getDefaultBaseUrl();
       if (completeConfigurations.general.baseUrl !== currentBaseUrl) {
-        console.log('🔄 Actualizando URL base automáticamente:', {
-          anterior: completeConfigurations.general.baseUrl,
-          nueva: currentBaseUrl
-        });
         completeConfigurations.general.baseUrl = currentBaseUrl;
         
         // Guardar la actualización automáticamente si es diferente
@@ -104,15 +99,12 @@ export async function getSystemConfigurations() {
           }
         }, 1000);
       }
-      
-      console.log('✅ Configuraciones cargadas exitosamente');
       return {
         success: true,
         configurations: completeConfigurations
       };
     } else {
       // Si no existen configuraciones, crear con valores por defecto
-      console.log('📝 No existen configuraciones. Creando configuraciones por defecto...');
       await initializeSystemConfigurations();
       
       return {
@@ -138,7 +130,6 @@ export async function getSystemConfigurations() {
  */
 export async function saveSystemConfigurations(configurations, userId = null) {
   try {
-    console.log('💾 Guardando configuraciones del sistema...', { userId });
     
     // Agregar metadata de actualización
     const timestamp = new Date().toISOString();
@@ -183,7 +174,6 @@ export async function saveSystemConfigurations(configurations, userId = null) {
           lastUpdated: timestamp,
           updatedBy: userId
         });
-        console.log('🔄 Estado público de mantenimiento actualizado:', configurationsWithMeta.general.maintenanceMode);
       } catch (error) {
         console.warn('⚠️ Error actualizando estado público de mantenimiento:', error);
       }
@@ -191,8 +181,6 @@ export async function saveSystemConfigurations(configurations, userId = null) {
     
     // Crear backup automático
     await createConfigBackup(configurationsWithMeta, userId);
-    
-    console.log('✅ Configuraciones guardadas exitosamente');
     return {
       success: true,
       message: 'Configuraciones guardadas exitosamente',
@@ -216,7 +204,6 @@ export async function saveSystemConfigurations(configurations, userId = null) {
  */
 export async function updateSystemConfigSection(section, sectionData, userId = null) {
   try {
-    console.log(`🔧 Actualizando sección ${section} de configuraciones...`);
     
     const timestamp = new Date().toISOString();
     const sectionWithMeta = {
@@ -234,8 +221,6 @@ export async function updateSystemConfigSection(section, sectionData, userId = n
     await update(metadataRef, {
       lastUpdated: timestamp
     });
-    
-    console.log(`✅ Sección ${section} actualizada exitosamente`);
     return {
       success: true,
       message: `Sección ${section} actualizada exitosamente`,
@@ -256,13 +241,10 @@ export async function updateSystemConfigSection(section, sectionData, userId = n
  */
 export async function initializeSystemConfigurations() {
   try {
-    console.log('🚀 Inicializando configuraciones del sistema...');
     
     const database = await getRealtimeDb();
     const configRef = ref(database, SYSTEM_CONFIG_PATH);
     await set(configRef, DEFAULT_CONFIGURATIONS);
-    
-    console.log('✅ Configuraciones inicializadas exitosamente');
     return {
       success: true,
       message: 'Configuraciones inicializadas exitosamente'
@@ -307,8 +289,6 @@ export async function createConfigBackup(configurations, userId = null) {
     const backupCount = (currentMetadata.val()?.backupCount || 0) + 1;
     
     await update(metadataRef, { backupCount });
-    
-    console.log('📦 Backup de configuraciones creado exitosamente:', backupId);
     return {
       success: true,
       backupId,
@@ -371,7 +351,6 @@ export async function listConfigBackups() {
  */
 export async function restoreFromBackup(backupId, userId = null) {
   try {
-    console.log('🔄 Restaurando configuraciones desde backup:', backupId);
     
     const database = await getRealtimeDb();
     const backupRef = ref(database, `systemConfigBackups/${backupId}`);
@@ -406,8 +385,6 @@ export async function restoreFromBackup(backupId, userId = null) {
     
     const configRef = ref(database, SYSTEM_CONFIG_PATH);
     await set(configRef, configurations);
-    
-    console.log('✅ Configuraciones restauradas exitosamente desde backup:', backupId);
     return {
       success: true,
       message: 'Configuraciones restauradas exitosamente',
@@ -528,7 +505,6 @@ function getDefaultBaseUrl() {
     return currentOrigin;
   } else {
     // Cualquier otro entorno, usar el origen actual
-    console.log('🌐 Entorno no reconocido, usando origen actual:', currentOrigin);
     return currentOrigin;
   }
 }

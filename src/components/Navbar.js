@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -45,15 +45,50 @@ import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { usePendingReviewsCount } from '../hooks/usePendingReviews';
 
 const Navbar = () => {
-  const { currentUser, userProfile, hasRole } = useAuth();
+  const { currentUser, userProfile, hasRole, checkPermission } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
   
-  // Hook para contar revisiones pendientes (solo para jefes)
+  // Estados para permisos
+  const [canManageUploads, setCanManageUploads] = useState(false);
+  const [canAssignChapters, setCanAssignChapters] = useState(false);
+  const [canModerateReviews, setCanModerateReviews] = useState(false);
+  
+  // Effect para verificar permisos
+  useEffect(() => {
+    const checkAllPermissions = async () => {
+      if (currentUser && userProfile) {
+        try {
+          // Verificar todos los permisos necesarios
+          const [uploadsPermission, assignPermission, reviewsPermission] = await Promise.all([
+            checkPermission('canManageUploads'),
+            checkPermission('canAssignChapters'),
+            checkPermission('canModerateReviews')
+          ]);
+          
+          setCanManageUploads(uploadsPermission);
+          setCanAssignChapters(assignPermission);
+          setCanModerateReviews(reviewsPermission);
+        } catch (error) {
+          console.error('Error verificando permisos:', error);
+          setCanManageUploads(false);
+          setCanAssignChapters(false);
+          setCanModerateReviews(false);
+        }
+      } else {
+        setCanManageUploads(false);
+        setCanAssignChapters(false);
+        setCanModerateReviews(false);
+      }
+    };
+    
+    checkAllPermissions();
+  }, [currentUser, userProfile, checkPermission]);
+  
+  // Hook para contar revisiones pendientes (solo para usuarios con permisos de moderación)
   const pendingReviewsCount = usePendingReviewsCount();
-  const isChief = hasRole(ROLES.ADMIN) || hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR);
   
   const [anchorEl, setAnchorEl] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -113,7 +148,7 @@ const Navbar = () => {
       icon: Assignment,
       path: '/assignments',
       color: '#ec4899',
-      show: hasRole(ROLES.ADMIN) || hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR)
+      show: canAssignChapters
     },
     {
       text: 'Mis Trabajos',
@@ -131,8 +166,8 @@ const Navbar = () => {
       icon: ReviewIcon,
       path: '/reviews',
       color: '#f59e0b',
-      show: hasRole(ROLES.ADMIN) || hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR),
-      badge: isChief ? pendingReviewsCount : 0
+      show: canModerateReviews,
+      badge: canModerateReviews ? pendingReviewsCount : 0
     },
     {
       text: 'Usuarios',
@@ -153,7 +188,7 @@ const Navbar = () => {
       icon: UploaderIcon,
       path: '/uploads',
       color: '#8b5cf6',
-      show: userProfile?.role === ROLES.UPLOADER || userProfile?.role === ROLES.ADMIN || userProfile?.role === 'administrador'
+      show: canManageUploads
     }
   ];
 
@@ -506,7 +541,7 @@ const Navbar = () => {
           </Box>
 
           {/* Notification Badge for Mobile - Show before menu button */}
-          {isChief && pendingReviewsCount > 0 && (
+          {canModerateReviews && pendingReviewsCount > 0 && (
             <Box sx={{ display: { xs: 'flex', lg: 'none' }, mr: 1 }}>
               <Tooltip title={`${pendingReviewsCount} revisión${pendingReviewsCount > 1 ? 'es' : ''} pendiente${pendingReviewsCount > 1 ? 's' : ''}`}>
               <IconButton

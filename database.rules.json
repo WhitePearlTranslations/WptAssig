@@ -263,6 +263,91 @@
       }
     },
     
+    // Permisos personalizados de usuarios - Solo administradores pueden escribir
+    "userPermissions": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+      "$userId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+        ".validate": "newData.hasChildren(['_lastUpdated', '_updatedBy']) || !newData.exists()",
+        "_lastUpdated": {
+          ".validate": "newData.isString()"
+        },
+        "_updatedBy": {
+          ".validate": "newData.isString()"
+        },
+        // Permisos específicos - todos opcionales y booleanos
+        "canAssignChapters": {
+          ".validate": "newData.isBoolean()"
+        },
+        "canEditAssignments": {
+          ".validate": "newData.isBoolean()"
+        },
+        "canDeleteAssignments": {
+          ".validate": "newData.isBoolean()"
+        },
+        "canReassignTasks": {
+          ".validate": "newData.isBoolean()"
+        },
+        "canViewAllProjects": {
+          ".validate": "newData.isBoolean()"
+        },
+        "canAccessReports": {
+          ".validate": "newData.isBoolean()"
+        },
+        "canViewUserStats": {
+          ".validate": "newData.isBoolean()"
+        },
+        "canManageUploads": {
+          ".validate": "newData.isBoolean()"
+        },
+        "canManageSeries": {
+          ".validate": "newData.isBoolean()"
+        },
+        "canModerateReviews": {
+          ".validate": "newData.isBoolean()"
+        },
+        "canViewSystemLogs": {
+          ".validate": "newData.isBoolean()"
+        },
+        "canManageBackups": {
+          ".validate": "newData.isBoolean()"
+        }
+      }
+    },
+    
+    // Logs del sistema - Solo administradores pueden acceder
+    "systemLogs": {
+      ".read": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+      ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+      "permissions": {
+        ".read": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+        ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+        "$logId": {
+          ".validate": "newData.hasChildren(['userId', 'action', 'changedBy', 'timestamp', 'type']) || !newData.exists()",
+          "userId": {
+            ".validate": "newData.isString()"
+          },
+          "action": {
+            ".validate": "newData.isString() && (newData.val() == 'update' || newData.val() == 'delete')"
+          },
+          "changedBy": {
+            ".validate": "newData.isString()"
+          },
+          "timestamp": {
+            ".validate": "newData.isString()"
+          },
+          "type": {
+            ".validate": "newData.isString() && newData.val() == 'permission_change'"
+          },
+          "permissions": {
+            ".validate": "newData.exists() || !newData.exists()"
+          }
+        }
+      }
+    },
+    
     // Backups de configuraciones del sistema - Solo administradores
     "systemConfigBackups": {
       ".read": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",

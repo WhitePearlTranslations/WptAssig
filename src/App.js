@@ -306,13 +306,6 @@ const MaintenanceWrapper = ({ children }) => {
   const { isMaintenanceMode, loading, error } = useMaintenanceMode();
   const { isSuperAdmin } = useAuth();
   
-  // Debug logs
-  console.log('🔧 MaintenanceWrapper Debug:', {
-    isMaintenanceMode,
-    loading,
-    error,
-    isSuperAdmin: isSuperAdmin()
-  });
   
   // Mostrar loading mientras verifica el modo mantenimiento
   if (loading) {
@@ -335,13 +328,11 @@ const MaintenanceWrapper = ({ children }) => {
   
   // Si el modo mantenimiento está activo y el usuario no es super admin
   if (isMaintenanceMode && !isSuperAdmin()) {
-    console.log('🚧 ACTIVANDO PANTALLA DE MANTENIMIENTO - Usuario no es admin');
     return <MaintenanceMode />;
   }
   
   // Si el usuario es super admin, mostrar una barra de advertencia
   if (isMaintenanceMode && isSuperAdmin()) {
-    console.log('🚨 MODO MANTENIMIENTO ACTIVO - Mostrando barra de advertencia para admin');
     return (
       <Box>
         {/* Barra de advertencia para administradores */}

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { ref, onValue } from 'firebase/database';
 import { getFirebaseAuth, getRealtimeDb } from '../services/firebase';
+import { getEffectiveUserPermissions, hasPermission } from '../services/permissionsService';
 
 const AuthContext = createContext();
 
@@ -62,6 +63,7 @@ const getEmbeddedUserData = (uid) => {
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [userPermissions, setUserPermissions] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
 
@@ -112,8 +114,12 @@ export const AuthProvider = ({ children }) => {
                   if (snapshot.exists()) {
                     const profileData = { uid: user.uid, ...snapshot.val() };
                     setUserProfile(profileData);
+                    
+                    // Cargar permisos del usuario
+                    loadUserPermissions(user.uid, profileData.role);
                   } else {
                     setUserProfile({ uid: user.uid });
+                    setUserPermissions(null);
                   }
 
                   setLoading(false);
@@ -167,10 +173,13 @@ export const AuthProvider = ({ children }) => {
                 if (response.ok) {
                   const userData = await response.json();
                   if (userData) {
-                    const profileData = { uid: user.uid, ...userData };
-                    setUserProfile(profileData);
-                    setLoading(false);
-                    return;
+                  const profileData = { uid: user.uid, ...userData };
+                  setUserProfile(profileData);
+                  
+                  // Cargar permisos
+                  loadUserPermissions(user.uid, profileData.role);
+                  setLoading(false);
+                  return;
                   }
                 }
               } catch (restError) {
@@ -182,8 +191,12 @@ export const AuthProvider = ({ children }) => {
                     if (data) {
                       const profileData = { uid: user.uid, ...data };
                       setUserProfile(profileData);
+                      
+                      // Cargar permisos
+                      loadUserPermissions(user.uid, profileData.role);
                     } else {
                       setUserProfile({ uid: user.uid });
+                      setUserPermissions(null);
                     }
                     setLoading(false);
                     // Cleanup
@@ -229,6 +242,9 @@ export const AuthProvider = ({ children }) => {
               if (embeddedUserData) {
                 const profileData = { uid: user.uid, ...embeddedUserData };
                 setUserProfile(profileData);
+                
+                // Cargar permisos para usuario embebido
+                loadUserPermissions(user.uid, profileData.role);
                 setLoading(false);
                 return;
               }
@@ -244,8 +260,13 @@ export const AuthProvider = ({ children }) => {
               profileUnsubscribe();
               profileUnsubscribe = null;
             }
+            if (permissionsUnsubscribe) {
+              permissionsUnsubscribe();
+              permissionsUnsubscribe = null;
+            }
             setCurrentUser(null);
             setUserProfile(null);
+            setUserPermissions(null);
             setLoading(false);
           }
         });
@@ -272,12 +293,65 @@ export const AuthProvider = ({ children }) => {
       if (profileUnsubscribe) {
         profileUnsubscribe();
       }
+      if (permissionsUnsubscribe) {
+        permissionsUnsubscribe();
+      }
       if (initTimeout) {
         clearTimeout(initTimeout);
       }
       isGloballyInitialized = false;
     };
   }, []);
+
+  // Variable para el listener de permisos
+  let permissionsUnsubscribe = null;
+
+  // Función para cargar permisos del usuario
+  const loadUserPermissions = async (userId, userRole) => {
+    if (!userId || !userRole) {
+      setUserPermissions(null);
+      return;
+    }
+    
+    try {
+      // Cargar permisos iniciales
+      const permissions = await getEffectiveUserPermissions(userId, userRole);
+      setUserPermissions(permissions);
+      
+      // Configurar listener para cambios en tiempo real
+      if (permissionsUnsubscribe) {
+        permissionsUnsubscribe();
+      }
+      
+      const { subscribeToUserPermissions, DEFAULT_PERMISSIONS } = await import('../services/permissionsService');
+      
+      permissionsUnsubscribe = subscribeToUserPermissions(userId, (updatedPermissions) => {
+        const defaultPerms = DEFAULT_PERMISSIONS[userRole] || DEFAULT_PERMISSIONS.traductor;
+        
+        if (updatedPermissions) {
+          // Hay permisos personalizados
+          const combinedPermissions = {
+            ...defaultPerms,
+            ...updatedPermissions,
+            _hasCustomPermissions: true,
+            _lastUpdated: updatedPermissions._lastUpdated,
+            _updatedBy: updatedPermissions._updatedBy
+          };
+          setUserPermissions(combinedPermissions);
+        } else {
+          // No hay permisos personalizados, usar por defecto
+          const defaultOnlyPermissions = {
+            ...defaultPerms,
+            _hasCustomPermissions: false
+          };
+          setUserPermissions(defaultOnlyPermissions);
+        }
+      });
+    } catch (error) {
+      console.error('Error cargando permisos del usuario:', error);
+      setUserPermissions(null);
+    }
+  };
 
   const hasRole = (requiredRole) => {
     if (!userProfile) return false;
@@ -305,15 +379,80 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Función para verificar si el usuario tiene un permiso específico
+  const checkPermission = async (permission) => {
+    if (!currentUser || !userProfile) return false;
+    
+    try {
+      // Si tenemos permisos cargados, usar cache local
+      if (userPermissions && !userPermissions._error) {
+        return Boolean(userPermissions[permission]);
+      }
+      
+      // Si no, hacer consulta directa
+      return await hasPermission(currentUser.uid, userProfile.role, permission);
+    } catch (error) {
+      console.error('Error verificando permiso:', error);
+      return false;
+    }
+  };
+
+  // Función para verificar múltiples permisos
+  const checkPermissions = async (permissionsList) => {
+    const results = {};
+    for (const permission of permissionsList) {
+      results[permission] = await checkPermission(permission);
+    }
+    return results;
+  };
+
+  // Función para verificar si tiene al menos uno de varios permisos
+  const hasAnyPermission = async (permissionsList) => {
+    for (const permission of permissionsList) {
+      if (await checkPermission(permission)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // Función para verificar si tiene todos los permisos de la lista
+  const hasAllPermissions = async (permissionsList) => {
+    for (const permission of permissionsList) {
+      if (!(await checkPermission(permission))) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // Función para recargar permisos
+  const refreshPermissions = () => {
+    if (currentUser && userProfile) {
+      loadUserPermissions(currentUser.uid, userProfile.role);
+    }
+  };
+
   const value = {
     currentUser,
     userProfile,
+    userPermissions,
     loading,
     authError,
     hasRole,
     canManageUser,
     isSuperAdmin,
-    signOut
+    signOut,
+    // Funciones de permisos
+    checkPermission,
+    checkPermissions,
+    hasAnyPermission,
+    hasAllPermissions,
+    refreshPermissions,
+    // Información de permisos
+    hasCustomPermissions: userPermissions?._hasCustomPermissions || false,
+    permissionsLastUpdated: userPermissions?._lastUpdated || null,
+    permissionsUpdatedBy: userPermissions?._updatedBy || null
   };
 
   // Show loading screen

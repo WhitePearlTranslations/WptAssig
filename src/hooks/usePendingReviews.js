@@ -5,20 +5,37 @@ import { ASSIGNMENT_STATUS } from '../utils/constants';
 
 /**
  * Hook personalizado para contar revisiones pendientes
- * Solo funciona para usuarios con roles de jefe (JEFE_EDITOR, JEFE_TRADUCTOR, ADMIN)
+ * Solo funciona para usuarios con permisos de moderación de revisiones
  * @returns {Object} { count, loading, error, assignments }
  */
 export const usePendingReviews = () => {
-  const { userProfile, hasRole } = useAuth();
+  const { userProfile, hasRole, checkPermission } = useAuth();
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [assignments, setAssignments] = useState([]);
+  const [canAccessReviews, setCanAccessReviews] = useState(false);
   const unsubscribeRef = useRef(null);
 
-  // Verificar si el usuario puede ver revisiones
-  const canAccessReviews = hasRole(ROLES.ADMIN) || hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR);
-
+  // Effect para verificar permisos
+  useEffect(() => {
+    const checkReviewPermissions = async () => {
+      if (userProfile) {
+        try {
+          const hasPermission = await checkPermission('canModerateReviews');
+          setCanAccessReviews(hasPermission);
+        } catch (error) {
+          console.error('Error verificando permiso canModerateReviews:', error);
+          setCanAccessReviews(false);
+        }
+      } else {
+        setCanAccessReviews(false);
+      }
+    };
+    
+    checkReviewPermissions();
+  }, [userProfile, checkPermission]);
+  
   useEffect(() => {
     // Solo inicializar si el usuario tiene permisos y está autenticado
     if (!userProfile || !canAccessReviews) {
@@ -41,21 +58,31 @@ export const usePendingReviews = () => {
             assignment.status === ASSIGNMENT_STATUS.PENDIENTE_APROBACION
           );
 
-          // Filtrar según el rol del jefe actual
+          // Para usuarios con permisos de moderación, por ahora mostramos todas las revisiones
+          // En el futuro, se pueden implementar permisos más granulares por tipo de asignación
           const filteredAssignments = pendingApprovalAssignments.filter(assignment => {
-            // Admins pueden ver todo
-            if (hasRole(ROLES.ADMIN)) {
-              return true;
-            }
+            // Si tiene permiso de moderación, puede ver las revisiones
+            // Mantenemos la lógica de roles existente como fallback por compatibilidad
+            if (canAccessReviews) {
+              // Admins pueden ver todo
+              if (hasRole(ROLES.ADMIN)) {
+                return true;
+              }
 
-            // Jefes solo ven las asignaciones de su área
-            const canReviewAsTraductor = hasRole(ROLES.JEFE_TRADUCTOR) && 
-              ['traduccion', 'proofreading'].includes(assignment.type);
+              // Jefes solo ven las asignaciones de su área (mantener lógica existente)
+              const canReviewAsTraductor = hasRole(ROLES.JEFE_TRADUCTOR) && 
+                ['traduccion', 'proofreading'].includes(assignment.type);
+              
+              const canReviewAsEditor = hasRole(ROLES.JEFE_EDITOR) && 
+                ['cleanRedrawer', 'type'].includes(assignment.type);
+              
+              // Si no es admin ni jefe tradicional, pero tiene permiso, mostrar todo
+              // (para usuarios con permisos personalizados)
+              return canReviewAsTraductor || canReviewAsEditor || 
+                     (!hasRole(ROLES.ADMIN) && !hasRole(ROLES.JEFE_TRADUCTOR) && !hasRole(ROLES.JEFE_EDITOR));
+            }
             
-            const canReviewAsEditor = hasRole(ROLES.JEFE_EDITOR) && 
-              ['cleanRedrawer', 'type'].includes(assignment.type);
-            
-            return canReviewAsTraductor || canReviewAsEditor;
+            return false;
           });
 
           setAssignments(filteredAssignments);
@@ -114,6 +141,8 @@ export const usePendingReviews = () => {
       return 'Traducción y Proofreading';
     } else if (hasRole(ROLES.JEFE_EDITOR)) {
       return 'Edición y Typesetting';
+    } else if (canAccessReviews) {
+      return 'Permisos personalizados - Todas las áreas';
     }
     return '';
   };

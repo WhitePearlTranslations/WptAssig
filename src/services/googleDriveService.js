@@ -285,7 +285,6 @@ class GoogleDriveService {
     }
 
     try {
-      console.log('🔍 Listando archivos de carpeta:', folderId);
 
       const response = await fetch(
         `https://www.googleapis.com/drive/v3/files?` + new URLSearchParams({
@@ -311,7 +310,6 @@ class GoogleDriveService {
       }
 
       const data = await response.json();
-      console.log('📁 Archivos encontrados:', data.files?.length || 0);
       
       // Procesar archivos para agregar información útil
       const processedFiles = (data.files || []).map(file => {
@@ -346,12 +344,9 @@ class GoogleDriveService {
   getFileTypeInfo(mimeType, fileName) {
     if (!mimeType && !fileName) return { type: 'unknown', category: 'other', icon: '📄' };
     
-    console.log('🔍 Analizando archivo:', { fileName, mimeType });
-    
     // CARPETAS - Detectar primero por mimeType
     if (mimeType === 'application/vnd.google-apps.folder') {
-      console.log('📁 Detectada carpeta por mimeType:', fileName);
-      return { 
+      return {
         type: 'folder', 
         category: 'folder', 
         icon: '📁', 

@@ -77,13 +77,15 @@ import toast from 'react-hot-toast';
 import { Autocomplete } from '@mui/material';
 
 const Assignments = () => {
-  const { userProfile, hasRole } = useAuth();
+  const { userProfile, hasRole, currentUser, checkPermission } = useAuth();
+  const [canAssignChapters, setCanAssignChapters] = useState(false);
+  const [isPermissionLoading, setIsPermissionLoading] = useState(true);
   const [mangas, setMangas] = useState([]);
   const [users, setUsers] = useState([]);
   
   // Usar hook personalizado para suscripción a asignaciones
-  const userFilter = (!hasRole(ROLES.ADMIN) && !hasRole(ROLES.JEFE_EDITOR) && !hasRole(ROLES.JEFE_TRADUCTOR)) 
-    ? userProfile?.uid : null;
+  // Si el usuario no tiene permisos para asignar capítulos, solo ve sus propias asignaciones
+  const userFilter = (!isPermissionLoading && !canAssignChapters) ? userProfile?.uid : null;
   
   const { 
     assignments, 
@@ -441,8 +443,37 @@ const Assignments = () => {
     }
   }, [assignments.length, users.length]);
 
-  // Restricción de acceso - solo jefes y administradores
-  if (!userProfile || (!hasRole(ROLES.ADMIN) && !hasRole(ROLES.JEFE_EDITOR) && !hasRole(ROLES.JEFE_TRADUCTOR))) {
+  // Effect para verificar permisos
+  useEffect(() => {
+    const checkAssignmentPermissions = async () => {
+      if (currentUser && userProfile) {
+        try {
+          const hasPermission = await checkPermission('canAssignChapters');
+          setCanAssignChapters(hasPermission);
+        } catch (error) {
+          console.error('Error verificando permiso canAssignChapters:', error);
+          setCanAssignChapters(false);
+        }
+      } else {
+        setCanAssignChapters(false);
+      }
+      setIsPermissionLoading(false);
+    };
+    
+    checkAssignmentPermissions();
+  }, [currentUser, userProfile, checkPermission]);
+
+  // Mostrar loading mientras se verifican permisos
+  if (isPermissionLoading) {
+    return (
+      <Container maxWidth="md" sx={{ mt: 8, textAlign: 'center' }}>
+        <Typography>Verificando permisos...</Typography>
+      </Container>
+    );
+  }
+
+  // Restricción de acceso - verificar permisos personalizados
+  if (!userProfile || !canAssignChapters) {
     return (
       <Container maxWidth="sm" sx={{ mt: 8, textAlign: 'center' }}>
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -451,7 +482,7 @@ const Assignments = () => {
             Acceso Restringido
           </Typography>
           <Typography variant="body1">
-            Esta página solo está disponible para Administradores, Jefes de Traducción y Jefes de Edición.
+            No tienes permisos para gestionar asignaciones. Contacta a un administrador si necesitas acceso.
           </Typography>
         </Alert>
         <Typography variant="body2" color="text.secondary">
@@ -644,16 +675,14 @@ const Assignments = () => {
   };
 
   const canManageAssignment = (assignment) => {
-    return hasRole(ROLES.ADMIN) || 
-           (hasRole(ROLES.JEFE_EDITOR) && assignment.type === 'edicion') ||
-           (hasRole(ROLES.JEFE_TRADUCTOR) && assignment.type === 'traduccion') ||
-           assignment.assignedTo === userProfile?.uid;
+    // Si tiene permisos de asignación, puede gestionar cualquier asignación
+    // O si es el usuario asignado, puede gestionar su propia asignación
+    return canAssignChapters || assignment.assignedTo === userProfile?.uid;
   };
 
   const canMarkAsCompleted = (assignment) => {
-    return hasRole(ROLES.ADMIN) || 
-           hasRole(ROLES.JEFE_EDITOR) || 
-           hasRole(ROLES.JEFE_TRADUCTOR);
+    // Si tiene permisos de asignación, puede marcar como completada
+    return canAssignChapters;
   };
 
   const handleMarkAsCompleted = async (assignmentId) => {
@@ -685,23 +714,13 @@ const Assignments = () => {
   };
 
   const filteredUsers = users.filter(user => {
-    if (hasRole(ROLES.ADMIN)) return true;
-    
-    // Filtrar basado en las tareas seleccionadas
-    const hasTranslationTask = formData.tasks.includes('traduccion');
-    const hasEditingTask = formData.tasks.some(task => ['proofreading', 'cleanRedrawer', 'type'].includes(task));
-    
-    let canAssign = false;
-    
-    if (hasRole(ROLES.JEFE_TRADUCTOR) && hasTranslationTask) {
-      canAssign = canAssign || (user.role === ROLES.TRADUCTOR || user.role === ROLES.JEFE_TRADUCTOR);
+    // Si tiene permisos de asignación, puede asignar a cualquier usuario activo
+    // En el futuro se pueden implementar permisos más granulares por tipo de tarea
+    if (canAssignChapters) {
+      return user.status === 'active' || !user.status; // Mostrar usuarios activos o sin estado definido
     }
     
-    if (hasRole(ROLES.JEFE_EDITOR) && hasEditingTask) {
-      canAssign = canAssign || (user.role === ROLES.EDITOR || user.role === ROLES.JEFE_EDITOR);
-    }
-    
-    return canAssign;
+    return false;
   });
 
   // Función para agrupar asignaciones por manga-capítulo-usuario
@@ -1188,7 +1207,7 @@ const Assignments = () => {
           </Tooltip>
           
           
-          {(hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR)) && (
+          {canAssignChapters && (
             <Button
               variant="contained"
               startIcon={<Add />}

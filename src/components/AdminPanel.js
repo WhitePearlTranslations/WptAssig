@@ -73,6 +73,8 @@ import {
   CheckCircleOutline as CheckCircleOutlineIcon,
   ErrorOutline as ErrorOutlineIcon,
   InfoOutlined as InfoOutlinedIcon,
+  AdminPanelSettings as AdminPanelSettingsIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 
@@ -767,6 +769,7 @@ const MangaManagement = () => {
 
 // Componente para la gestión del staff
 const StaffManagement = () => {
+  const { currentUser } = useAuth();
   const [staff, setStaff] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [ghostDialogOpen, setGhostDialogOpen] = useState(false);
@@ -1037,24 +1040,150 @@ const StaffManagement = () => {
     });
   };
 
-  const handleOpenPermissions = (user) => {
+  const handleOpenPermissions = async (user) => {
     setPermissionsDialog({ open: true, user });
-    // Cargar permisos actuales del usuario
-    setPermissionsData({
-      canAssignChapters: user.permissions?.canAssignChapters || false,
-      canEditAssignments: user.permissions?.canEditAssignments || false,
-      canDeleteAssignments: user.permissions?.canDeleteAssignments || false,
-      canViewAllProjects: user.permissions?.canViewAllProjects || false,
-      canManageUploads: user.permissions?.canManageUploads || false,
-      canAccessReports: user.permissions?.canAccessReports || false
-    });
+    
+    try {
+      // Cargar permisos efectivos del usuario
+      const { getEffectiveUserPermissions, DEFAULT_PERMISSIONS } = await import('../services/permissionsService');
+      const userId = user.uid || user.id;
+      const userRole = user.role;
+      
+      const effectivePermissions = await getEffectiveUserPermissions(userId, userRole);
+      const defaultPermissions = DEFAULT_PERMISSIONS[userRole] || DEFAULT_PERMISSIONS.traductor;
+      
+      // Establecer los permisos en el estado
+      setPermissionsData({
+        // Permisos de asignaciones
+        canAssignChapters: effectivePermissions.canAssignChapters || false,
+        canEditAssignments: effectivePermissions.canEditAssignments || false,
+        canDeleteAssignments: effectivePermissions.canDeleteAssignments || false,
+        canReassignTasks: effectivePermissions.canReassignTasks || false,
+        
+        // Permisos de visualización
+        canViewAllProjects: effectivePermissions.canViewAllProjects || false,
+        canAccessReports: effectivePermissions.canAccessReports || false,
+        canViewUserStats: effectivePermissions.canViewUserStats || false,
+        
+        // Permisos especiales
+        canManageUploads: effectivePermissions.canManageUploads || false,
+        canManageSeries: effectivePermissions.canManageSeries || false,
+        canModerateReviews: effectivePermissions.canModerateReviews || false,
+        
+        // Permisos administrativos (solo para admins)
+        canViewSystemLogs: effectivePermissions.canViewSystemLogs || false,
+        canManageBackups: effectivePermissions.canManageBackups || false,
+        
+        // Metadata
+        _hasCustomPermissions: effectivePermissions._hasCustomPermissions,
+        _defaultPermissions: defaultPermissions
+      });
+    } catch (error) {
+      console.error('Error cargando permisos del usuario:', error);
+      // Fallback: usar permisos básicos
+      setPermissionsData({
+        canAssignChapters: false,
+        canEditAssignments: false,
+        canDeleteAssignments: false,
+        canReassignTasks: false,
+        canViewAllProjects: false,
+        canAccessReports: false,
+        canViewUserStats: false,
+        canManageUploads: false,
+        canManageSeries: false,
+        canModerateReviews: false,
+        canViewSystemLogs: false,
+        canManageBackups: false
+      });
+    }
   };
 
   const handleSavePermissions = async () => {
-    // TODO: Implementar guardar permisos en Firebase
-    // Guardando permisos para usuario
-    // Funcionalidad de permisos se implementará en la siguiente versión
-    setPermissionsDialog({ open: false, user: null });
+    if (!permissionsDialog.user) return;
+    
+    setLoading(true);
+    try {
+      const { updateUserPermissions } = await import('../services/permissionsService');
+      const userId = permissionsDialog.user.uid || permissionsDialog.user.id;
+      const currentUserId = currentUser.uid;
+      
+      const result = await updateUserPermissions(userId, permissionsData, currentUserId);
+      
+      if (result.success) {
+        // Mostrar mensaje de éxito
+        setSnackbar({
+          open: true,
+          message: `Permisos de ${permissionsDialog.user.name} actualizados correctamente`,
+          severity: 'success'
+        });
+        
+        // Cerrar dialog y recargar datos
+        setPermissionsDialog({ open: false, user: null });
+        loadUsers(); // Recargar la lista de usuarios para mostrar cambios
+      } else {
+        // Mostrar error
+        setSnackbar({
+          open: true,
+          message: result.message || 'Error actualizando permisos',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error guardando permisos:', error);
+      setSnackbar({
+        open: true,
+        message: 'Error inesperado actualizando permisos',
+        severity: 'error'
+      });
+    }
+    setLoading(false);
+  };
+
+  const handleResetPermissions = async () => {
+    if (!permissionsDialog.user) return;
+    
+    setConfirmDialog({
+      open: true,
+      title: 'Resetear Permisos Personalizados',
+      message: `¿Estás seguro de que quieres eliminar los permisos personalizados de "${permissionsDialog.user.name}"? El usuario tendrá únicamente los permisos por defecto de su rol (${getRoleDisplayName(permissionsDialog.user.role)}).`,
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          const { deleteUserPermissions } = await import('../services/permissionsService');
+          const userId = permissionsDialog.user.uid || permissionsDialog.user.id;
+          const currentUserId = currentUser.uid;
+          
+          const result = await deleteUserPermissions(userId, currentUserId);
+          
+          if (result.success) {
+            setSnackbar({
+              open: true,
+              message: `Permisos personalizados de ${permissionsDialog.user.name} eliminados. Ahora tiene los permisos por defecto.`,
+              severity: 'success'
+            });
+            
+            // Cerrar dialog y recargar datos
+            setPermissionsDialog({ open: false, user: null });
+            loadUsers();
+          } else {
+            setSnackbar({
+              open: true,
+              message: result.message || 'Error eliminando permisos personalizados',
+              severity: 'error'
+            });
+          }
+        } catch (error) {
+          console.error('Error reseteando permisos:', error);
+          setSnackbar({
+            open: true,
+            message: 'Error inesperado eliminando permisos personalizados',
+            severity: 'error'
+          });
+        }
+        setLoading(false);
+        setConfirmDialog({ ...confirmDialog, open: false });
+      }
+    });
   };
 
   const handleToggleUserAccess = async (userId, currentStatus, userName) => {
@@ -1571,19 +1700,27 @@ const StaffManagement = () => {
           Configurar Permisos - {permissionsDialog.user?.name}
         </DialogTitle>
         <DialogContent>
-          <Alert severity="info" sx={{ mb: 3 }}>
+          <Alert 
+            severity={permissionsData._hasCustomPermissions ? "warning" : "info"} 
+            sx={{ mb: 3 }}
+          >
             <Typography variant="body2">
-              Configure los permisos específicos para <strong>{permissionsDialog.user?.name}</strong> 
-              ({getRoleDisplayName(permissionsDialog.user?.role)})
+              <strong>{permissionsDialog.user?.name}</strong> ({getRoleDisplayName(permissionsDialog.user?.role)})
+              {permissionsData._hasCustomPermissions ? (
+                <><br />Este usuario tiene permisos personalizados que sobrescriben los permisos por defecto de su rol.</>
+              ) : (
+                <><br />Configure permisos específicos que sobrescribirán los permisos por defecto del rol.</>
+              )}
             </Typography>
           </Alert>
           
-          <Grid container spacing={2}>
+          <Grid container spacing={3}>
+            {/* Permisos de Asignaciones */}
             <Grid item xs={12}>
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: 'primary.main' }}>
                 <ShieldIcon /> Permisos de Asignaciones
               </Typography>
-              <Box sx={{ pl: 2 }}>
+              <Box sx={{ pl: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <FormControlLabel
                   control={
                     <Switch
@@ -1600,6 +1737,9 @@ const StaffManagement = () => {
                       <Typography variant="body1" fontWeight={500}>Asignar Capítulos</Typography>
                       <Typography variant="caption" color="textSecondary">
                         Puede crear y asignar nuevos capítulos a otros usuarios
+                        {permissionsData._defaultPermissions?.canAssignChapters && 
+                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
+                        }
                       </Typography>
                     </Box>
                   }
@@ -1620,6 +1760,9 @@ const StaffManagement = () => {
                       <Typography variant="body1" fontWeight={500}>Editar Asignaciones</Typography>
                       <Typography variant="caption" color="textSecondary">
                         Puede modificar asignaciones existentes
+                        {permissionsData._defaultPermissions?.canEditAssignments && 
+                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
+                        }
                       </Typography>
                     </Box>
                   }
@@ -1640,6 +1783,32 @@ const StaffManagement = () => {
                       <Typography variant="body1" fontWeight={500}>Eliminar Asignaciones</Typography>
                       <Typography variant="caption" color="textSecondary">
                         Puede eliminar asignaciones (acción irreversible)
+                        {permissionsData._defaultPermissions?.canDeleteAssignments && 
+                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
+                        }
+                      </Typography>
+                    </Box>
+                  }
+                />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={permissionsData.canReassignTasks}
+                      onChange={(e) => setPermissionsData({
+                        ...permissionsData,
+                        canReassignTasks: e.target.checked
+                      })}
+                      color="primary"
+                    />
+                  }
+                  label={
+                    <Box>
+                      <Typography variant="body1" fontWeight={500}>Reasignar Tareas</Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        Puede reasignar tareas de un usuario a otro
+                        {permissionsData._defaultPermissions?.canReassignTasks && 
+                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
+                        }
                       </Typography>
                     </Box>
                   }
@@ -1647,12 +1816,13 @@ const StaffManagement = () => {
               </Box>
             </Grid>
             
+            {/* Permisos de Visualización */}
             <Grid item xs={12}>
-              <Divider sx={{ my: 2 }} />
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Divider sx={{ my: 1 }} />
+              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: 'info.main' }}>
                 <VisibilityIcon /> Permisos de Visualización
               </Typography>
-              <Box sx={{ pl: 2 }}>
+              <Box sx={{ pl: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <FormControlLabel
                   control={
                     <Switch
@@ -1669,6 +1839,9 @@ const StaffManagement = () => {
                       <Typography variant="body1" fontWeight={500}>Ver Todos los Proyectos</Typography>
                       <Typography variant="caption" color="textSecondary">
                         Puede ver proyectos de otros equipos y usuarios
+                        {permissionsData._defaultPermissions?.canViewAllProjects && 
+                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
+                        }
                       </Typography>
                     </Box>
                   }
@@ -1689,6 +1862,32 @@ const StaffManagement = () => {
                       <Typography variant="body1" fontWeight={500}>Acceso a Reportes</Typography>
                       <Typography variant="caption" color="textSecondary">
                         Puede generar y ver reportes del sistema
+                        {permissionsData._defaultPermissions?.canAccessReports && 
+                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
+                        }
+                      </Typography>
+                    </Box>
+                  }
+                />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={permissionsData.canViewUserStats}
+                      onChange={(e) => setPermissionsData({
+                        ...permissionsData,
+                        canViewUserStats: e.target.checked
+                      })}
+                      color="info"
+                    />
+                  }
+                  label={
+                    <Box>
+                      <Typography variant="body1" fontWeight={500}>Ver Estadísticas de Usuarios</Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        Puede ver estadísticas detalladas de otros usuarios
+                        {permissionsData._defaultPermissions?.canViewUserStats && 
+                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
+                        }
                       </Typography>
                     </Box>
                   }
@@ -1696,12 +1895,13 @@ const StaffManagement = () => {
               </Box>
             </Grid>
             
+            {/* Permisos Especiales */}
             <Grid item xs={12}>
-              <Divider sx={{ my: 2 }} />
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Divider sx={{ my: 1 }} />
+              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: 'secondary.main' }}>
                 <UploadIcon /> Permisos Especiales
               </Typography>
-              <Box sx={{ pl: 2 }}>
+              <Box sx={{ pl: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <FormControlLabel
                   control={
                     <Switch
@@ -1718,34 +1918,157 @@ const StaffManagement = () => {
                       <Typography variant="body1" fontWeight={500}>Gestionar Subidas</Typography>
                       <Typography variant="caption" color="textSecondary">
                         Puede gestionar el proceso de subida y publicación
+                        {permissionsData._defaultPermissions?.canManageUploads && 
+                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
+                        }
+                      </Typography>
+                    </Box>
+                  }
+                />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={permissionsData.canManageSeries}
+                      onChange={(e) => setPermissionsData({
+                        ...permissionsData,
+                        canManageSeries: e.target.checked
+                      })}
+                      color="secondary"
+                    />
+                  }
+                  label={
+                    <Box>
+                      <Typography variant="body1" fontWeight={500}>Gestionar Series</Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        Puede crear, editar y eliminar series
+                        {permissionsData._defaultPermissions?.canManageSeries && 
+                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
+                        }
+                      </Typography>
+                    </Box>
+                  }
+                />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={permissionsData.canModerateReviews}
+                      onChange={(e) => setPermissionsData({
+                        ...permissionsData,
+                        canModerateReviews: e.target.checked
+                      })}
+                      color="secondary"
+                    />
+                  }
+                  label={
+                    <Box>
+                      <Typography variant="body1" fontWeight={500}>Moderar Revisiones</Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        Puede aprobar o rechazar revisiones de otros usuarios
+                        {permissionsData._defaultPermissions?.canModerateReviews && 
+                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
+                        }
                       </Typography>
                     </Box>
                   }
                 />
               </Box>
             </Grid>
+            
+            {/* Permisos Administrativos - Solo mostrar para admins */}
+            {(permissionsDialog.user?.role === 'admin' || currentUser?.uid === '7HIHfawVZtYBnUgIsvuspXY9DCw1') && (
+              <Grid item xs={12}>
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: 'error.main' }}>
+                  <AdminPanelSettingsIcon /> Permisos Administrativos
+                </Typography>
+                <Box sx={{ pl: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={permissionsData.canViewSystemLogs}
+                        onChange={(e) => setPermissionsData({
+                          ...permissionsData,
+                          canViewSystemLogs: e.target.checked
+                        })}
+                        color="error"
+                      />
+                    }
+                    label={
+                      <Box>
+                        <Typography variant="body1" fontWeight={500}>Ver Logs del Sistema</Typography>
+                        <Typography variant="caption" color="textSecondary">
+                          Puede acceder a los logs y actividades del sistema
+                          {permissionsData._defaultPermissions?.canViewSystemLogs && 
+                            <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
+                          }
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={permissionsData.canManageBackups}
+                        onChange={(e) => setPermissionsData({
+                          ...permissionsData,
+                          canManageBackups: e.target.checked
+                        })}
+                        color="error"
+                      />
+                    }
+                    label={
+                      <Box>
+                        <Typography variant="body1" fontWeight={500}>Gestionar Respaldos</Typography>
+                        <Typography variant="caption" color="textSecondary">
+                          Puede crear y restaurar respaldos del sistema
+                          {permissionsData._defaultPermissions?.canManageBackups && 
+                            <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
+                          }
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                </Box>
+              </Grid>
+            )}
           </Grid>
         </DialogContent>
-        <DialogActions sx={{ p: 3 }}>
-          <Button 
-            onClick={() => setPermissionsDialog({ open: false, user: null })}
-            color="inherit"
-          >
-            Cancelar
-          </Button>
-          <Button 
-            variant="contained" 
-            onClick={handleSavePermissions}
-            startIcon={<SecurityIcon />}
-            sx={{
-              background: 'linear-gradient(135deg, #10b981, #059669)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #059669, #047857)',
-              },
-            }}
-          >
-            Guardar Permisos
-          </Button>
+        <DialogActions sx={{ p: 3, justifyContent: 'space-between' }}>
+          <Box>
+            {permissionsData._hasCustomPermissions && (
+              <Button 
+                onClick={handleResetPermissions}
+                startIcon={<RefreshIcon />}
+                color="warning"
+                variant="outlined"
+                sx={{ mr: 1 }}
+              >
+                Resetear a por Defecto
+              </Button>
+            )}
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button 
+              onClick={() => setPermissionsDialog({ open: false, user: null })}
+              color="inherit"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="contained" 
+              onClick={handleSavePermissions}
+              startIcon={<SecurityIcon />}
+              disabled={loading}
+              sx={{
+                background: loading ? 'rgba(0,0,0,0.1)' : 'linear-gradient(135deg, #10b981, #059669)',
+                '&:hover': {
+                  background: loading ? 'rgba(0,0,0,0.1)' : 'linear-gradient(135deg, #059669, #047857)',
+                },
+              }}
+            >
+              {loading ? 'Guardando...' : 'Guardar Permisos'}
+            </Button>
+          </Box>
         </DialogActions>
       </Dialog>
 
@@ -1973,11 +2296,6 @@ const SystemConfiguration = () => {
     const checkUrlChange = async () => {
       if (configurations.general?.baseUrl && window.location.origin !== configurations.general.baseUrl) {
         const currentUrl = window.location.origin;
-        console.log('🔄 Detectado cambio de entorno:', {
-          configurado: configurations.general.baseUrl,
-          actual: currentUrl
-        });
-        
         // Solo mostrar notificación, no actualizar automáticamente
         // El usuario puede decidir si quiere actualizar
         setSnackbar({
@@ -2867,6 +3185,359 @@ const SystemConfiguration = () => {
   );
 };
 
+// Componente para debuggear permisos
+const PermissionsDebug = () => {
+  const { currentUser } = useAuth();
+  const [debugUsers, setDebugUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userPermissions, setUserPermissions] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [expandedCategories, setExpandedCategories] = useState({
+    assignments: true,
+    viewing: true,
+    special: true,
+    admin: true
+  });
+
+  // Cargar usuarios para debug
+  useEffect(() => {
+    loadDebugUsers();
+  }, []);
+
+  const loadDebugUsers = async () => {
+    setLoading(true);
+    try {
+      const { getAllUsers } = await import('../services/userManagement');
+      const result = await getAllUsers();
+      
+      if (result.success) {
+        setDebugUsers(result.users.filter(user => user.status !== 'deleted'));
+      }
+    } catch (error) {
+      console.error('Error cargando usuarios para debug:', error);
+    }
+    setLoading(false);
+  };
+
+  // Cargar permisos de un usuario específico
+  const loadUserPermissions = async (user) => {
+    if (!user) return;
+    
+    setSelectedUser(user);
+    setLoading(true);
+    
+    try {
+      const { getEffectiveUserPermissions, DEFAULT_PERMISSIONS, getUsersWithCustomPermissions } = await import('../services/permissionsService');
+      const userId = user.uid || user.id;
+      
+      const effectivePermissions = await getEffectiveUserPermissions(userId, user.role);
+      const defaultPermissions = DEFAULT_PERMISSIONS[user.role] || DEFAULT_PERMISSIONS.traductor;
+      const customUsers = await getUsersWithCustomPermissions();
+      const hasCustom = customUsers.some(cu => cu.userId === userId);
+      
+      setUserPermissions({
+        effective: effectivePermissions,
+        default: defaultPermissions,
+        hasCustom,
+        customUsers
+      });
+    } catch (error) {
+      console.error('Error cargando permisos del usuario:', error);
+      setUserPermissions(null);
+    }
+    setLoading(false);
+  };
+
+  // Filtrar usuarios
+  const filteredUsers = debugUsers.filter(user =>
+    user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.role?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Agrupar permisos por categoría
+  const groupPermissionsByCategory = (permissions) => {
+    const { AVAILABLE_PERMISSIONS } = require('../services/permissionsService');
+    const grouped = {
+      assignments: [],
+      viewing: [],
+      special: [],
+      admin: []
+    };
+
+    Object.keys(AVAILABLE_PERMISSIONS).forEach(permKey => {
+      const perm = AVAILABLE_PERMISSIONS[permKey];
+      const hasPermission = permissions?.[permKey] || false;
+      
+      grouped[perm.category].push({
+        key: permKey,
+        name: perm.name,
+        description: perm.description,
+        hasPermission,
+        isDefault: userPermissions?.default?.[permKey] || false
+      });
+    });
+
+    return grouped;
+  };
+
+  const toggleCategory = (category) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
+
+  const getCategoryIcon = (category) => {
+    switch (category) {
+      case 'assignments': return <ShieldIcon />;
+      case 'viewing': return <VisibilityIcon />;
+      case 'special': return <UploadIcon />;
+      case 'admin': return <AdminPanelSettingsIcon />;
+      default: return <SecurityIcon />;
+    }
+  };
+
+  const getCategoryName = (category) => {
+    switch (category) {
+      case 'assignments': return 'Asignaciones';
+      case 'viewing': return 'Visualización';
+      case 'special': return 'Especiales';
+      case 'admin': return 'Administrativos';
+      default: return category;
+    }
+  };
+
+  // Función para obtener el nombre legible del rol
+  const getRoleDisplayName = (role) => {
+    const roleNames = {
+      [ROLES.ADMIN]: 'Administrador',
+      [ROLES.JEFE_EDITOR]: 'Jefe Editor',
+      [ROLES.JEFE_TRADUCTOR]: 'Jefe Traductor',
+      [ROLES.UPLOADER]: 'Uploader',
+      [ROLES.EDITOR]: 'Editor',
+      [ROLES.TRADUCTOR]: 'Traductor'
+    };
+    return roleNames[role] || role;
+  };
+
+  return (
+    <Box>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h5" fontWeight={600}>
+          Debug de Permisos del Sistema
+        </Typography>
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={loadDebugUsers}
+          disabled={loading}
+        >
+          Actualizar
+        </Button>
+      </Box>
+
+      <Grid container spacing={3}>
+        {/* Panel izquierdo - Lista de usuarios */}
+        <Grid item xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                Usuarios del Sistema ({filteredUsers.length})
+              </Typography>
+              
+              {/* Buscador */}
+              <TextField
+                fullWidth
+                placeholder="Buscar usuario..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                sx={{ mb: 2 }}
+                size="small"
+              />
+              
+              {/* Lista de usuarios */}
+              <Box sx={{ maxHeight: 500, overflowY: 'auto' }}>
+                {filteredUsers.map((user) => {
+                  const userId = user.uid || user.id;
+                  const hasCustom = userPermissions?.customUsers?.some(cu => cu.userId === userId);
+                  
+                  return (
+                    <Box
+                      key={userId}
+                      onClick={() => loadUserPermissions(user)}
+                      sx={{
+                        p: 2,
+                        mb: 1,
+                        border: '1px solid',
+                        borderColor: selectedUser?.uid === userId || selectedUser?.id === userId ? 'primary.main' : 'divider',
+                        borderRadius: 1,
+                        cursor: 'pointer',
+                        bgcolor: selectedUser?.uid === userId || selectedUser?.id === userId ? 'action.selected' : 'transparent',
+                        '&:hover': {
+                          bgcolor: 'action.hover'
+                        }
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                        <Typography variant="body1" fontWeight={500}>
+                          {user.name}
+                        </Typography>
+                        {hasCustom && (
+                          <Chip size="small" label="Personalizado" color="warning" />
+                        )}
+                      </Box>
+                      <Typography variant="caption" color="textSecondary" display="block">
+                        {user.email}
+                      </Typography>
+                      <Chip 
+                        size="small" 
+                        label={getRoleDisplayName(user.role)} 
+                        sx={{ mt: 0.5 }}
+                      />
+                    </Box>
+                  );
+                })}
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Panel derecho - Detalles de permisos */}
+        <Grid item xs={12} md={8}>
+          {selectedUser ? (
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                  <Avatar sx={{ bgcolor: 'primary.main' }}>
+                    {selectedUser.name?.charAt(0) || '?'}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h6">
+                      Permisos de {selectedUser.name}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      {selectedUser.email} • {getRoleDisplayName(selectedUser.role)}
+                    </Typography>
+                    {userPermissions?.hasCustom && (
+                      <Chip 
+                        size="small" 
+                        label="Tiene permisos personalizados" 
+                        color="warning" 
+                        sx={{ mt: 0.5 }}
+                      />
+                    )}
+                  </Box>
+                </Box>
+
+                {loading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                    <Typography>Cargando permisos...</Typography>
+                  </Box>
+                ) : userPermissions ? (
+                  <Box>
+                    {/* Información general */}
+                    {userPermissions.effective._lastUpdated && (
+                      <Alert severity="info" sx={{ mb: 2 }}>
+                        <Typography variant="body2">
+                          Última actualización: {new Date(userPermissions.effective._lastUpdated).toLocaleString()}
+                          {userPermissions.effective._updatedBy && (
+                            <> por {userPermissions.effective._updatedBy}</>
+                          )}
+                        </Typography>
+                      </Alert>
+                    )}
+
+                    {/* Permisos por categorías */}
+                    {Object.entries(groupPermissionsByCategory(userPermissions.effective)).map(([category, permissions]) => (
+                      <Card key={category} sx={{ mb: 2 }} variant="outlined">
+                        <CardContent sx={{ pb: expandedCategories[category] ? 2 : '16px !important' }}>
+                          <Box 
+                            sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 1, 
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => toggleCategory(category)}
+                          >
+                            {getCategoryIcon(category)}
+                            <Typography variant="h6" sx={{ flexGrow: 1 }}>
+                              {getCategoryName(category)} ({permissions.filter(p => p.hasPermission).length}/{permissions.length})
+                            </Typography>
+                            <IconButton size="small">
+                              {expandedCategories[category] ? <VisibilityIcon /> : <VisibilityOffIcon />}
+                            </IconButton>
+                          </Box>
+                          
+                          {expandedCategories[category] && (
+                            <Box sx={{ mt: 2 }}>
+                              {permissions.map((perm) => (
+                                <Box 
+                                  key={perm.key} 
+                                  sx={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    py: 1, 
+                                    px: 2,
+                                    bgcolor: perm.hasPermission ? 'success.light' : 'action.hover',
+                                    mb: 1,
+                                    borderRadius: 1
+                                  }}
+                                >
+                                  <Box sx={{ flexGrow: 1 }}>
+                                    <Typography variant="body2" fontWeight={500}>
+                                      {perm.name}
+                                      {perm.isDefault && (
+                                        <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
+                                      )}
+                                    </Typography>
+                                    <Typography variant="caption" color="textSecondary">
+                                      {perm.description}
+                                    </Typography>
+                                  </Box>
+                                  <Chip
+                                    size="small"
+                                    label={perm.hasPermission ? 'PERMITIDO' : 'DENEGADO'}
+                                    color={perm.hasPermission ? 'success' : 'error'}
+                                    variant={perm.hasPermission ? 'filled' : 'outlined'}
+                                  />
+                                </Box>
+                              ))}
+                            </Box>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Box>
+                ) : (
+                  <Alert severity="info">
+                    No se pudieron cargar los permisos de este usuario.
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent sx={{ textAlign: 'center', py: 8 }}>
+                <SecurityIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+                <Typography variant="h6" color="textSecondary">
+                  Selecciona un usuario para ver sus permisos
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Haz clic en cualquier usuario de la lista para debuggear sus permisos
+                </Typography>
+              </CardContent>
+            </Card>
+          )}
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
+
 // Componente principal del panel de administrador
 const AdminPanel = () => {
   const { userProfile, isSuperAdmin } = useAuth();
@@ -2950,6 +3621,11 @@ const AdminPanel = () => {
             label="Configuración del Sistema" 
             iconPosition="start"
           />
+          <Tab 
+            icon={<SecurityIcon />} 
+            label="Debug de Permisos" 
+            iconPosition="start"
+          />
         </Tabs>
       </Card>
 
@@ -2958,6 +3634,7 @@ const AdminPanel = () => {
         {currentTab === 0 && <MangaManagement />}
         {currentTab === 1 && <StaffManagement />}
         {currentTab === 2 && <SystemConfiguration />}
+        {currentTab === 3 && <PermissionsDebug />}
       </Box>
     </Container>
   );

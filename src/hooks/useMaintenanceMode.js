@@ -19,10 +19,6 @@ export const useMaintenanceMode = () => {
       setLoading(true);
       setError(null);
       
-      console.log('🔧 Verificando modo mantenimiento desde nodo público...', {
-        userAuthenticated: !!currentUser,
-        isSuperAdmin: isSuperAdmin()
-      });
       
       const database = await getRealtimeDb();
       const maintenanceStatusRef = ref(database, 'maintenanceStatus/isActive');
@@ -30,8 +26,6 @@ export const useMaintenanceMode = () => {
       
       const maintenanceMode = snapshot.val() || false;
       setIsMaintenanceMode(maintenanceMode);
-      
-      console.log('✅ Estado modo mantenimiento obtenido desde nodo público:', maintenanceMode);
     } catch (err) {
       console.error('❌ Error verificando modo mantenimiento:', err);
       // En caso de error, no activar mantenimiento para evitar bloquear el sistema
@@ -59,12 +53,8 @@ export const useMaintenanceMode = () => {
         // Configurar listener en tiempo real
         const database = await getRealtimeDb();
         const maintenanceStatusRef = ref(database, 'maintenanceStatus/isActive');
-        
-        console.log('🔄 Configurando listener en tiempo real para modo mantenimiento (nodo público)...');
-        
         unsubscribe = onValue(maintenanceStatusRef, (snapshot) => {
           const maintenanceMode = snapshot.val() || false;
-          console.log('🚨 Cambio detectado en modo mantenimiento (nodo público):', maintenanceMode);
           setIsMaintenanceMode(maintenanceMode);
         }, (error) => {
           console.error('❌ Error en listener de modo mantenimiento:', error);
@@ -82,7 +72,6 @@ export const useMaintenanceMode = () => {
     // Cleanup function
     return () => {
       if (unsubscribe) {
-        console.log('🔄 Desconectando listener de modo mantenimiento');
         unsubscribe();
       }
     };
