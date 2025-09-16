@@ -102,7 +102,7 @@ const Assignments = () => {
   const [filters, setFilters] = useState({
     manga: '',
     user: '',
-    status: '',
+    status: 'pendiente', // Mostrar pendientes por defecto
     search: '',
     week: ''
   });
@@ -852,7 +852,7 @@ const Assignments = () => {
     setFilters({
       manga: '',
       user: '',
-      status: '',
+      status: 'pendiente', // Mantener pendiente como defecto
       search: '',
       week: ''
     });
@@ -1320,24 +1320,73 @@ const Assignments = () => {
             
             {/* Filtro por Usuario */}
             <Grid item xs={12} md={2.4}>
-              <TextField
-                select
+              <Autocomplete
                 fullWidth
                 size="small"
-                label="Usuario"
-                value={filters.user}
-                onChange={(e) => handleFilterChange('user', e.target.value)}
-                InputProps={{
-                  startAdornment: <Person sx={{ color: 'text.secondary', mr: 1 }} />
+                options={[{ uid: '', name: 'Todos los usuarios' }, ...getUniqueUsers(users)]}
+                value={getUniqueUsers(users).find(user => (user.uid || user.id) === filters.user) || { uid: '', name: 'Todos los usuarios' }}
+                onChange={(event, newValue) => {
+                  handleFilterChange('user', newValue ? (newValue.uid || newValue.id || '') : '');
                 }}
-              >
-                <MenuItem value="">Todos los usuarios</MenuItem>
-                {getUniqueUsers(users).map((user) => (
-                  <MenuItem key={user.uid || user.id} value={user.uid || user.id}>
-                    {user.name}
-                  </MenuItem>
-                ))}
-              </TextField>
+                getOptionLabel={(option) => option ? option.name || 'Usuario desconocido' : ''}
+                isOptionEqualToValue={(option, value) => (option.uid || option.id || '') === (value.uid || value.id || '')}
+                renderInput={(params) => {
+                  const { inputProps, ...restParams } = params;
+                  return (
+                    <TextField
+                      {...restParams}
+                      label="Usuario"
+                      inputProps={{
+                        ...inputProps,
+                        placeholder: filters.user === '' ? 'Buscar usuario...' : undefined
+                      }}
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                          <>
+                            <Person sx={{ color: 'text.secondary', mr: 1 }} />
+                            {params.InputProps.startAdornment}
+                          </>
+                        )
+                      }}
+                    />
+                  );
+                }}
+                renderOption={(props, option) => (
+                  <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1 }}>
+                    <Avatar
+                      src={option.profileImage || option.photoURL || option.avatar}
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        fontSize: '0.75rem',
+                        ...(option.profileImage || option.photoURL || option.avatar) && {
+                          bgcolor: 'transparent',
+                          border: `2px solid #6366f160`,
+                        },
+                        ...(!(option.profileImage || option.photoURL || option.avatar)) && {
+                          bgcolor: option.uid ? '#6366f1' : '#6b7280',
+                          color: 'white',
+                          fontWeight: 700,
+                        }
+                      }}
+                    >
+                      {!(option.profileImage || option.photoURL || option.avatar) && option.name && 
+                       (option.uid ? option.name.substring(0, 2).toUpperCase() : '👥')}
+                    </Avatar>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {option.name || 'Usuario desconocido'}
+                      </Typography>
+                      {option.role && (
+                        <Typography variant="caption" color="text.secondary">
+                          {option.role}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                )}
+              />
             </Grid>
             
             {/* Filtro por Estado */}

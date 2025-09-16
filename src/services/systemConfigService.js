@@ -179,6 +179,16 @@ export async function saveSystemConfigurations(configurations, userId = null) {
       }
     }
     
+    // Actualizar información pública del sistema
+    try {
+      await updatePublicSystemInfo({
+        systemName: configurationsWithMeta.general.systemName,
+        systemVersion: configurationsWithMeta.general.systemVersion
+      }, userId);
+    } catch (error) {
+      console.warn('⚠️ Error actualizando información pública del sistema:', error);
+    }
+    
     // Crear backup automático
     await createConfigBackup(configurationsWithMeta, userId);
     return {
@@ -216,6 +226,18 @@ export async function updateSystemConfigSection(section, sectionData, userId = n
     const sectionRef = ref(database, `${SYSTEM_CONFIG_PATH}/${section}`);
     await set(sectionRef, sectionWithMeta);
     
+    // Si se actualiza la sección general, también actualizar información pública
+    if (section === 'general' && (sectionWithMeta.systemName || sectionWithMeta.systemVersion)) {
+      try {
+        await updatePublicSystemInfo({
+          systemName: sectionWithMeta.systemName,
+          systemVersion: sectionWithMeta.systemVersion
+        }, userId);
+      } catch (error) {
+        console.warn('⚠️ Error actualizando información pública en updateSystemConfigSection:', error);
+      }
+    }
+    
     // Actualizar metadata general
     const metadataRef = ref(database, `${SYSTEM_CONFIG_PATH}/metadata`);
     await update(metadataRef, {
@@ -245,6 +267,13 @@ export async function initializeSystemConfigurations() {
     const database = await getRealtimeDb();
     const configRef = ref(database, SYSTEM_CONFIG_PATH);
     await set(configRef, DEFAULT_CONFIGURATIONS);
+    
+    // También inicializar la información pública
+    await updatePublicSystemInfo({
+      systemName: DEFAULT_CONFIGURATIONS.general.systemName,
+      systemVersion: DEFAULT_CONFIGURATIONS.general.systemVersion
+    }, 'system');
+    
     return {
       success: true,
       message: 'Configuraciones inicializadas exitosamente'
@@ -575,6 +604,42 @@ export async function getConfigurationHistory(limit = 50) {
       success: false,
       error: error.message,
       history: []
+    };
+  }
+}
+
+/**
+ * Actualiza la información pública del sistema (accesible por todos los usuarios)
+ * @param {Object} publicInfo - Información pública (systemName, systemVersion)
+ * @param {string} userId - ID del usuario que realiza la actualización
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+export async function updatePublicSystemInfo(publicInfo, userId = null) {
+  try {
+    const timestamp = new Date().toISOString();
+    const publicData = {
+      systemName: publicInfo.systemName || DEFAULT_CONFIGURATIONS.general.systemName,
+      systemVersion: publicInfo.systemVersion || DEFAULT_CONFIGURATIONS.general.systemVersion,
+      lastUpdated: timestamp,
+      updatedBy: userId
+    };
+    
+    const database = await getRealtimeDb();
+    const publicInfoRef = ref(database, 'publicSystemInfo');
+    await set(publicInfoRef, publicData);
+    
+    console.log('✅ Información pública del sistema actualizada:', publicData);
+    
+    return {
+      success: true,
+      message: 'Información pública del sistema actualizada exitosamente',
+      timestamp
+    };
+  } catch (error) {
+    console.error('❌ Error actualizando información pública del sistema:', error);
+    return {
+      success: false,
+      error: error.message
     };
   }
 }

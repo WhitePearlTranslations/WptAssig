@@ -286,7 +286,6 @@ const Navbar = () => {
           return (
             <ListItem
               key={item.path}
-              data-tour={`${item.path.substring(1)}-nav`}
               sx={{
                 borderRadius: '12px',
                 mb: 1,
@@ -336,7 +335,6 @@ const Navbar = () => {
       {/* Mobile Footer Actions */}
       <Box sx={{ p: 2, borderTop: '1px solid rgba(148, 163, 184, 0.1)' }}>
         <ListItem
-          data-tour="profile-menu"
           sx={{
             borderRadius: '12px',
             mb: 1,
@@ -352,7 +350,6 @@ const Navbar = () => {
         
         {hasRole(ROLES.ADMIN) && (
           <ListItem
-            data-tour="admin-nav"
             sx={{
               borderRadius: '12px',
               mb: 1,
@@ -419,7 +416,6 @@ const Navbar = () => {
         }}>
           {/* Logo and Title */}
           <Box 
-            data-tour="dashboard"
             sx={{ 
               display: 'flex', 
               alignItems: 'center', 
@@ -498,7 +494,6 @@ const Navbar = () => {
                 <Button
                   key={item.path}
                   color="inherit"
-                  data-tour={`${item.path.substring(1)}-nav`}
                   startIcon={
                     item.badge && item.badge > 0 ? (
                       <Badge 
@@ -593,7 +588,6 @@ const Navbar = () => {
                 size="large"
                 onClick={handleMenu}
                 color="inherit"
-                data-tour="profile-menu"
                 sx={{
                   borderRadius: '12px'
                 }}

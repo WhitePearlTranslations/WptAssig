@@ -54,7 +54,6 @@ import {
   Settings as SettingsIcon,
   AccountCircle as AccountCircleIcon,
   Visibility as VisibilityIcon,
-  VisibilityOff as VisibilityOffIcon,
   AdminPanelSettings as AdminIcon,
   Work as WorkIcon,
   Upload as UploadIcon,
@@ -1194,7 +1193,7 @@ const StaffManagement = () => {
     setConfirmDialog({
       open: true,
       title: `Confirmar ${newStatus === 'suspended' ? 'Suspensión' : 'Reactivación'}`,
-      message: `¿Estás seguro de que quieres ${actionText} de "${userName}"? ${newStatus === 'suspended' ? 'El usuario no podrá iniciar sesión hasta que se reactive su cuenta.' : 'El usuario podrá iniciar sesión nuevamente.'}`,
+      message: `¿Estás seguro de que quieres ${actionText} de "${userName}"? ${newStatus === 'suspended' ? 'El usuario será desconectado automáticamente y no podrá iniciar sesión hasta que se reactive su cuenta.' : 'El usuario podrá iniciar sesión nuevamente y acceder al sistema.'}`,
       onConfirm: async () => {
         setLoading(true);
         try {
@@ -1203,21 +1202,27 @@ const StaffManagement = () => {
           
           if (result.success) {
             // Usuario suspendido/reactivado exitosamente
+            setSnackbar({
+              open: true,
+              message: `✅ ${result.message}. Los cambios se aplicarán automáticamente en todo el sistema.`,
+              severity: 'success'
+            });
             loadUsers(); // Recargar la lista
           } else {
             // Error actualizando estado
+            setSnackbar({
+              open: true,
+              message: `❌ Error: ${result.error || 'No se pudo actualizar el estado del usuario'}`,
+              severity: 'error'
+            });
           }
         } catch (error) {
-          // Error inesperado actualizando estado del usuario
-          // Fallback: actualizar localmente si no existe el servicio
-          setStaff(prevStaff => 
-            prevStaff.map(member => 
-              (member.uid || member.id) === userId 
-                ? { ...member, status: newStatus }
-                : member
-            )
-          );
-          // Usuario suspendido/reactivado exitosamente (modo local)
+          console.error('Error inesperado actualizando estado del usuario:', error);
+          setSnackbar({
+            open: true,
+            message: `❌ Error inesperado actualizando estado del usuario: ${error.message}`,
+            severity: 'error'
+          });
         }
         setLoading(false);
         setConfirmDialog({ ...confirmDialog, open: false });
@@ -2324,6 +2329,17 @@ const SystemConfiguration = () => {
         setValidationErrors([]);
         setValidationWarnings([]);
         
+        // Sincronizar información pública automáticamente
+        try {
+          const { updatePublicSystemInfo } = await import('../services/systemConfigService');
+          await updatePublicSystemInfo({
+            systemName: result.configurations.general?.systemName || 'WPTAssig',
+            systemVersion: result.configurations.general?.systemVersion || '1.1'
+          }, userProfile?.uid);
+        } catch (error) {
+          console.warn('Error sincronizando información pública:', error);
+        }
+        
         setSnackbar({
           open: true,
           message: 'Configuraciones cargadas exitosamente',
@@ -3185,358 +3201,6 @@ const SystemConfiguration = () => {
   );
 };
 
-// Componente para debuggear permisos
-const PermissionsDebug = () => {
-  const { currentUser } = useAuth();
-  const [debugUsers, setDebugUsers] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [userPermissions, setUserPermissions] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [expandedCategories, setExpandedCategories] = useState({
-    assignments: true,
-    viewing: true,
-    special: true,
-    admin: true
-  });
-
-  // Cargar usuarios para debug
-  useEffect(() => {
-    loadDebugUsers();
-  }, []);
-
-  const loadDebugUsers = async () => {
-    setLoading(true);
-    try {
-      const { getAllUsers } = await import('../services/userManagement');
-      const result = await getAllUsers();
-      
-      if (result.success) {
-        setDebugUsers(result.users.filter(user => user.status !== 'deleted'));
-      }
-    } catch (error) {
-      console.error('Error cargando usuarios para debug:', error);
-    }
-    setLoading(false);
-  };
-
-  // Cargar permisos de un usuario específico
-  const loadUserPermissions = async (user) => {
-    if (!user) return;
-    
-    setSelectedUser(user);
-    setLoading(true);
-    
-    try {
-      const { getEffectiveUserPermissions, DEFAULT_PERMISSIONS, getUsersWithCustomPermissions } = await import('../services/permissionsService');
-      const userId = user.uid || user.id;
-      
-      const effectivePermissions = await getEffectiveUserPermissions(userId, user.role);
-      const defaultPermissions = DEFAULT_PERMISSIONS[user.role] || DEFAULT_PERMISSIONS.traductor;
-      const customUsers = await getUsersWithCustomPermissions();
-      const hasCustom = customUsers.some(cu => cu.userId === userId);
-      
-      setUserPermissions({
-        effective: effectivePermissions,
-        default: defaultPermissions,
-        hasCustom,
-        customUsers
-      });
-    } catch (error) {
-      console.error('Error cargando permisos del usuario:', error);
-      setUserPermissions(null);
-    }
-    setLoading(false);
-  };
-
-  // Filtrar usuarios
-  const filteredUsers = debugUsers.filter(user =>
-    user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.role?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Agrupar permisos por categoría
-  const groupPermissionsByCategory = (permissions) => {
-    const { AVAILABLE_PERMISSIONS } = require('../services/permissionsService');
-    const grouped = {
-      assignments: [],
-      viewing: [],
-      special: [],
-      admin: []
-    };
-
-    Object.keys(AVAILABLE_PERMISSIONS).forEach(permKey => {
-      const perm = AVAILABLE_PERMISSIONS[permKey];
-      const hasPermission = permissions?.[permKey] || false;
-      
-      grouped[perm.category].push({
-        key: permKey,
-        name: perm.name,
-        description: perm.description,
-        hasPermission,
-        isDefault: userPermissions?.default?.[permKey] || false
-      });
-    });
-
-    return grouped;
-  };
-
-  const toggleCategory = (category) => {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [category]: !prev[category]
-    }));
-  };
-
-  const getCategoryIcon = (category) => {
-    switch (category) {
-      case 'assignments': return <ShieldIcon />;
-      case 'viewing': return <VisibilityIcon />;
-      case 'special': return <UploadIcon />;
-      case 'admin': return <AdminPanelSettingsIcon />;
-      default: return <SecurityIcon />;
-    }
-  };
-
-  const getCategoryName = (category) => {
-    switch (category) {
-      case 'assignments': return 'Asignaciones';
-      case 'viewing': return 'Visualización';
-      case 'special': return 'Especiales';
-      case 'admin': return 'Administrativos';
-      default: return category;
-    }
-  };
-
-  // Función para obtener el nombre legible del rol
-  const getRoleDisplayName = (role) => {
-    const roleNames = {
-      [ROLES.ADMIN]: 'Administrador',
-      [ROLES.JEFE_EDITOR]: 'Jefe Editor',
-      [ROLES.JEFE_TRADUCTOR]: 'Jefe Traductor',
-      [ROLES.UPLOADER]: 'Uploader',
-      [ROLES.EDITOR]: 'Editor',
-      [ROLES.TRADUCTOR]: 'Traductor'
-    };
-    return roleNames[role] || role;
-  };
-
-  return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" fontWeight={600}>
-          Debug de Permisos del Sistema
-        </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<RefreshIcon />}
-          onClick={loadDebugUsers}
-          disabled={loading}
-        >
-          Actualizar
-        </Button>
-      </Box>
-
-      <Grid container spacing={3}>
-        {/* Panel izquierdo - Lista de usuarios */}
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Usuarios del Sistema ({filteredUsers.length})
-              </Typography>
-              
-              {/* Buscador */}
-              <TextField
-                fullWidth
-                placeholder="Buscar usuario..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                sx={{ mb: 2 }}
-                size="small"
-              />
-              
-              {/* Lista de usuarios */}
-              <Box sx={{ maxHeight: 500, overflowY: 'auto' }}>
-                {filteredUsers.map((user) => {
-                  const userId = user.uid || user.id;
-                  const hasCustom = userPermissions?.customUsers?.some(cu => cu.userId === userId);
-                  
-                  return (
-                    <Box
-                      key={userId}
-                      onClick={() => loadUserPermissions(user)}
-                      sx={{
-                        p: 2,
-                        mb: 1,
-                        border: '1px solid',
-                        borderColor: selectedUser?.uid === userId || selectedUser?.id === userId ? 'primary.main' : 'divider',
-                        borderRadius: 1,
-                        cursor: 'pointer',
-                        bgcolor: selectedUser?.uid === userId || selectedUser?.id === userId ? 'action.selected' : 'transparent',
-                        '&:hover': {
-                          bgcolor: 'action.hover'
-                        }
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                        <Typography variant="body1" fontWeight={500}>
-                          {user.name}
-                        </Typography>
-                        {hasCustom && (
-                          <Chip size="small" label="Personalizado" color="warning" />
-                        )}
-                      </Box>
-                      <Typography variant="caption" color="textSecondary" display="block">
-                        {user.email}
-                      </Typography>
-                      <Chip 
-                        size="small" 
-                        label={getRoleDisplayName(user.role)} 
-                        sx={{ mt: 0.5 }}
-                      />
-                    </Box>
-                  );
-                })}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Panel derecho - Detalles de permisos */}
-        <Grid item xs={12} md={8}>
-          {selectedUser ? (
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                  <Avatar sx={{ bgcolor: 'primary.main' }}>
-                    {selectedUser.name?.charAt(0) || '?'}
-                  </Avatar>
-                  <Box>
-                    <Typography variant="h6">
-                      Permisos de {selectedUser.name}
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      {selectedUser.email} • {getRoleDisplayName(selectedUser.role)}
-                    </Typography>
-                    {userPermissions?.hasCustom && (
-                      <Chip 
-                        size="small" 
-                        label="Tiene permisos personalizados" 
-                        color="warning" 
-                        sx={{ mt: 0.5 }}
-                      />
-                    )}
-                  </Box>
-                </Box>
-
-                {loading ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                    <Typography>Cargando permisos...</Typography>
-                  </Box>
-                ) : userPermissions ? (
-                  <Box>
-                    {/* Información general */}
-                    {userPermissions.effective._lastUpdated && (
-                      <Alert severity="info" sx={{ mb: 2 }}>
-                        <Typography variant="body2">
-                          Última actualización: {new Date(userPermissions.effective._lastUpdated).toLocaleString()}
-                          {userPermissions.effective._updatedBy && (
-                            <> por {userPermissions.effective._updatedBy}</>
-                          )}
-                        </Typography>
-                      </Alert>
-                    )}
-
-                    {/* Permisos por categorías */}
-                    {Object.entries(groupPermissionsByCategory(userPermissions.effective)).map(([category, permissions]) => (
-                      <Card key={category} sx={{ mb: 2 }} variant="outlined">
-                        <CardContent sx={{ pb: expandedCategories[category] ? 2 : '16px !important' }}>
-                          <Box 
-                            sx={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: 1, 
-                              cursor: 'pointer'
-                            }}
-                            onClick={() => toggleCategory(category)}
-                          >
-                            {getCategoryIcon(category)}
-                            <Typography variant="h6" sx={{ flexGrow: 1 }}>
-                              {getCategoryName(category)} ({permissions.filter(p => p.hasPermission).length}/{permissions.length})
-                            </Typography>
-                            <IconButton size="small">
-                              {expandedCategories[category] ? <VisibilityIcon /> : <VisibilityOffIcon />}
-                            </IconButton>
-                          </Box>
-                          
-                          {expandedCategories[category] && (
-                            <Box sx={{ mt: 2 }}>
-                              {permissions.map((perm) => (
-                                <Box 
-                                  key={perm.key} 
-                                  sx={{ 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    py: 1, 
-                                    px: 2,
-                                    bgcolor: perm.hasPermission ? 'success.light' : 'action.hover',
-                                    mb: 1,
-                                    borderRadius: 1
-                                  }}
-                                >
-                                  <Box sx={{ flexGrow: 1 }}>
-                                    <Typography variant="body2" fontWeight={500}>
-                                      {perm.name}
-                                      {perm.isDefault && (
-                                        <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
-                                      )}
-                                    </Typography>
-                                    <Typography variant="caption" color="textSecondary">
-                                      {perm.description}
-                                    </Typography>
-                                  </Box>
-                                  <Chip
-                                    size="small"
-                                    label={perm.hasPermission ? 'PERMITIDO' : 'DENEGADO'}
-                                    color={perm.hasPermission ? 'success' : 'error'}
-                                    variant={perm.hasPermission ? 'filled' : 'outlined'}
-                                  />
-                                </Box>
-                              ))}
-                            </Box>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </Box>
-                ) : (
-                  <Alert severity="info">
-                    No se pudieron cargar los permisos de este usuario.
-                  </Alert>
-                )}
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent sx={{ textAlign: 'center', py: 8 }}>
-                <SecurityIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-                <Typography variant="h6" color="textSecondary">
-                  Selecciona un usuario para ver sus permisos
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Haz clic en cualquier usuario de la lista para debuggear sus permisos
-                </Typography>
-              </CardContent>
-            </Card>
-          )}
-        </Grid>
-      </Grid>
-    </Box>
-  );
-};
 
 // Componente principal del panel de administrador
 const AdminPanel = () => {
@@ -3621,11 +3285,6 @@ const AdminPanel = () => {
             label="Configuración del Sistema" 
             iconPosition="start"
           />
-          <Tab 
-            icon={<SecurityIcon />} 
-            label="Debug de Permisos" 
-            iconPosition="start"
-          />
         </Tabs>
       </Card>
 
@@ -3634,7 +3293,6 @@ const AdminPanel = () => {
         {currentTab === 0 && <MangaManagement />}
         {currentTab === 1 && <StaffManagement />}
         {currentTab === 2 && <SystemConfiguration />}
-        {currentTab === 3 && <PermissionsDebug />}
       </Box>
     </Container>
   );

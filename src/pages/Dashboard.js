@@ -53,7 +53,7 @@ import { realtimeService } from '../services/realtimeService';
 import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { useNavigate } from 'react-router-dom';
 import { usePendingReviews } from '../hooks/usePendingReviews';
-import { useTour } from '../hooks/useTour';
+import SystemFooter from '../components/SystemFooter';
 
 const Dashboard = () => {
   const { userProfile, isSuperAdmin, hasRole, userPermissions, refreshPermissions } = useAuth();
@@ -74,20 +74,6 @@ const Dashboard = () => {
   const pendingReviews = usePendingReviews();
   const isChief = hasRole(ROLES.ADMIN) || hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR);
 
-  // Hook del tour
-  const { startTour, isNewUser, isTourAvailable } = useTour();
-  
-
-  // Efecto para mostrar tour automáticamente para nuevos usuarios
-  useEffect(() => {
-    if (isNewUser && isTourAvailable) {
-      const timer = setTimeout(() => {
-        startTour();
-      }, 1500); // Esperar a que la página se cargue
-      
-      return () => clearTimeout(timer);
-    }
-  }, [isNewUser, isTourAvailable, startTour]);
 
   useEffect(() => {
     let unsubscribeMyAssignments = null;
@@ -286,7 +272,7 @@ const Dashboard = () => {
 
   return (
     <>
-      <Container maxWidth="lg" sx={{ mt: { xs: 2, md: 4 }, mb: 4, px: { xs: 2, sm: 3 } }} data-tour="dashboard">
+      <Container maxWidth="lg" sx={{ mt: { xs: 2, md: 4 }, mb: 4, px: { xs: 2, sm: 3 } }}>
       <Box className="animate-fade-in" sx={{ mb: { xs: 4, md: 6 } }}>
         <Box sx={{ 
           display: 'flex', 
@@ -401,37 +387,6 @@ const Dashboard = () => {
             </Button>
           )}
           
-          {/* Botón de Tour */}
-          {isTourAvailable && (
-            <Button
-              variant="outlined"
-              size={window.innerWidth < 768 ? "medium" : "large"}
-              startIcon={<HelpIcon />}
-              onClick={startTour}
-              sx={{
-                borderColor: '#6366f1',
-                color: '#6366f1',
-                fontWeight: 600,
-                px: { xs: 2, sm: 3 },
-                py: { xs: 1, sm: 1.5 },
-                borderRadius: '16px',
-                textTransform: 'none',
-                fontSize: { xs: '0.9rem', sm: '1rem', md: '1.1rem' },
-                borderWidth: 2,
-                minHeight: { xs: '44px', sm: 'auto' },
-                width: { xs: '100%', sm: 'auto' },
-                ml: { xs: 0, sm: 2 },
-                mt: { xs: 2, sm: 0 },
-                '&:hover': {
-                  borderColor: '#4f46e5',
-                  backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                  transform: 'translateY(-1px)',
-                },
-              }}
-            >
-              Tour de la App
-            </Button>
-          )}
         </Box>
       </Box>
 
@@ -913,6 +868,8 @@ const Dashboard = () => {
         </Box>
       )}
 
+      {/* Footer del sistema */}
+      <SystemFooter size="small" />
       </Container>
     </>
   );

@@ -21,7 +21,15 @@ import {
   MenuItem,
   IconButton,
   Tooltip,
-  Avatar
+  Avatar,
+  Autocomplete,
+  Alert,
+  LinearProgress,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Divider
 } from '@mui/material';
 import {
   Add,
@@ -30,7 +38,10 @@ import {
   SupervisorAccount,
   PersonOutline,
   History,
-  Warning
+  Warning,
+  SwapHoriz,
+  Delete,
+  PersonRemove
 } from '@mui/icons-material';
 import { ref, onValue, set, update, remove, push } from 'firebase/database';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
@@ -50,6 +61,20 @@ const Users = () => {
     password: '',
     active: true,
     isGhost: false
+  });
+  
+  // Estados para transferencia de asignaciones
+  const [transferDialog, setTransferDialog] = useState({
+    open: false,
+    ghostUser: null,
+    targetUser: null,
+    assignments: [],
+    loading: false
+  });
+  
+  const [confirmDeleteDialog, setConfirmDeleteDialog] = useState({
+    open: false,
+    ghostUser: null
   });
 
   useEffect(() => {
@@ -94,7 +119,7 @@ const Users = () => {
           email: user.email,
           role: user.role,
           password: '', // No mostrar contraseña existente
-          active: user.active !== false,
+          active: user.status === 'active',
           isGhost: user.isGhost || false
         });
     } else {
@@ -200,6 +225,158 @@ const Users = () => {
     }
   };
 
+  // Función para obtener asignaciones de un usuario fantasma
+  const getGhostUserAssignments = async (ghostUserId) => {
+    try {
+      const assignmentsRef = ref(realtimeDb, 'assignments');
+      const snapshot = await new Promise((resolve) => {
+        onValue(assignmentsRef, resolve, { onlyOnce: true });
+      });
+      
+      if (!snapshot.exists()) return [];
+      
+      const assignments = [];
+      snapshot.forEach((childSnapshot) => {
+        const assignment = childSnapshot.val();
+        if (assignment.assignedTo === ghostUserId) {
+          assignments.push({
+            id: childSnapshot.key,
+            ...assignment
+          });
+        }
+      });
+      
+      return assignments;
+    } catch (error) {
+      console.error('Error obteniendo asignaciones del usuario fantasma:', error);
+      return [];
+    }
+  };
+  
+  // Función para abrir el diálogo de transferencia
+  const handleOpenTransferDialog = async (ghostUser) => {
+    if (!ghostUser.isGhost) {
+      toast.error('Esta función solo está disponible para usuarios fantasma');
+      return;
+    }
+    
+    setTransferDialog({ ...transferDialog, loading: true, open: true, ghostUser });
+    
+    try {
+      const assignments = await getGhostUserAssignments(ghostUser.uid || ghostUser.id);
+      setTransferDialog({
+        open: true,
+        ghostUser,
+        targetUser: null,
+        assignments,
+        loading: false
+      });
+    } catch (error) {
+      toast.error('Error cargando asignaciones del usuario');
+      setTransferDialog({ ...transferDialog, loading: false, open: false });
+    }
+  };
+  
+  // Función para transferir asignaciones
+  const handleTransferAssignments = async () => {
+    if (!transferDialog.targetUser || !transferDialog.ghostUser) {
+      toast.error('Por favor selecciona un usuario destino');
+      return;
+    }
+    
+    if (transferDialog.assignments.length === 0) {
+      toast.error('No hay asignaciones para transferir');
+      return;
+    }
+    
+    setTransferDialog({ ...transferDialog, loading: true });
+    
+    try {
+      const updates = {};
+      const targetUserId = transferDialog.targetUser.uid || transferDialog.targetUser.id;
+      const targetUserName = transferDialog.targetUser.name;
+      
+      // Preparar actualizaciones para todas las asignaciones
+      transferDialog.assignments.forEach(assignment => {
+        updates[`assignments/${assignment.id}/assignedTo`] = targetUserId;
+        updates[`assignments/${assignment.id}/assignedToName`] = targetUserName;
+        updates[`assignments/${assignment.id}/transferredFrom`] = transferDialog.ghostUser.name;
+        updates[`assignments/${assignment.id}/transferredAt`] = new Date().toISOString();
+        updates[`assignments/${assignment.id}/transferredBy`] = userProfile.uid;
+      });
+      
+      // Actualizar estadísticas del usuario destino
+      const completedAssignments = transferDialog.assignments.filter(a => 
+        a.status === 'completado' || a.status === 'aprobado' || a.status === 'uploaded'
+      ).length;
+      
+      const activeAssignments = transferDialog.assignments.filter(a => 
+        a.status === 'pendiente' || a.status === 'en_progreso'
+      ).length;
+      
+      if (completedAssignments > 0) {
+        updates[`users/${targetUserId}/stats/assignmentsCompleted`] = 
+          (transferDialog.targetUser.stats?.assignmentsCompleted || 0) + completedAssignments;
+      }
+      
+      if (activeAssignments > 0) {
+        updates[`users/${targetUserId}/stats/assignmentsActive`] = 
+          (transferDialog.targetUser.stats?.assignmentsActive || 0) + activeAssignments;
+      }
+      
+      // Ejecutar todas las actualizaciones
+      await update(ref(realtimeDb), updates);
+      
+      toast.success(
+        `✅ ${transferDialog.assignments.length} asignaciones transferidas exitosamente a ${targetUserName}`
+      );
+      
+      // Ahora proceder a eliminar el usuario fantasma
+      setTransferDialog({ ...transferDialog, open: false, loading: false });
+      setConfirmDeleteDialog({ open: true, ghostUser: transferDialog.ghostUser });
+      
+    } catch (error) {
+      console.error('Error transfiriendo asignaciones:', error);
+      toast.error('Error al transferir las asignaciones');
+      setTransferDialog({ ...transferDialog, loading: false });
+    }
+  };
+  
+  // Función para eliminar usuario fantasma después de transferir
+  const handleDeleteGhostUser = async () => {
+    if (!confirmDeleteDialog.ghostUser) return;
+    
+    try {
+      const ghostUserId = confirmDeleteDialog.ghostUser.uid || confirmDeleteDialog.ghostUser.id;
+      
+      // Marcar como eliminado en lugar de eliminar completamente
+      await update(ref(realtimeDb, `users/${ghostUserId}`), {
+        status: 'deleted',
+        deletedAt: new Date().toISOString(),
+        deletedBy: userProfile.uid,
+        reason: 'Transferencia de asignaciones completada'
+      });
+      
+      toast.success(`👻 Usuario fantasma "${confirmDeleteDialog.ghostUser.name}" eliminado exitosamente`);
+      setConfirmDeleteDialog({ open: false, ghostUser: null });
+      
+    } catch (error) {
+      console.error('Error eliminando usuario fantasma:', error);
+      toast.error('Error al eliminar el usuario fantasma');
+    }
+  };
+  
+  // Función para cerrar diálogos
+  const handleCloseTransferDialog = () => {
+    setTransferDialog({
+      open: false,
+      ghostUser: null,
+      targetUser: null,
+      assignments: [],
+      loading: false
+    });
+  };
+  
   // Función de eliminación removida - se debe usar el Panel Admin para eliminar usuarios
 
   const getRoleColor = (role) => {
@@ -227,6 +404,26 @@ const Users = () => {
       [ROLES.TRADUCTOR]: 'Traductor'
     };
     return roleNames[role] || role;
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'active': return 'success';
+      case 'inactive': return 'default';
+      case 'suspended': return 'error';
+      case 'deleted': return 'error';
+      default: return 'default';
+    }
+  };
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'active': return 'Activo';
+      case 'inactive': return 'Inactivo';
+      case 'suspended': return 'Suspendido';
+      case 'deleted': return 'Eliminado';
+      default: return status || 'Desconocido';
+    }
   };
 
   const canManageUser = (user) => {
@@ -340,7 +537,7 @@ const Users = () => {
         <Grid item xs={12} sm={6} md={3}>
           <Paper sx={{ p: 2, textAlign: 'center' }}>
             <Typography variant="h4" color="success.main">
-              {users.filter(u => u.active !== false).length}
+              {users.filter(u => u.status === 'active').length}
             </Typography>
             <Typography color="textSecondary">
               Activos
@@ -364,6 +561,16 @@ const Users = () => {
             </Typography>
             <Typography color="textSecondary">
               Editores
+            </Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="h4" color="error.main">
+              {users.filter(u => u.status === 'suspended').length}
+            </Typography>
+            <Typography color="textSecondary">
+              Suspendidos
             </Typography>
           </Paper>
         </Grid>
@@ -430,8 +637,8 @@ const Users = () => {
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                       <Chip
                         size="small"
-                        label={user.active !== false ? 'Activo' : 'Inactivo'}
-                        color={user.active !== false ? 'success' : 'default'}
+                        label={getStatusLabel(user.status)}
+                        color={getStatusColor(user.status)}
                       />
                       {user.isGhost && (
                         <Chip
@@ -456,6 +663,16 @@ const Users = () => {
                   </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', gap: 1 }}>
+                      {user.isGhost && (
+                        <Tooltip title="Transferir asignaciones a usuario real">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenTransferDialog(user)}
+                          >
+                            <SwapHoriz />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                       {canManageUser(user) && (
                         <Tooltip title="Editar">
                           <IconButton
@@ -582,6 +799,222 @@ const Users = () => {
           </Button>
           <Button onClick={handleSubmit} variant="contained">
             {editingUser ? 'Actualizar' : 'Crear'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Dialog para transferir asignaciones */}
+      <Dialog 
+        open={transferDialog.open} 
+        onClose={transferDialog.loading ? undefined : handleCloseTransferDialog}
+        maxWidth="md" 
+        fullWidth
+      >
+        <DialogTitle>
+          👻➡️👤 Transferir Asignaciones de Usuario Fantasma
+        </DialogTitle>
+        <DialogContent>
+          {transferDialog.loading ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
+              <LinearProgress sx={{ width: '100%', mb: 2 }} />
+              <Typography>Cargando asignaciones...</Typography>
+            </Box>
+          ) : (
+            <>
+              <Alert severity="info" sx={{ mb: 3 }}>
+                <Typography variant="body2">
+                  <strong>Usuario Fantasma:</strong> {transferDialog.ghostUser?.name} 👻
+                  <br/>
+                  <strong>Asignaciones encontradas:</strong> {transferDialog.assignments.length}
+                </Typography>
+              </Alert>
+              
+              {transferDialog.assignments.length > 0 ? (
+                <>
+                  {/* Selector de usuario destino */}
+                  <Typography variant="h6" sx={{ mb: 2 }}>
+                    Seleccionar Usuario Destino
+                  </Typography>
+                  
+                  <Autocomplete
+                    fullWidth
+                    options={users.filter(u => !u.isGhost && u.status !== 'deleted')}
+                    value={transferDialog.targetUser}
+                    onChange={(event, newValue) => {
+                      setTransferDialog({ ...transferDialog, targetUser: newValue });
+                    }}
+                    getOptionLabel={(option) => option ? option.name || 'Usuario desconocido' : ''}
+                    renderOption={(props, option) => (
+                      <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1 }}>
+                        <Avatar
+                          src={option.profileImage || option.photoURL || option.avatar}
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            fontSize: '0.75rem',
+                            ...(option.profileImage || option.photoURL || option.avatar) && {
+                              bgcolor: 'transparent',
+                              border: `2px solid #6366f160`,
+                            },
+                            ...(!(option.profileImage || option.photoURL || option.avatar)) && {
+                              bgcolor: '#6366f1',
+                              color: 'white',
+                              fontWeight: 700,
+                            }
+                          }}
+                        >
+                          {!(option.profileImage || option.photoURL || option.avatar) && option.name && 
+                           option.name.substring(0, 2).toUpperCase()}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {option.name || 'Usuario desconocido'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {option.role} • {option.stats?.assignmentsCompleted || 0} completadas
+                          </Typography>
+                        </Box>
+                      </Box>
+                    )}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Usuario destino"
+                        placeholder="Buscar usuario real..."
+                        helperText="Selecciona el usuario real al que transferir las asignaciones"
+                      />
+                    )}
+                  />
+                  
+                  <Divider sx={{ my: 3 }} />
+                  
+                  {/* Lista de asignaciones */}
+                  <Typography variant="h6" sx={{ mb: 2 }}>
+                    Asignaciones a Transferir ({transferDialog.assignments.length})
+                  </Typography>
+                  
+                  <List sx={{ maxHeight: 300, overflow: 'auto', bgcolor: 'background.paper', borderRadius: 1 }}>
+                    {transferDialog.assignments.map((assignment) => {
+                      const statusColor = assignment.status === 'completado' || assignment.status === 'aprobado' || assignment.status === 'uploaded' 
+                        ? '#10b981' : assignment.status === 'en_progreso' ? '#f59e0b' : '#6b7280';
+                      
+                      return (
+                        <ListItem key={assignment.id} divider>
+                          <ListItemIcon>
+                            <Chip
+                              size="small"
+                              label={assignment.type}
+                              sx={{ 
+                                bgcolor: statusColor + '20',
+                                color: statusColor,
+                                fontWeight: 500
+                              }}
+                            />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={`${assignment.mangaTitle} - Capítulo ${assignment.chapter}`}
+                            secondary={
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                                <Chip
+                                  size="small"
+                                  label={assignment.status}
+                                  sx={{ 
+                                    bgcolor: statusColor + '20',
+                                    color: statusColor,
+                                    fontSize: '0.7rem',
+                                    height: 20
+                                  }}
+                                />
+                                {assignment.createdAt && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    Creada: {new Date(assignment.createdAt).toLocaleDateString()}
+                                  </Typography>
+                                )}
+                              </Box>
+                            }
+                          />
+                        </ListItem>
+                      );
+                    })}
+                  </List>
+                  
+                  <Alert severity="warning" sx={{ mt: 3 }}>
+                    <Typography variant="body2">
+                      ⚠️ <strong>Esta acción:</strong>
+                      <br/>• Transferirá todas las asignaciones al usuario seleccionado
+                      <br/>• Actualizará las estadísticas del usuario destino
+                      <br/>• Eliminará automáticamente el usuario fantasma después de la transferencia
+                      <br/>• <strong>No se puede deshacer</strong>
+                    </Typography>
+                  </Alert>
+                </>
+              ) : (
+                <Alert severity="info">
+                  <Typography variant="body2">
+                    Este usuario fantasma no tiene asignaciones para transferir.
+                  </Typography>
+                </Alert>
+              )}
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={handleCloseTransferDialog} 
+            disabled={transferDialog.loading}
+          >
+            Cancelar
+          </Button>
+          {transferDialog.assignments.length > 0 && (
+            <Button 
+              onClick={handleTransferAssignments} 
+              variant="contained" 
+              disabled={transferDialog.loading || !transferDialog.targetUser}
+              color="primary"
+            >
+              {transferDialog.loading ? 'Transfiriendo...' : 'Transferir y Eliminar Usuario Fantasma'}
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+      
+      {/* Dialog de confirmación para eliminar usuario fantasma */}
+      <Dialog 
+        open={confirmDeleteDialog.open} 
+        onClose={() => setConfirmDeleteDialog({ open: false, ghostUser: null })}
+        maxWidth="sm" 
+        fullWidth
+      >
+        <DialogTitle>
+          🗑️ Confirmar Eliminación de Usuario Fantasma
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="success" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              ✅ Las asignaciones se han transferido exitosamente.
+            </Typography>
+          </Alert>
+          
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            ¿Deseas proceder a eliminar el usuario fantasma <strong>"{confirmDeleteDialog.ghostUser?.name}"</strong>?
+          </Typography>
+          
+          <Typography variant="body2" color="text.secondary">
+            El usuario fantasma será marcado como eliminado y ya no aparecerá en la lista de usuarios.
+            Esta acción completará el proceso de transferencia.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDeleteDialog({ open: false, ghostUser: null })}>
+            Mantener Usuario Fantasma
+          </Button>
+          <Button 
+            onClick={handleDeleteGhostUser} 
+            variant="contained" 
+            color="error"
+            startIcon={<PersonRemove />}
+          >
+            Eliminar Usuario Fantasma
           </Button>
         </DialogActions>
       </Dialog>

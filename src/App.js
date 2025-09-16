@@ -20,8 +20,6 @@ import AdminPanel from './components/AdminPanel';
 import MyWorks from './components/MyWorks';
 import Uploads from './pages/Uploads';
 import ReviewPanel from './components/ReviewPanel';
-import TourFloatingButton from './components/TourFloatingButton';
-import PageTourButton from './components/PageTourButton';
 import MaintenanceMode from './components/MaintenanceMode';
 import { useMaintenanceMode } from './hooks/useMaintenanceMode';
 
@@ -390,8 +388,6 @@ const AppLayout = ({ children }) => {
           {children}
         </Box>
       </Box>
-      <TourFloatingButton />
-      <PageTourButton />
     </Box>
   );
 };

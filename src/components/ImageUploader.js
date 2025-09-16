@@ -180,7 +180,7 @@ const ImageUploader = ({
 
         if (saveResult.success) {
           toast.success(
-            `✨ ${isProfile ? 'Imagen de perfil' : 'Banner'} subido exitosamente con Uppy`,
+            `${isProfile ? 'Imagen de perfil' : 'Banner'} subido exitosamente`,
             {
               duration: 4000,
               icon: '🎉'
@@ -201,7 +201,7 @@ const ImageUploader = ({
         }
       }
     } catch (error) {
-      console.error('Error en subida con Uppy:', error);
+      console.error('Error en subida: ', error);
       toast.error(error.message || 'Error al subir imagen');
     } finally {
       setUploading(false);
@@ -269,7 +269,7 @@ const ImageUploader = ({
       >
         <CardContent sx={{ textAlign: 'center', p: 3 }}>
           <Typography variant="h6" gutterBottom color="primary">
-            {isProfile ? '📷 Imagen de Perfil' : '🎨 Banner'}
+            {isProfile ? 'Imagen de Perfil' : 'Banner'}
           </Typography>
 
           {/* Preview de imagen actual o nueva */}
@@ -452,7 +452,7 @@ const ImageUploader = ({
           {disabled && (
             <Alert severity="info" sx={{ mt: 2 }} icon={<Edit />}>
               <Typography variant="body2">
-                🔒 Para subir imágenes, haz clic en <strong>"Editar Perfil"</strong> en la esquina superior derecha
+                Para subir imágenes, haz clic en <strong>"Editar Perfil"</strong> en la esquina superior derecha
               </Typography>
             </Alert>
           )}
@@ -461,26 +461,17 @@ const ImageUploader = ({
           {!disabled && (
             <Box sx={{ mt: 2 }}>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                💡 Arrastra y suelta una imagen aquí o haz clic en "Seleccionar"
+                Arrastra y suelta una imagen aquí o haz clic en "Seleccionar"
               </Typography>
               
               {!imagekitService.isConfigured() && (
                 <Alert severity="warning" sx={{ mt: 1 }}>
                   <Typography variant="caption">
-                    ⚠️ ImageKit no está configurado. Contacta al administrador.
+                    ImageKit no está configurado. Contacta al administrador.
                   </Typography>
                 </Alert>
               )}
               
-              {imagekitService.isConfigured() && (
-                <Chip 
-                  label="✅ ImageKit + Uppy Configurado" 
-                  size="small" 
-                  color="success" 
-                  variant="filled"
-                  sx={{ mt: 1 }}
-                />
-              )}
             </Box>
           )}
         </CardContent>

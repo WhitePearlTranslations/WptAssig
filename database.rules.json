@@ -163,6 +163,21 @@
       }
     },
     
+    // Información pública del sistema - Todos los usuarios autenticados pueden leer
+    "publicSystemInfo": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",
+      "systemName": {
+        ".validate": "newData.isString() && newData.val().length >= 3"
+      },
+      "systemVersion": {
+        ".validate": "newData.isString() && newData.val().length >= 1"
+      },
+      "lastUpdated": {
+        ".validate": "newData.isString()"
+      }
+    },
+    
     // Configuraciones del sistema (nuevo sistema) - Solo administradores
     "systemConfig": {
       ".read": "auth != null && (auth.uid == '7HIHfawVZtYBnUgIsvuspXY9DCw1' || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'administrador')",

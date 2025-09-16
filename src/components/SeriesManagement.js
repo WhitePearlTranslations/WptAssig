@@ -145,7 +145,8 @@ const MANGA_STATUS = {
   active: { label: 'Activo', color: '#10b981' },
   completed: { label: 'Completado', color: '#6366f1' },
   paused: { label: 'Pausado', color: '#f59e0b' },
-  cancelled: { label: 'Cancelado', color: '#ef4444' }
+  cancelled: { label: 'Cancelado', color: '#ef4444' },
+  hiatus: { label: 'Hiato', color: '#6b7280' }
 };
 
 // Componente para mostrar información de asignación

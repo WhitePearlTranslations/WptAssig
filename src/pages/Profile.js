@@ -41,16 +41,14 @@ import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 
 import { realtimeDb } from '../services/firebase';
 import { realtimeService } from '../services/realtimeService';
 import { useAuth, ROLES } from '../contexts/AuthContextSimple';
-import { usePageTour } from '../hooks/usePageTour';
 import ImageUploader from '../components/ImageUploader';
+import SystemFooter from '../components/SystemFooter';
 import imagekitService from '../services/imagekitService';
 import toast from 'react-hot-toast';
 
 const Profile = () => {
   const { currentUser, userProfile } = useAuth();
   
-  // Hook para tour de página
-  const { startTour: startPageTour, isTourAvailable } = usePageTour();
   
   const [editing, setEditing] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
@@ -349,7 +347,6 @@ const Profile = () => {
         >
           <Avatar
             src={formData.profileImage || userProfile.profileImage}
-            data-tour="profile-avatar"
             sx={{
               width: 120,
               height: 120,
@@ -383,7 +380,6 @@ const Profile = () => {
               startIcon={<Edit />}
               onClick={() => setEditing(true)}
               variant="contained"
-              data-tour="profile-edit-button"
               sx={{
                 bgcolor: '#FFC107 !important', // Amarillo sólido
                 background: 'linear-gradient(135deg, #FFC107 0%, #FF9800 100%) !important',
@@ -461,7 +457,6 @@ const Profile = () => {
         <Alert severity="warning" sx={{ mb: 3 }}>
           <Typography variant="body2">
             <strong>ImageKit no configurado:</strong> Las funciones de subida de imágenes no están disponibles. 
-            Configure las credenciales de ImageKit en el archivo .env para habilitar esta funcionalidad.
           </Typography>
         </Alert>
       )}
@@ -567,8 +562,8 @@ const Profile = () => {
                 {/* Descripción de la sección */}
                 <Alert severity="info" sx={{ mb: 3 }}>
                   <Typography variant="body2">
-                    <strong>🎨 Personaliza tu perfil</strong><br/>
-                    Sube tu imagen de perfil y banner. Ambas imágenes se optimizarán automáticamente y se guardará un historial de las últimas versiones.
+                    <strong>Personaliza tu perfil</strong><br/>
+                    Sube tu imagen de perfil y banner. Se guardarán en un historial de las últimas versiones.
                   </Typography>
                 </Alert>
                 
@@ -576,13 +571,13 @@ const Profile = () => {
                 {!editing ? (
                   <Alert severity="warning" sx={{ mb: 3 }}>
                     <Typography variant="body2">
-                      🔒 <strong>Modo solo lectura:</strong> Haz clic en "Editar Perfil" en la esquina superior derecha para poder subir imágenes.
+                      <strong>Modo solo lectura:</strong> Haz clic en "Editar Perfil" en la esquina superior derecha para poder subir imágenes.
                     </Typography>
                   </Alert>
                 ) : (
                   <Alert severity="success" sx={{ mb: 3 }}>
                     <Typography variant="body2">
-                      ✅ <strong>Modo edición activo:</strong> Ahora puedes subir y cambiar tus imágenes. No olvides hacer clic en "Guardar" cuando termines.
+                      <strong>Modo edición activo:</strong> Ahora puedes subir y cambiar tus imágenes. No olvides hacer clic en "Guardar" cuando termines.
                     </Typography>
                   </Alert>
                 )}
@@ -653,7 +648,6 @@ const Profile = () => {
                           disabled={!editing}
                           placeholder="https://ejemplo.com/mi-imagen.jpg"
                           helperText="Introduce la URL de tu imagen de perfil"
-                          data-tour="profile-image-field"
                           InputProps={{
                             startAdornment: <PhotoCamera sx={{ mr: 1, color: 'text.secondary' }} />
                           }}
@@ -698,9 +692,9 @@ const Profile = () => {
 
         {/* Estadísticas y asignaciones recientes */}
         <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3, mb: 3 }} data-tour="profile-stats">
+          <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom>
-              📊 Estadísticas
+              Estadísticas
             </Typography>
             
             <Grid container spacing={2}>
@@ -763,9 +757,9 @@ const Profile = () => {
           </Paper>
 
           {/* Asignaciones recientes */}
-          <Paper sx={{ p: 3 }} data-tour="recent-assignments">
+          <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
-              📋 Asignaciones Recientes
+              Asignaciones Recientes
             </Typography>
             
             {recentAssignments.length === 0 ? (
@@ -809,6 +803,9 @@ const Profile = () => {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Footer del sistema */}
+      <SystemFooter size="medium" />
     </Container>
   );
 };
