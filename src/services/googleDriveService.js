@@ -446,49 +446,48 @@ class GoogleDriveService {
     return `https://drive.google.com/uc?id=${file.id}&export=view`;
   }
 
-  // Generar múltiples URLs para imágenes (fallback robusto)
+  // Generar múltiples URLs para imágenes (fallback robusto) - actualizado para 2024
   generateImageUrls(file) {
     if (!file.id) return [];
     
     return [
-      // URL principal - directo de Google Drive
-      `https://drive.google.com/uc?id=${file.id}`,
-      
-      // URL alternativa con export=view
-      `https://drive.google.com/uc?id=${file.id}&export=view`,
-      
-      // URL alternativa con export=download
-      `https://drive.google.com/uc?id=${file.id}&export=download`,
-      
-      // URL usando lh3.googleusercontent.com (para imágenes públicas)
-      `https://lh3.googleusercontent.com/d/${file.id}`,
-      
-      // URL de thumbnail si está disponible
+      // Primero: thumbnail oficial de Google si está disponible (mejor compatibilidad)
       ...(file.thumbnailLink ? [file.thumbnailLink] : []),
       
-      // URL usando drive.google.com/thumbnail
+      // URLs de thumbnail optimizadas (evitan muchos problemas de CORS)
+      `https://drive.google.com/thumbnail?id=${file.id}&sz=w2000`,
+      `https://drive.google.com/thumbnail?id=${file.id}&sz=w1500`,
       `https://drive.google.com/thumbnail?id=${file.id}&sz=w1000`,
+      `https://drive.google.com/thumbnail?id=${file.id}&sz=w800`,
+      
+      // URLs de lh3.googleusercontent.com con diferentes formatos
+      `https://lh3.googleusercontent.com/d/${file.id}=w2000`,
+      `https://lh3.googleusercontent.com/d/${file.id}=w1000`,
+      `https://lh3.googleusercontent.com/d/${file.id}=s2000`,
+      `https://lh3.googleusercontent.com/d/${file.id}=s1000`,
+      `https://lh3.googleusercontent.com/d/${file.id}`,
+      
+      // URLs alternativas de lh4 y lh5 con parámetros de tamaño
+      `https://lh4.googleusercontent.com/d/${file.id}=w1000`,
+      `https://lh5.googleusercontent.com/d/${file.id}=w1000`,
       
       // URL de webContentLink si está disponible
       ...(file.webContentLink ? [file.webContentLink] : []),
       
-      // URL usando docs.google.com para vista
-      `https://docs.google.com/uc?id=${file.id}`,
-      
-      // URL alternativa usando lh4.googleusercontent.com
-      `https://lh4.googleusercontent.com/d/${file.id}`,
-      
-      // URL usando lh5.googleusercontent.com
-      `https://lh5.googleusercontent.com/d/${file.id}`,
+      // URLs tradicionales como último recurso (más propensas a CORS)
+      `https://drive.google.com/uc?id=${file.id}&export=view`,
+      `https://drive.google.com/uc?id=${file.id}`,
+      `https://drive.google.com/uc?id=${file.id}&export=download`
     ].filter(Boolean); // Filtrar URLs vacías o undefined
   }
 
-  // Crear URL de proxy para imágenes autenticadas
-  async getAuthenticatedImageUrl(fileId) {
+  // Crear URL de proxy para imágenes autenticadas con mejor manejo de errores
+  async getAuthenticatedImageUrl(fileId, retryCount = 0) {
     if (!this.accessToken) {
       throw new Error('Token de autenticación no disponible');
     }
 
+    const maxRetries = 3;
     try {
       // Intentar obtener la imagen usando el token de autenticación
       const response = await fetch(
@@ -504,21 +503,36 @@ class GoogleDriveService {
         const blob = await response.blob();
         const imageUrl = URL.createObjectURL(blob);
         return imageUrl;
+      } else if (response.status === 429 && retryCount < maxRetries) {
+        // Rate limiting - esperar y reintentar
+        const delay = Math.pow(2, retryCount + 1) * 1000;
+        console.log(`⏱️ Rate limiting detectado, esperando ${delay}ms antes de reintentar...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.getAuthenticatedImageUrl(fileId, retryCount + 1);
+      } else if (response.status === 401) {
+        // Token expirado
+        this.clearAuth();
+        throw new Error('Sesión expirada. Por favor, vuelve a autenticarte.');
       } else {
-        throw new Error(`Error al obtener imagen: ${response.status}`);
+        throw new Error(`Error al obtener imagen: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
-      console.error('📷 Error obteniendo imagen autenticada:', error);
+      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+        console.error('📇 Error de red al obtener imagen autenticada');
+        throw new Error('Error de conexión. Verifica tu conexión a Internet.');
+      }
+      console.error('📇 Error obteniendo imagen autenticada:', error);
       throw error;
     }
   }
 
-  // Generar datos de imagen como Data URL (base64)
-  async getImageAsDataUrl(fileId) {
+  // Generar datos de imagen como Data URL (base64) con mejor manejo de errores
+  async getImageAsDataUrl(fileId, retryCount = 0) {
     if (!this.accessToken) {
       throw new Error('Token de autenticación no disponible');
     }
 
+    const maxRetries = 3;
     try {
       const response = await fetch(
         `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
@@ -536,11 +550,25 @@ class GoogleDriveService {
           reader.onloadend = () => resolve(reader.result);
           reader.readAsDataURL(blob);
         });
+      } else if (response.status === 429 && retryCount < maxRetries) {
+        // Rate limiting - esperar y reintentar
+        const delay = Math.pow(2, retryCount + 1) * 1000;
+        console.log(`⏱️ Rate limiting detectado, esperando ${delay}ms antes de reintentar DataURL...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.getImageAsDataUrl(fileId, retryCount + 1);
+      } else if (response.status === 401) {
+        // Token expirado
+        this.clearAuth();
+        throw new Error('Sesión expirada. Por favor, vuelve a autenticarte.');
       } else {
-        throw new Error(`Error al obtener imagen: ${response.status}`);
+        throw new Error(`Error al obtener imagen: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
-      console.error('📷 Error obteniendo imagen como DataURL:', error);
+      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+        console.error('📇 Error de red al obtener imagen como DataURL');
+        throw new Error('Error de conexión. Verifica tu conexión a Internet.');
+      }
+      console.error('📇 Error obteniendo imagen como DataURL:', error);
       throw error;
     }
   }

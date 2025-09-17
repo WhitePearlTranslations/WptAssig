@@ -20,6 +20,7 @@ import {
   Security as SecurityIcon
 } from '@mui/icons-material';
 import { googleDriveService } from '../services/googleDriveService';
+import DevelopmentImageFallback from './DevelopmentImageFallback';
 
 /**
  * Componente mejorado para mostrar imágenes de Google Drive
@@ -37,13 +38,18 @@ const AuthenticatedImageViewer = ({
   const [loadStrategy, setLoadStrategy] = useState('public'); // 'public', 'authenticated', 'dataurl'
   const [zoom, setZoom] = useState(100);
 
-  // URLs públicas para intentar primero
+  // URLs públicas para intentar primero - optimizadas para evitar CORS
   const publicUrls = file.imageUrls || [
-    `https://drive.google.com/uc?id=${file.id}`,
-    `https://drive.google.com/uc?id=${file.id}&export=view`,
-    `https://lh3.googleusercontent.com/d/${file.id}`,
+    // Primero intentar con la URL de thumbnail si está disponible
     file.thumbnailLink,
-    `https://drive.google.com/thumbnail?id=${file.id}&sz=w1000`
+    // URLs con mejor compatibilidad de CORS
+    `https://drive.google.com/thumbnail?id=${file.id}&sz=w2000`,
+    `https://drive.google.com/thumbnail?id=${file.id}&sz=w1000`,
+    `https://lh3.googleusercontent.com/d/${file.id}=w1000`,
+    `https://lh3.googleusercontent.com/d/${file.id}=s1000`,
+    // Como último recurso, las URLs tradicionales
+    `https://drive.google.com/uc?id=${file.id}&export=view`,
+    `https://drive.google.com/uc?id=${file.id}`
   ].filter(Boolean);
 
   useEffect(() => {
@@ -76,30 +82,95 @@ const AuthenticatedImageViewer = ({
   const tryPublicUrls = async () => {
     return new Promise((resolve, reject) => {
       let urlIndex = 0;
+      let retryCount = 0;
+      const maxRetries = 2; // Reducir reintentos para desarrollo
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       
       const tryNextUrl = () => {
         if (urlIndex >= publicUrls.length) {
-          // Si todas las URLs públicas fallan, intentar con autenticación
-          setLoadStrategy('authenticated');
-          loadImage();
-          return;
+          // En localhost, mostrar directamente el componente de desarrollo
+          if (isLocalhost) {
+            console.log('🏠 Localhost detectado - todas las URLs públicas fallaron');
+            setError('desarrollo - URLs públicas no funcionan en localhost');
+            setLoading(false);
+            return;
+          } else {
+            // En producción, intentar con autenticación
+            setLoadStrategy('authenticated');
+            loadImage();
+            return;
+          }
         }
 
         const url = publicUrls[urlIndex];
-
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        
-        img.onload = () => {
-          setImageUrl(url);
-          setLoading(false);
-          resolve();
-        };
-        
-        img.onerror = () => {
+        if (!url) {
           urlIndex++;
           tryNextUrl();
-        };
+          return;
+        }
+
+        const img = new Image();
+        
+        // Configuración especial para localhost
+        if (isLocalhost) {
+          // En localhost, no usar crossOrigin para evitar problemas
+          img.crossOrigin = null;
+          
+          // Agregar un timeout más corto para localhost
+          const timeout = setTimeout(() => {
+            console.log(`⏰ Timeout en localhost para ${url}`);
+            urlIndex++;
+            tryNextUrl();
+          }, 3000); // 3 segundos timeout
+          
+          img.onload = () => {
+            clearTimeout(timeout);
+            setImageUrl(url);
+            setLoading(false);
+            resolve();
+          };
+          
+          img.onerror = () => {
+            clearTimeout(timeout);
+            console.warn(`🏠 Error localhost cargando imagen desde ${url}`);
+            // En localhost, avanzar rápidamente a la siguiente URL
+            urlIndex++;
+            tryNextUrl();
+          };
+          
+        } else {
+          // Configuración para producción (comportamiento original)
+          if (url.includes('lh3.googleusercontent.com') || url.includes('thumbnail')) {
+            img.crossOrigin = null;
+          } else {
+            img.crossOrigin = 'anonymous';
+          }
+          
+          img.onload = () => {
+            setImageUrl(url);
+            setLoading(false);
+            resolve();
+          };
+          
+          img.onerror = (e) => {
+            console.warn(`📇 Error cargando imagen desde ${url}:`, e);
+            
+            // Si el error podría ser de rate limiting, esperar antes de continuar
+            if (retryCount < maxRetries && (url.includes('drive.google.com') || url.includes('googleapis.com'))) {
+              retryCount++;
+              const delay = Math.pow(2, retryCount) * 1000;
+              console.log(`⏱️ Esperando ${delay}ms antes de reintentar...`);
+              setTimeout(() => {
+                tryNextUrl(); // Reintentar la misma URL
+              }, delay);
+            } else {
+              // Avanzar a la siguiente URL
+              retryCount = 0;
+              urlIndex++;
+              tryNextUrl();
+            }
+          };
+        }
         
         img.src = url;
       };
@@ -109,13 +180,25 @@ const AuthenticatedImageViewer = ({
   };
 
   const tryAuthenticatedUrl = async () => {
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
     try {
+      console.log(`🔐 Intentando autenticación para imagen ${file.id}${isLocalhost ? ' (localhost)' : ''}`);
       const authenticatedUrl = await googleDriveService.getAuthenticatedImageUrl(file.id);
       setImageUrl(authenticatedUrl);
       setLoading(false);
     } catch (err) {
-      setLoadStrategy('dataurl');
-      loadImage();
+      console.warn(`🔐 Error en autenticación: ${err.message}`);
+      
+      if (isLocalhost) {
+        // En localhost, mostrar el componente de desarrollo directamente
+        setError('desarrollo - autenticación fallida');
+        setLoading(false);
+      } else {
+        // En producción, intentar con DataURL
+        setLoadStrategy('dataurl');
+        loadImage();
+      }
     }
   };
 
@@ -162,10 +245,19 @@ const AuthenticatedImageViewer = ({
             Cargando imagen...
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {loadStrategy === 'public' && 'Intentando URLs públicas'}
-            {loadStrategy === 'authenticated' && 'Usando autenticación'}
-            {loadStrategy === 'dataurl' && 'Convirtiendo a Data URL'}
+            {loadStrategy === 'public' && (window.location.hostname === 'localhost' 
+              ? 'Cargando imagen desde Google Drive (desarrollo)...' 
+              : 'Probando diferentes URLs de imagen...')}
+            {loadStrategy === 'authenticated' && 'Accediendo con credenciales de Google Drive...'}
+            {loadStrategy === 'dataurl' && 'Descargando y convirtiendo imagen...'}
           </Typography>
+          {loadStrategy === 'public' && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+              {window.location.hostname === 'localhost' 
+                ? 'En desarrollo, Google Drive puede requerir autenticación'
+                : 'Si esto toma mucho tiempo, puede ser un problema temporal de Google Drive'}
+            </Typography>
+          )}
           {loadStrategy !== 'public' && (
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ mt: 2 }}>
               <SecurityIcon sx={{ mr: 1, color: 'primary.main' }} />
@@ -180,6 +272,18 @@ const AuthenticatedImageViewer = ({
   }
 
   if (error) {
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    // En localhost, mostrar el componente de desarrollo especial
+    if (isLocalhost && (error.includes('desarrollo') || error.includes('localhost') || loadStrategy === 'public')) {
+      return (
+        <DevelopmentImageFallback 
+          file={file} 
+          onRetry={handleRetry}
+        />
+      );
+    }
+    
     return (
       <Card sx={{
         minHeight: '400px',
@@ -200,11 +304,33 @@ const AuthenticatedImageViewer = ({
           
           <Alert severity="info" sx={{ mb: 3, textAlign: 'left' }}>
             <Typography variant="body2">
-              <strong>Posibles soluciones:</strong><br/>
-              • Verificar que la imagen esté compartida públicamente<br/>
-              • Asegurarse de estar autenticado en Google Drive<br/>
-              • Verificar permisos de la carpeta contenedora<br/>
-              • La imagen podría estar en una carpeta privada
+              <strong>Posibles causas y soluciones:</strong><br/>
+              {error.includes('429') || error.includes('Too Many Requests') ? (
+                <>
+                  • 🕰️ <strong>Demasiadas solicitudes:</strong> Google Drive está limitando las peticiones<br/>
+                  • Espera unos minutos e intenta nuevamente<br/>
+                  • El problema suele resolverse automáticamente
+                </>
+              ) : error.includes('403') || error.includes('Forbidden') ? (
+                <>
+                  • 🔒 <strong>Permisos insuficientes:</strong> La imagen no está compartida públicamente<br/>
+                  • Verifica que el archivo tenga permisos de "Cualquiera con el enlace"<br/>
+                  • Asegúrate de estar autenticado con la cuenta correcta
+                </>
+              ) : error.includes('CORS') || error.includes('cors') ? (
+                <>
+                  • 🌐 <strong>Restricciones de seguridad:</strong> Google Drive bloqueó la carga<br/>
+                  • Esto es temporal y puede resolverse actualizando<br/>
+                  • Usa el botón "Ver en Google Drive" como alternativa
+                </>
+              ) : (
+                <>
+                  • Verificar que la imagen esté compartida públicamente<br/>
+                  • Asegurarse de estar autenticado en Google Drive<br/>
+                  • Verificar permisos de la carpeta contenedora<br/>
+                  • La imagen podría estar en una carpeta privada
+                </>
+              )}
             </Typography>
           </Alert>
           
@@ -220,7 +346,7 @@ const AuthenticatedImageViewer = ({
             <Button
               variant="contained"
               startIcon={<OpenInNewIcon />}
-              href={file.webViewLink}
+              href={file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`}
               target="_blank"
               rel="noopener noreferrer"
               sx={{
@@ -230,6 +356,25 @@ const AuthenticatedImageViewer = ({
             >
               Ver en Google Drive
             </Button>
+            {/* Botón especial para desarrollo */}
+            {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
+              <Button
+                variant="outlined"
+                startIcon={<OpenInNewIcon />}
+                href={`https://drive.google.com/thumbnail?id=${file.id}&sz=w1000`}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{
+                  borderColor: '#f59e0b',
+                  color: '#f59e0b',
+                  '&:hover': {
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)'
+                  }
+                }}
+              >
+                Abrir Imagen Directa
+              </Button>
+            )}
           </Stack>
         </CardContent>
       </Card>
