@@ -108,11 +108,34 @@ export const AuthProvider = ({ children }) => {
               }, 5000);
 
               try {
-                profileUnsubscribe = onValue(userRef, (snapshot) => {
+                profileUnsubscribe = onValue(userRef, async (snapshot) => {
                   clearTimeout(connectionTimeout);
                   
                   if (snapshot.exists()) {
                     const profileData = { uid: user.uid, ...snapshot.val() };
+                    
+                    // Verificar el estado del usuario antes de establecer el perfil
+                    const isAdmin = profileData.role === ROLES.ADMIN;
+                    const isSuperAdmin = user.uid === SUPER_USER_UID && user.email === 'whitepearltranslations@gmail.com';
+                    
+                    // Si el usuario está suspendido o inactivo y no es admin, desconectar
+                    if ((profileData.status === 'suspended' || profileData.status === 'inactive') && !isAdmin && !isSuperAdmin) {
+                      try {
+                        await auth.signOut();
+                        if (profileData.status === 'suspended') {
+                          window.location.href = '/login?status=suspended';
+                        } else {
+                          window.location.href = '/login?status=inactive';
+                        }
+                        return;
+                      } catch (signOutError) {
+                        console.error('Error signing out user:', signOutError);
+                        // Forzar redirección aunque falle el sign out
+                        window.location.href = '/login?status=suspended';
+                        return;
+                      }
+                    }
+                    
                     setUserProfile(profileData);
                     
                     // Cargar permisos del usuario
@@ -174,6 +197,22 @@ export const AuthProvider = ({ children }) => {
                   const userData = await response.json();
                   if (userData) {
                   const profileData = { uid: user.uid, ...userData };
+                  
+                  // Verificar el estado del usuario
+                  const isAdmin = profileData.role === ROLES.ADMIN;
+                  const isSuperAdmin = user.uid === SUPER_USER_UID && user.email === 'whitepearltranslations@gmail.com';
+                  
+                  if ((profileData.status === 'suspended' || profileData.status === 'inactive') && !isAdmin && !isSuperAdmin) {
+                    try {
+                      await auth.signOut();
+                      window.location.href = profileData.status === 'suspended' ? '/login?status=suspended' : '/login?status=inactive';
+                      return;
+                    } catch (error) {
+                      window.location.href = '/login?status=suspended';
+                      return;
+                    }
+                  }
+                  
                   setUserProfile(profileData);
                   
                   // Cargar permisos
@@ -187,9 +226,26 @@ export const AuthProvider = ({ children }) => {
                 try {
                   const jsonpCallback = `firebase_callback_${Date.now()}`;
                   
-                  window[jsonpCallback] = (data) => {
+                  window[jsonpCallback] = async (data) => {
                     if (data) {
                       const profileData = { uid: user.uid, ...data };
+                      
+                      // Verificar el estado del usuario
+                      const isAdmin = profileData.role === ROLES.ADMIN;
+                      const isSuperAdmin = user.uid === SUPER_USER_UID && user.email === 'whitepearltranslations@gmail.com';
+                      
+                      if ((profileData.status === 'suspended' || profileData.status === 'inactive') && !isAdmin && !isSuperAdmin) {
+                        try {
+                          const auth = await getFirebaseAuth();
+                          await auth.signOut();
+                          window.location.href = profileData.status === 'suspended' ? '/login?status=suspended' : '/login?status=inactive';
+                          return;
+                        } catch (error) {
+                          window.location.href = '/login?status=suspended';
+                          return;
+                        }
+                      }
+                      
                       setUserProfile(profileData);
                       
                       // Cargar permisos

@@ -1,6 +1,7 @@
 // Servicio para gestionar el estado de usuarios (suspender/reactivar acceso)
-import { auth, firestore } from '../firebase/config';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { auth, realtimeDb } from './firebase';
+import { ref, update, get } from 'firebase/database';
+import { ROLES } from '../contexts/AuthContextSimple';
 
 /**
  * Actualiza el estado de un usuario (activo, suspendido, inactivo)
@@ -26,19 +27,19 @@ export const updateUserStatus = async (userId, newStatus) => {
       };
     }
 
-    // Obtener referencia al documento del usuario
-    const userRef = doc(firestore, 'users', userId);
+    // Obtener referencia al usuario en Realtime Database
+    const userRef = ref(realtimeDb, `users/${userId}`);
     
     // Verificar que el usuario existe
-    const userDoc = await getDoc(userRef);
-    if (!userDoc.exists()) {
+    const userSnapshot = await get(userRef);
+    if (!userSnapshot.exists()) {
       return {
         success: false,
         error: 'Usuario no encontrado'
       };
     }
 
-    const userData = userDoc.data();
+    const userData = userSnapshot.val();
     
     // No permitir suspender administradores principales
     if (userData.role === 'admin' && newStatus === 'suspended') {
@@ -49,7 +50,7 @@ export const updateUserStatus = async (userId, newStatus) => {
     }
 
     // Actualizar el estado del usuario
-    await updateDoc(userRef, {
+    await update(userRef, {
       status: newStatus,
       statusUpdatedAt: new Date().toISOString(),
       statusUpdatedBy: auth.currentUser?.uid || 'system'
@@ -89,17 +90,17 @@ export const getUserStatus = async (userId) => {
       };
     }
 
-    const userRef = doc(firestore, 'users', userId);
-    const userDoc = await getDoc(userRef);
+    const userRef = ref(realtimeDb, `users/${userId}`);
+    const userSnapshot = await get(userRef);
 
-    if (!userDoc.exists()) {
+    if (!userSnapshot.exists()) {
       return {
         success: false,
         error: 'Usuario no encontrado'
       };
     }
 
-    const userData = userDoc.data();
+    const userData = userSnapshot.val();
     
     return {
       success: true,
