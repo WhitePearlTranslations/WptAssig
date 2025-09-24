@@ -161,7 +161,11 @@ export const AuthProvider = ({ children }) => {
                 const bypassAutoLogout = localStorage.getItem('debug_bypass_auto_logout') === 'true';
                 
                 // Verificar si el usuario está suspendido o inactivo
-                if (profileData.status === 'suspended' && !bypassAutoLogout) {
+                // IMPORTANTE: No desconectar administradores para evitar problemas al gestionar usuarios
+                const isAdmin = profileData.role === 'admin';
+                const isSuperAdmin = user.uid === '7HIHfawVZtYBnUgIsvuspXY9DCw1' && user.email === 'whitepearltranslations@gmail.com';
+                
+                if (profileData.status === 'suspended' && !bypassAutoLogout && !isAdmin && !isSuperAdmin) {
                   console.warn('[Auth] User is suspended, signing out...');
                   // Cerrar sesión automáticamente si está suspendido
                   getFirebaseAuth().then(auth => {
@@ -174,7 +178,7 @@ export const AuthProvider = ({ children }) => {
                     });
                   });
                   return;
-                } else if (profileData.status === 'inactive' && !bypassAutoLogout) {
+                } else if (profileData.status === 'inactive' && !bypassAutoLogout && !isAdmin && !isSuperAdmin) {
                   console.warn('[Auth] User is inactive, signing out...');
                   // Cerrar sesión automáticamente si está inactivo
                   getFirebaseAuth().then(auth => {
@@ -187,6 +191,8 @@ export const AuthProvider = ({ children }) => {
                     });
                   });
                   return;
+                } else if ((isAdmin || isSuperAdmin) && (profileData.status === 'suspended' || profileData.status === 'inactive')) {
+                  console.warn('[Auth] Admin/SuperAdmin status changed to suspended/inactive but not logging out to prevent lockout');
                 } else if (bypassAutoLogout && (profileData.status === 'suspended' || profileData.status === 'inactive')) {
                   console.warn('[Auth] DEBUG MODE: Bypassing auto-logout for status:', profileData.status);
                 }

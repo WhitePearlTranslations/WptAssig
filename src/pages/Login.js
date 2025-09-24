@@ -84,10 +84,42 @@ const Login = () => {
     setError('');
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      // 1. Autenticar con Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // 2. Verificar el estado del usuario en la base de datos
+      const { canUserAccess } = await import('../services/userStatusService');
+      const accessResult = await canUserAccess(user.uid);
+
+      if (!accessResult.canAccess) {
+        // El usuario tiene acceso restringido
+        await auth.signOut(); // Desconectar inmediatamente
+        
+        if (accessResult.reason && accessResult.reason.includes('suspendida')) {
+          navigate('/login?status=suspended');
+          return;
+        } else if (accessResult.reason && accessResult.reason.includes('inactiva')) {
+          navigate('/login?status=inactive');
+          return;
+        } else {
+          setError('Tu cuenta no tiene acceso al sistema. Contacta al administrador.');
+          return;
+        }
+      }
+
+      // 3. Si todo está bien, redirigir al dashboard
       navigate('/dashboard');
     } catch (error) {
-      setError('Credenciales incorrectas. Verifica tu email y contraseña.');
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        setError('Credenciales incorrectas. Verifica tu email y contraseña.');
+      } else if (error.code === 'auth/invalid-email') {
+        setError('El formato del email no es válido.');
+      } else if (error.code === 'auth/user-disabled') {
+        setError('Esta cuenta ha sido deshabilitada. Contacta al administrador.');
+      } else {
+        setError('Error al iniciar sesión. Inténtalo de nuevo.');
+      }
     } finally {
       setLoading(false);
     }
