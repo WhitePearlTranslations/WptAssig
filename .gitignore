@@ -19,6 +19,7 @@ node_modules/
 # Cloudflare Worker
 cloudflare-worker/node_modules/
 cloudflare-worker/.wrangler/
+cloudflare-worker/.dev.vars
 
 # Allow .env.cloudflare (template without secrets)
 !.env.cloudflare
@@ -26,6 +27,9 @@ cloudflare-worker/.wrangler/
 # Firebase credentials (NEVER commit these)
 *firebase-adminsdk*.json
 wptasignacion-firebase-adminsdk-fbsvc-bbfb6ad3bb.json
+
+# Grafana credentials
+grafana-token.txt
 
 # Logs
 npm-debug.log*
