@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ref, onValue } from 'firebase/database';
 import { getFirebaseAuth, getRealtimeDb } from '../services/firebase';
+import { setFaroUser, resetFaroUser } from '../lib/observability';
 
 const AuthContext = createContext();
 
@@ -199,9 +200,24 @@ export const AuthProvider = ({ children }) => {
                 
                 console.log('[Auth] User profile is valid, setting profile data...');
                 setUserProfile(profileData);
+                // Actualizar usuario en Faro
+                setFaroUser({
+                  uid: user.uid,
+                  email: user.email,
+                  displayName: user.displayName,
+                  role: profileData.role,
+                  emailVerified: user.emailVerified,
+                });
               } else {
                 console.log('[Auth] No profile data found, creating basic profile...');
-                setUserProfile({ uid: user.uid });
+                const basicProfile = { uid: user.uid };
+                setUserProfile(basicProfile);
+                setFaroUser({
+                  uid: user.uid,
+                  email: user.email,
+                  displayName: user.displayName,
+                  emailVerified: user.emailVerified,
+                });
               }
               console.log('[Auth] Setting loading to false...');
               setLoading(false);
@@ -218,6 +234,8 @@ export const AuthProvider = ({ children }) => {
             }
             setCurrentUser(null);
             setUserProfile(null);
+            // Resetear usuario en Faro
+            resetFaroUser();
             console.log('[Auth] Setting loading to false after logout...');
             setLoading(false);
           }
