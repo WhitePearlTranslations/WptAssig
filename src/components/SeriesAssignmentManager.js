@@ -43,7 +43,7 @@ const STATUS_CONFIG = {
   },
   [ASSIGNMENT_STATUS.PUBLICADO]: {
     label: 'Publicado',
-    color: '#8b5cf6',
+    color: '#a78bfa',
     bgColor: 'rgba(139, 92, 246, 0.1)',
   },
   [ASSIGNMENT_STATUS.RETRASADO]: {
@@ -54,8 +54,8 @@ const STATUS_CONFIG = {
 };
 
 const ROLE_CONFIG = {
-  traductor: { label: 'Traductor', color: '#6366f1' },
-  proofreading: { label: 'Proofreading', color: '#ec4899' },
+  traductor: { label: 'Traductor', color: '#6a9eff' },
+  proofreading: { label: 'Proofreading', color: '#a78bfa' },
   type: { label: 'Type', color: '#f59e0b' },
   cleanRedrawer: { label: 'Clean y Redrawer', color: '#10b981' }
 };
@@ -142,7 +142,7 @@ const AssignmentDialog = ({
       }}
     >
       <DialogTitle sx={{ 
-        background: 'linear-gradient(135deg, #6366f1, #ec4899)',
+        background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
         WebkitBackgroundClip: 'text',
         WebkitTextFillColor: 'transparent',
         backgroundClip: 'text',
@@ -302,7 +302,7 @@ const AssignmentDialog = ({
           variant="contained" 
           onClick={handleSubmit}
           sx={{
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
             '&:hover': {
               background: 'linear-gradient(135deg, #5b5bf1, #7c3aed)',
             },

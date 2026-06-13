@@ -80,8 +80,8 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
   const [selectedTask, setSelectedTask] = useState(null);
 
   const ASSIGNMENT_TYPES = {
-    traduccion: { label: 'Traducción', color: '#6366f1', short: 'T' },
-    proofreading: { label: 'Proofreading', color: '#ec4899', short: 'P' },
+    traduccion: { label: 'Traducción', color: '#6a9eff', short: 'T' },
+    proofreading: { label: 'Proofreading', color: '#a78bfa', short: 'P' },
     cleanRedrawer: { label: 'Clean/Redrawer', color: '#10b981', short: 'C' },
     type: { label: 'Typesetting', color: '#f59e0b', short: 'Ty' }
   };
@@ -177,7 +177,7 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
           border: hasOverdueTask ? '2px solid #ef4444' : 
                   isChapterCompleted ? '2px solid #10b981' : 
                   isChapterInProgress ? '2px solid #f59e0b' : 
-                  '1px solid rgba(148, 163, 184, 0.1)',
+                  '1px solid rgba(255, 255, 255, 0.1)',
           position: 'relative',
           backgroundColor: hasOverdueTask ? 'inherit' :
                           isChapterCompleted ? 'rgba(16, 185, 129, 0.05)' : 
@@ -223,7 +223,7 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
                   label={`Cap. ${chapterGroup.chapter}`}
                   size="small"
                   sx={{
-                    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                    background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
                     color: 'white',
                     fontWeight: 500,
                   }}
@@ -322,9 +322,9 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
                   sx={{
                     height: 6,
                     borderRadius: 3,
-                    backgroundColor: 'rgba(148, 163, 184, 0.2)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
                     '& .MuiLinearProgress-bar': {
-                      background: isChapterCompleted ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #6366f1, #8b5cf6)',
+                      background: isChapterCompleted ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #6a9eff, #a78bfa)',
                       borderRadius: 3,
                     },
                   }}
@@ -371,11 +371,11 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
                     rel="noopener noreferrer"
                     sx={{ 
                       textTransform: 'none',
-                      borderColor: '#6366f1',
-                      color: '#6366f1',
+                      borderColor: '#6a9eff',
+                      color: '#6a9eff',
                       '&:hover': {
-                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                        borderColor: '#4f46e5'
+                        backgroundColor: 'rgba(106, 158, 255, 0.1)',
+                        borderColor: '#5a8eef'
                       }
                     }}
                   >
@@ -441,7 +441,7 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
                     completedTasks.forEach(task => onMarkUploaded(task.id));
                   }}
                   sx={{
-                    background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                    background: 'linear-gradient(135deg, #a78bfa, #7c3aed)',
                     '&:hover': {
                       background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
                     },
@@ -534,11 +534,11 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
                         size="small"
                         sx={{ 
                           textTransform: 'none',
-                          borderColor: '#6366f1',
-                          color: '#6366f1',
+                          borderColor: '#6a9eff',
+                          color: '#6a9eff',
                           '&:hover': {
-                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                            borderColor: '#4f46e5'
+                            backgroundColor: 'rgba(106, 158, 255, 0.1)',
+                            borderColor: '#5a8eef'
                           }
                         }}
                       >
@@ -702,7 +702,7 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded, o
                         setDetailsOpen(false);
                       }}
                       sx={{
-                        background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                        background: 'linear-gradient(135deg, #a78bfa, #7c3aed)',
                         '&:hover': {
                           background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
                         },
@@ -1555,7 +1555,7 @@ const MyWorks = () => {
               startIcon={<Add />}
               onClick={() => setOpenAssignDialog(true)}
               sx={{
-                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
                 px: 3
               }}
             >
@@ -1647,7 +1647,7 @@ const MyWorks = () => {
               sx={{ 
                 width: 48, 
                 height: 48,
-                border: '2px solid #6366f1',
+                border: '2px solid #6a9eff',
               }}
             >
               {!(userProfile?.profileImage || userProfile?.photoURL || userProfile?.avatar) && 
@@ -1670,7 +1670,7 @@ const MyWorks = () => {
       {/* Estadísticas principales */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ textAlign: 'center', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
+          <Card sx={{ textAlign: 'center', background: 'linear-gradient(135deg, #6a9eff, #a78bfa)' }}>
             <CardContent>
               <TaskAlt sx={{ fontSize: '3rem', color: 'white', mb: 1 }} />
               <Typography variant="h4" color="white">{stats.total}</Typography>
@@ -1757,7 +1757,7 @@ const MyWorks = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ textAlign: 'center', background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)' }}>
+          <Card sx={{ textAlign: 'center', background: 'linear-gradient(135deg, #a78bfa, #7c3aed)' }}>
             <CardContent>
               <UploadIcon sx={{ fontSize: '3rem', color: 'white', mb: 1 }} />
               <Typography variant="h4" color="white">{stats.uploaded}</Typography>
@@ -1820,7 +1820,7 @@ const MyWorks = () => {
             {/* Pendientes */}
             <Grid item xs={12} md={6} lg={4}>
               <Paper sx={{ height: '500px', overflow: 'hidden' }}>
-                <Box sx={{ p: 2, borderBottom: '1px solid rgba(148, 163, 184, 0.1)', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(99, 102, 241, 0.05))' }}>
+                <Box sx={{ p: 2, borderBottom: '1px solid rgba(255, 255, 255, 0.1)', background: 'linear-gradient(135deg, rgba(106, 158, 255, 0.1), rgba(106, 158, 255, 0.05))' }}>
                   <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Assignment color="action" />
                     Pendientes ({groupedAssignments.pending.length})
@@ -1832,15 +1832,15 @@ const MyWorks = () => {
                       key={`pending-${chapterGroup.mangaId}-${chapterGroup.chapter}`} 
                       sx={{ 
                         mb: 2,
-                        border: '1px solid rgba(99, 102, 241, 0.3)',
-                        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(99, 102, 241, 0.02))',
+                        border: '1px solid rgba(106, 158, 255, 0.3)',
+                        background: 'linear-gradient(135deg, rgba(106, 158, 255, 0.05), rgba(106, 158, 255, 0.02))',
                         position: 'relative',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease-in-out',
                         '&:hover': {
                           transform: 'translateY(-2px)',
-                          boxShadow: '0 8px 25px rgba(99, 102, 241, 0.15)',
-                          border: '1px solid rgba(99, 102, 241, 0.4)',
+                          boxShadow: '0 8px 25px rgba(106, 158, 255, 0.15)',
+                          border: '1px solid rgba(106, 158, 255, 0.4)',
                         },
                         '&::before': {
                           content: '""',
@@ -1849,7 +1849,7 @@ const MyWorks = () => {
                           left: 0,
                           right: 0,
                           height: '4px',
-                          background: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
+                          background: 'linear-gradient(90deg, #6a9eff, #a78bfa)',
                           borderRadius: '6px 6px 0 0'
                         }
                       }}
@@ -1868,11 +1868,11 @@ const MyWorks = () => {
                           <Chip
                             label={`Cap. ${chapterGroup.chapter}`}
                             size="small"
-                            sx={{ background: '#6366f1', color: 'white', fontSize: '0.7rem' }}
+                            sx={{ background: '#6a9eff', color: 'white', fontSize: '0.7rem' }}
                           />
                           {chapterGroup.driveLink && (
                             <Tooltip title="Enlace a Google Drive">
-                              <LinkIcon sx={{ fontSize: '1rem', color: '#6366f1' }} />
+                              <LinkIcon sx={{ fontSize: '1rem', color: '#6a9eff' }} />
                             </Tooltip>
                           )}
                         </Box>
@@ -1889,7 +1889,7 @@ const MyWorks = () => {
                         </Box>
                         {chapterGroup.assignments.length > 0 && (
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
-                            <Typography variant="caption" sx={{ color: '#6366f1', fontWeight: 500, fontSize: '0.7rem' }}>
+                            <Typography variant="caption" sx={{ color: '#6a9eff', fontWeight: 500, fontSize: '0.7rem' }}>
                               Click para detalles
                             </Typography>
                             <Button
@@ -1942,7 +1942,7 @@ const MyWorks = () => {
             {/* Pendientes de Aprobación */}
             <Grid item xs={12} md={6} lg={4}>
               <Paper sx={{ height: '500px', overflow: 'hidden' }}>
-                <Box sx={{ p: 2, borderBottom: '1px solid rgba(148, 163, 184, 0.1)', background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05))' }}>
+                <Box sx={{ p: 2, borderBottom: '1px solid rgba(255, 255, 255, 0.1)', background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05))' }}>
                   <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <HourglassTop color="warning" />
                     Esperando Aprobación ({groupedAssignments.pendingApproval.length})
@@ -2018,7 +2018,7 @@ const MyWorks = () => {
             {/* Completadas */}
             <Grid item xs={12} md={6} lg={4}>
               <Paper sx={{ height: '500px', overflow: 'hidden' }}>
-                <Box sx={{ p: 2, borderBottom: '1px solid rgba(148, 163, 184, 0.1)', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05))' }}>
+                <Box sx={{ p: 2, borderBottom: '1px solid rgba(255, 255, 255, 0.1)', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05))' }}>
                   <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <CheckCircle color="success" />
                     Completadas ({groupedAssignments.completed.length})
@@ -2103,7 +2103,7 @@ const MyWorks = () => {
             {/* Rechazadas */}
             <Grid item xs={12} md={6} lg={4}>
               <Paper sx={{ height: '500px', overflow: 'hidden' }}>
-                <Box sx={{ p: 2, borderBottom: '1px solid rgba(148, 163, 184, 0.1)', background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05))' }}>
+                <Box sx={{ p: 2, borderBottom: '1px solid rgba(255, 255, 255, 0.1)', background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05))' }}>
                   <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Warning color="error" />
                     Rechazadas ({groupedAssignments.rejected.length})
@@ -2288,7 +2288,7 @@ const MyWorks = () => {
             {/* Subidas */}
             <Grid item xs={12} md={6} lg={4}>
               <Paper sx={{ height: '500px', overflow: 'hidden' }}>
-                <Box sx={{ p: 2, borderBottom: '1px solid rgba(148, 163, 184, 0.1)', background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05))' }}>
+                <Box sx={{ p: 2, borderBottom: '1px solid rgba(255, 255, 255, 0.1)', background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05))' }}>
                   <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <UploadIcon color="primary" />
                     Subidas ({groupedAssignments.uploaded.length})
@@ -2317,7 +2317,7 @@ const MyWorks = () => {
                           left: 0,
                           right: 0,
                           height: '4px',
-                          background: 'linear-gradient(90deg, #8b5cf6, #7c3aed)',
+                          background: 'linear-gradient(90deg, #a78bfa, #7c3aed)',
                           borderRadius: '6px 6px 0 0'
                         }
                       }}
@@ -2341,7 +2341,7 @@ const MyWorks = () => {
                         <Chip
                           label={`Cap. ${chapterGroup.chapter}`}
                           size="small"
-                          sx={{ background: '#8b5cf6', color: 'white', fontSize: '0.7rem', mb: 1 }}
+                          sx={{ background: '#a78bfa', color: 'white', fontSize: '0.7rem', mb: 1 }}
                         />
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                           {chapterGroup.assignments.map((assignment, index) => (
@@ -2350,7 +2350,7 @@ const MyWorks = () => {
                               size="small"
                               label={TASK_TYPES[assignment.type] || assignment.type}
                               variant="outlined"
-                              sx={{ fontSize: '0.65rem', height: '20px', borderColor: '#8b5cf6', color: '#8b5cf6' }}
+                              sx={{ fontSize: '0.65rem', height: '20px', borderColor: '#a78bfa', color: '#a78bfa' }}
                             />
                           ))}
                         </Box>
@@ -2503,11 +2503,11 @@ const MyWorks = () => {
                         size="small"
                         sx={{ 
                           textTransform: 'none',
-                          borderColor: '#6366f1',
-                          color: '#6366f1',
+                          borderColor: '#6a9eff',
+                          color: '#6a9eff',
                           '&:hover': {
-                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                            borderColor: '#4f46e5'
+                            backgroundColor: 'rgba(106, 158, 255, 0.1)',
+                            borderColor: '#5a8eef'
                           }
                         }}
                       >
@@ -2701,7 +2701,7 @@ const MyWorks = () => {
                         setDetailsOpen(false);
                       }}
                       sx={{
-                        background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                        background: 'linear-gradient(135deg, #a78bfa, #7c3aed)',
                         '&:hover': {
                           background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
                         },
@@ -2776,7 +2776,7 @@ const MyWorks = () => {
                     <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
                       <strong>Tareas pendientes de trabajo:</strong>
                     </Typography>
-                    <Alert severity="info" sx={{ mb: 2, backgroundColor: 'rgba(99, 102, 241, 0.1)' }}>
+                    <Alert severity="info" sx={{ mb: 2, backgroundColor: 'rgba(106, 158, 255, 0.1)' }}>
                       <Typography variant="body2">
                         Estas tareas están esperando a ser trabajadas. ¡Es hora de ponerse a trabajar!
                       </Typography>
@@ -2798,7 +2798,7 @@ const MyWorks = () => {
                                    isPendingApproval ? 'rgba(245, 158, 11, 0.3)' :
                                    isCompleted ? 'rgba(16, 185, 129, 0.3)' :
                                    isUploaded ? 'rgba(139, 92, 246, 0.3)' :
-                                   'rgba(99, 102, 241, 0.3)';
+                                   'rgba(106, 158, 255, 0.3)';
                 
                 return (
                   <Grid item xs={12} key={assignment.id || index}>
@@ -2987,11 +2987,11 @@ const MyWorks = () => {
                               backgroundColor: 'rgba(139, 92, 246, 0.1)',
                               borderColor: 'rgba(139, 92, 246, 0.3)',
                               '& .MuiAlert-icon': {
-                                color: '#8b5cf6'
+                                color: '#a78bfa'
                               }
                             }}
                           >
-                            <AlertTitle sx={{ color: '#8b5cf6', fontWeight: 600 }}>
+                            <AlertTitle sx={{ color: '#a78bfa', fontWeight: 600 }}>
                               Tarea publicada exitosamente
                             </AlertTitle>
                             <Typography variant="body2" sx={{ mt: 1 }}>
@@ -3011,14 +3011,14 @@ const MyWorks = () => {
                             severity="info" 
                             sx={{ 
                               mt: 2,
-                              backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                              borderColor: 'rgba(99, 102, 241, 0.3)',
+                              backgroundColor: 'rgba(106, 158, 255, 0.1)',
+                              borderColor: 'rgba(106, 158, 255, 0.3)',
                               '& .MuiAlert-icon': {
-                                color: '#6366f1'
+                                color: '#6a9eff'
                               }
                             }}
                           >
-                            <AlertTitle sx={{ color: '#6366f1', fontWeight: 600 }}>
+                            <AlertTitle sx={{ color: '#6a9eff', fontWeight: 600 }}>
                               Tarea lista para trabajar
                             </AlertTitle>
                             <Typography variant="body2" sx={{ mt: 1 }}>
@@ -3049,9 +3049,9 @@ const MyWorks = () => {
                                   setDetailsOpen(false);
                                 }}
                                 sx={{
-                                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                                  background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
                                   '&:hover': {
-                                    background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                                    background: 'linear-gradient(135deg, #5a8eef, #7c3aed)',
                                   },
                                 }}
                               >
@@ -3138,9 +3138,9 @@ const MyWorks = () => {
                         setDetailsOpen(false);
                       }}
                       sx={{
-                        background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                        background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
                         '&:hover': {
-                          background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                          background: 'linear-gradient(135deg, #5a8eef, #7c3aed)',
                         },
                       }}
                     >
@@ -3164,7 +3164,7 @@ const MyWorks = () => {
                         setDetailsOpen(false);
                       }}
                       sx={{
-                        background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                        background: 'linear-gradient(135deg, #a78bfa, #7c3aed)',
                         '&:hover': {
                           background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
                         },
@@ -3201,11 +3201,11 @@ const MyWorks = () => {
                         rel="noopener noreferrer"
                         sx={{ 
                           textTransform: 'none',
-                          borderColor: '#6366f1',
-                          color: '#6366f1',
+                          borderColor: '#6a9eff',
+                          color: '#6a9eff',
                           '&:hover': {
-                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                            borderColor: '#4f46e5'
+                            backgroundColor: 'rgba(106, 158, 255, 0.1)',
+                            borderColor: '#5a8eef'
                           }
                         }}
                       >

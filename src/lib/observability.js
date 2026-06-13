@@ -146,4 +146,100 @@ export function measureOperation(name, operation) {
   }
 }
 
+// Función para crear y gestionar spans manualmente (para child spans)
+export function createSpan(name, attributes = {}) {
+  if (!faro || !faro.api.getOTEL) return null;
+  
+  try {
+    const tracer = faro.api.getOTEL()?.trace?.getTracer('WPTAssig');
+    if (!tracer) return null;
+    
+    const span = tracer.startSpan(name, {
+      attributes: {
+        'component': 'frontend',
+        'service.name': 'WPTAssig',
+        ...attributes,
+      },
+    });
+    
+    return {
+      end: (finalAttributes = {}) => {
+        Object.entries(finalAttributes).forEach(([key, value]) => {
+          span.setAttribute(key, value);
+        });
+        span.end();
+      },
+      addEvent: (eventName, eventAttributes = {}) => {
+        span.addEvent(eventName, eventAttributes);
+      },
+      setStatus: (status, message) => {
+        span.setStatus({ code: status, message });
+      },
+    };
+  } catch (error) {
+    console.warn('Failed to create span:', error);
+    return null;
+  }
+}
+
+// Wrapper para operaciones asíncronas con child spans
+export async function traceAsyncOperation(name, operation, attributes = {}) {
+  const span = createSpan(name, attributes);
+  const startTime = performance.now();
+  
+  try {
+    const result = await operation();
+    const duration = performance.now() - startTime;
+    
+    if (span) {
+      span.end({
+        'operation.duration_ms': duration,
+        'operation.status': 'success',
+      });
+    }
+    
+    return result;
+  } catch (error) {
+    const duration = performance.now() - startTime;
+    
+    if (span) {
+      span.setStatus(2, error.message); // 2 = ERROR
+      span.end({
+        'operation.duration_ms': duration,
+        'operation.status': 'error',
+        'error.message': error.message,
+        'error.type': error.name,
+      });
+    }
+    
+    throw error;
+  }
+}
+
+// Helper específico para operaciones de Firebase
+export async function traceFirebaseOperation(operationName, operation, metadata = {}) {
+  return traceAsyncOperation(
+    `firebase.${operationName}`,
+    operation,
+    {
+      'db.system': 'firebase',
+      'db.operation': operationName,
+      ...metadata,
+    }
+  );
+}
+
+// Helper para operaciones de API/fetch
+export async function traceFetchOperation(url, fetchFn, method = 'GET') {
+  return traceAsyncOperation(
+    `http.${method.toLowerCase()}`,
+    fetchFn,
+    {
+      'http.method': method,
+      'http.url': url,
+      'http.target': new URL(url).pathname,
+    }
+  );
+}
+
 export default faro;

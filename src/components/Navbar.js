@@ -140,21 +140,21 @@ const Navbar = () => {
       text: 'Dashboard',
       icon: Dashboard,
       path: '/dashboard',
-      color: '#6366f1',
+      color: '#6a9eff',
       show: true
     },
     {
       text: 'Asignaciones',
       icon: Assignment,
       path: '/assignments',
-      color: '#ec4899',
+      color: '#6a9eff',
       show: canAssignChapters
     },
     {
       text: 'Mis Trabajos',
       icon: WorkIcon,
       path: '/myworks',
-      color: '#22c55e',
+      color: '#6a9eff',
       show: userProfile?.role === ROLES.ADMIN || 
             userProfile?.role === ROLES.JEFE_EDITOR || 
             userProfile?.role === ROLES.JEFE_TRADUCTOR || 
@@ -165,7 +165,7 @@ const Navbar = () => {
       text: 'Revisiones',
       icon: ReviewIcon,
       path: '/reviews',
-      color: '#f59e0b',
+      color: '#f5a623',
       show: canModerateReviews,
       badge: canModerateReviews ? pendingReviewsCount : 0
     },
@@ -173,21 +173,21 @@ const Navbar = () => {
       text: 'Usuarios',
       icon: People,
       path: '/users',
-      color: '#ef4444',
+      color: '#6a9eff',
       show: hasRole(ROLES.ADMIN)
     },
     {
       text: 'Series',
       icon: LibraryBooks,
       path: '/series-management',
-      color: '#10b981',
+      color: '#6a9eff',
       show: true
     },
     {
       text: 'Subidas',
       icon: UploaderIcon,
       path: '/uploads',
-      color: '#8b5cf6',
+      color: '#6a9eff',
       show: canManageUploads
     }
   ];
@@ -202,15 +202,14 @@ const Navbar = () => {
         sx={{
           width: 280,
           height: '100%',
-          background: 'rgba(15, 15, 25, 0.95)',
-          backdropFilter: 'blur(20px)',
+          background: '#17181d',
           display: 'flex',
           flexDirection: 'column',
           borderRadius: 0
         }}
       >
       {/* Mobile Header */}
-      <Box sx={{ p: 3, borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }}>
+      <Box sx={{ p: 3, borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <Box
               sx={{
@@ -253,7 +252,7 @@ const Navbar = () => {
             sx={{
               width: 40,
               height: 40,
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)'
+              background: '#6a9eff'
             }}
           >
             {!userProfile?.profileImage && <AccountCircle />}
@@ -267,9 +266,9 @@ const Navbar = () => {
               size="small"
               sx={{
                 background: hasRole(ROLES.ADMIN) 
-                  ? 'linear-gradient(135deg, #ef4444, #dc2626)'
-                  : 'linear-gradient(135deg, #22c55e, #16a34a)',
-                color: 'white',
+                  ? 'rgba(232, 72, 85, 0.15)'
+                  : 'rgba(106, 158, 255, 0.12)',
+                color: hasRole(ROLES.ADMIN) ? '#e84855' : '#6a9eff',
                 height: '20px',
                 fontSize: '0.7rem'
               }}
@@ -311,17 +310,17 @@ const Navbar = () => {
                       }
                     }}
                   >
-                    <Icon sx={{ color: isActive ? item.color : '#94a3b8', fontSize: '1.2rem' }} />
+                    <Icon sx={{ color: isActive ? item.color : '#7d8190', fontSize: '1.2rem' }} />
                   </Badge>
                 ) : (
-                  <Icon sx={{ color: isActive ? item.color : '#94a3b8', fontSize: '1.2rem' }} />
+                  <Icon sx={{ color: isActive ? item.color : '#7d8190', fontSize: '1.2rem' }} />
                 )}
               </ListItemIcon>
               <ListItemText
                 primary={item.text}
                 sx={{
                   '& .MuiListItemText-primary': {
-                    color: isActive ? item.color : '#f1f5f9',
+                    color: isActive ? item.color : '#e2e4e9',
                     fontWeight: isActive ? 600 : 400,
                     fontSize: '0.9rem'
                   }
@@ -333,7 +332,7 @@ const Navbar = () => {
       </List>
 
       {/* Mobile Footer Actions */}
-      <Box sx={{ p: 2, borderTop: '1px solid rgba(148, 163, 184, 0.1)' }}>
+      <Box sx={{ p: 2, borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
         <ListItem
           sx={{
             borderRadius: '12px',
@@ -343,7 +342,7 @@ const Navbar = () => {
           onClick={() => handleNavigation('/profile')}
         >
           <ListItemIcon sx={{ minWidth: 40 }}>
-            <AccountCircle sx={{ color: '#94a3b8' }} />
+            <AccountCircle sx={{ color: '#7d8190' }} />
           </ListItemIcon>
           <ListItemText primary="Perfil" sx={{ '& .MuiListItemText-primary': { fontSize: '0.9rem' } }} />
         </ListItem>
@@ -391,17 +390,16 @@ const Navbar = () => {
       <AppBar 
         position="fixed" 
         sx={{ 
-          background: 'rgba(15, 15, 25, 0.9)',
-          backdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
+          background: 'rgba(15, 16, 20, 0.85)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
           boxShadow: 'none',
           borderRadius: 0,
+          backgroundImage: 'none',
           transition: 'none !important',
           transform: 'none !important',
           '&:hover': {
             transform: 'none !important',
-            background: 'rgba(15, 15, 25, 0.9)',
-            backdropFilter: 'blur(20px)',
             boxShadow: 'none',
           },
         }}
@@ -452,12 +450,10 @@ const Navbar = () => {
               component="div" 
               sx={{ 
                 fontWeight: 700,
-                background: 'linear-gradient(135deg, #f1f5f9 0%, #94a3b8 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
+                color: '#e2e4e9',
                 fontSize: { xs: '1rem', sm: '1.1rem', md: '1.25rem' },
-                display: { xs: 'none', sm: 'block' }
+                display: { xs: 'none', sm: 'block' },
+                letterSpacing: '-0.01em'
               }}
             >
               WhitePearl Translations
@@ -467,10 +463,7 @@ const Navbar = () => {
               component="div" 
               sx={{ 
                 fontWeight: 700,
-                background: 'linear-gradient(135deg, #f1f5f9 0%, #94a3b8 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
+                color: '#e2e4e9',
                 fontSize: '0.9rem',
                 display: { xs: 'block', sm: 'none' }
               }}
@@ -520,13 +513,14 @@ const Navbar = () => {
                   }
                   onClick={() => handleNavigation(item.path)}
                   sx={{
-                    borderRadius: '12px',
+                    borderRadius: 8,
                     px: 2,
                     py: 1,
                     minWidth: 'auto',
-                    background: isActive ? `${item.color}20` : 'transparent',
-                    border: isActive ? `1px solid ${item.color}40` : '1px solid transparent',
-                    color: isActive ? item.color : 'inherit',
+                    background: isActive ? 'rgba(106, 158, 255, 0.1)' : 'transparent',
+                    border: 'none',
+                    color: isActive ? '#6a9eff' : '#7d8190',
+                    fontWeight: isActive ? 600 : 400,
                   }}
                 >
                   {item.text}
@@ -553,12 +547,7 @@ const Navbar = () => {
                       '& .MuiBadge-badge': {
                         backgroundColor: '#f59e0b',
                         color: 'white',
-                        animation: 'pulse 2s infinite',
-                        '@keyframes pulse': {
-                          '0%': { transform: 'scale(1)' },
-                          '50%': { transform: 'scale(1.1)' },
-                          '100%': { transform: 'scale(1)' },
-                        }
+                        fontSize: '0.7rem'
                       }
                     }}
                   >
@@ -597,8 +586,8 @@ const Navbar = () => {
                 sx={{ 
                   width: 36, 
                   height: 36, 
-                  background: userProfile?.profileImage ? 'transparent' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                  border: '2px solid rgba(148, 163, 184, 0.2)'
+                  background: userProfile?.profileImage ? 'transparent' : '#6a9eff',
+                  border: '2px solid rgba(255, 255, 255, 0.1)'
                 }}
               >
                 {!userProfile?.profileImage && (
@@ -622,11 +611,10 @@ const Navbar = () => {
               onClose={handleClose}
               sx={{
                 '& .MuiPaper-root': {
-                  background: 'rgba(15, 15, 25, 0.9)',
-                  backdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(148, 163, 184, 0.2)',
-                  borderRadius: 0,
-                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
+                  background: '#1e1f25',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 24px rgba(0, 0, 0, 0.4)',
                   mt: 1,
                   minWidth: 200
                 },
@@ -636,7 +624,7 @@ const Navbar = () => {
                   my: 0.5,
                   '&.Mui-disabled': {
                     opacity: 1,
-                    background: 'rgba(99, 102, 241, 0.05)',
+                    background: 'rgba(106, 158, 255, 0.05)',
                   },
                 },
               }}
@@ -651,13 +639,19 @@ const Navbar = () => {
                     size="small"
                     sx={{
                       background: hasRole(ROLES.ADMIN) 
-                        ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                        ? 'rgba(232, 72, 85, 0.15)'
                         : hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR)
-                        ? 'linear-gradient(135deg, #f59e0b, #d97706)'
+                        ? 'rgba(245, 166, 35, 0.15)'
                         : hasRole(ROLES.UPLOADER)
-                        ? 'linear-gradient(135deg, #8b5cf6, #7c3aed)'
-                        : 'linear-gradient(135deg, #22c55e, #16a34a)',
-                      color: 'white',
+                        ? 'rgba(167, 139, 250, 0.15)'
+                        : 'rgba(106, 158, 255, 0.12)',
+                      color: hasRole(ROLES.ADMIN) 
+                        ? '#e84855'
+                        : hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR)
+                        ? '#f5a623'
+                        : hasRole(ROLES.UPLOADER)
+                        ? '#a78bfa'
+                        : '#6a9eff',
                       fontWeight: 500,
                       fontSize: '0.75rem',
                       height: '24px',
@@ -703,8 +697,7 @@ const Navbar = () => {
             boxSizing: 'border-box',
             width: 280,
             border: 'none',
-            background: 'rgba(15, 15, 25, 0.95)',
-            backdropFilter: 'blur(20px)',
+            background: '#17181d',
             boxShadow: 'none'
           },
         }}

@@ -854,10 +854,10 @@ const Users = () => {
                             fontSize: '0.75rem',
                             ...(option.profileImage || option.photoURL || option.avatar) && {
                               bgcolor: 'transparent',
-                              border: `2px solid #6366f160`,
+                              border: `2px solid rgba(106, 158, 255, 0.35)`,
                             },
                             ...(!(option.profileImage || option.photoURL || option.avatar)) && {
-                              bgcolor: '#6366f1',
+                              bgcolor: '#6a9eff',
                               color: 'white',
                               fontWeight: 700,
                             }

@@ -58,7 +58,7 @@ const MaintenanceMode = ({ onAdminOverride }) => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'radial-gradient(circle at 20% 80%, rgba(99, 102, 241, 0.08) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.08) 0%, transparent 50%)',
+          background: 'radial-gradient(circle at 20% 80%, rgba(106, 158, 255, 0.06) 0%, transparent 50%)',
           pointerEvents: 'none',
         }
       }}
@@ -185,7 +185,7 @@ const MaintenanceMode = ({ onAdminOverride }) => {
               background: 'rgba(15, 15, 25, 0.95)',
               backdropFilter: 'blur(25px)',
               borderRadius: 4,
-              border: '1px solid rgba(148, 163, 184, 0.15)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
               boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)',
               color: 'white',
               textAlign: 'center'
@@ -220,9 +220,9 @@ const MaintenanceMode = ({ onAdminOverride }) => {
                 sx={{
                   mb: 3,
                   p: 2.5,
-                  bgcolor: 'rgba(99, 102, 241, 0.1)',
+                  bgcolor: 'rgba(106, 158, 255, 0.1)',
                   borderRadius: 3,
-                  border: '1px solid rgba(99, 102, 241, 0.2)'
+                  border: '1px solid rgba(106, 158, 255, 0.2)'
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
@@ -281,11 +281,11 @@ const MaintenanceMode = ({ onAdminOverride }) => {
                 startIcon={<LogoutIcon />}
                 onClick={handleLogout}
                 sx={{
-                  borderColor: 'rgba(148, 163, 184, 0.3)',
+                  borderColor: 'rgba(255, 255, 255, 0.3)',
                   color: 'rgba(241, 245, 249, 0.9)',
                   '&:hover': {
-                    borderColor: 'rgba(148, 163, 184, 0.5)',
-                    backgroundColor: 'rgba(148, 163, 184, 0.1)',
+                    borderColor: 'rgba(255, 255, 255, 0.5)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
                     transform: 'translateY(-1px)',
                   },
                   borderRadius: 2,
@@ -302,7 +302,7 @@ const MaintenanceMode = ({ onAdminOverride }) => {
             </Box>
 
             {/* Footer compacto */}
-            <Box sx={{ pt: 2, borderTop: '1px solid rgba(148, 163, 184, 0.15)' }}>
+            <Box sx={{ pt: 2, borderTop: '1px solid rgba(255, 255, 255, 0.15)' }}>
               <Typography 
                 variant="body2" 
                 fontWeight={600}

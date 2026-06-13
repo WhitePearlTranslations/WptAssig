@@ -66,7 +66,7 @@ const FileListItem = memo(({
         onClick={() => onFileClick(file, index)}
         sx={{
           '&:hover': {
-            backgroundColor: 'rgba(99, 102, 241, 0.05)',
+            backgroundColor: 'rgba(106, 158, 255, 0.05)',
             transform: 'translateX(4px)',
             transition: 'transform 0.15s ease'
           },
@@ -187,7 +187,7 @@ const FileListItem = memo(({
                         e.stopPropagation();
                         onFileClick(file, index);
                       }}
-                      sx={{ color: '#6366f1' }}
+                      sx={{ color: '#6a9eff' }}
                     >
                       <VisibilityIcon fontSize="small" />
                     </IconButton>

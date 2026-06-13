@@ -67,8 +67,8 @@ export const STATUS_CONFIG = {
   },
   [ASSIGNMENT_STATUS.UPLOADED]: {
     label: 'Subido',
-    color: '#8b5cf6',
-    bgColor: 'rgba(139, 92, 246, 0.1)',
+    color: '#a78bfa',
+    bgColor: 'rgba(167, 139, 250, 0.1)',
     icon: <UploadIcon />
   }
 };
@@ -93,16 +93,16 @@ export const TASK_TYPES = {
 
 // Configuración de roles para asignaciones
 export const ROLE_CONFIG = {
-  traductor: { label: 'Traductor', color: '#6366f1' },
-  proofreading: { label: 'Proofreading', color: '#ec4899' },
+  traductor: { label: 'Traductor', color: '#6a9eff' },
+  proofreading: { label: 'Proofreading', color: '#a78bfa' },
   type: { label: 'Type', color: '#f59e0b' },
   cleanRedrawer: { label: 'Clean y Redrawer', color: '#10b981' }
 };
 
 // Configuración para tipo de asignaciones
 export const ASSIGNMENT_TYPES = {
-  traduccion: { label: 'Traducción', color: '#6366f1', short: 'T' },
-  proofreading: { label: 'Proofreading', color: '#ec4899', short: 'P' },
+  traduccion: { label: 'Traducción', color: '#6a9eff', short: 'T' },
+  proofreading: { label: 'Proofreading', color: '#a78bfa', short: 'P' },
   cleanRedrawer: { label: 'Clean/Redrawer', color: '#10b981', short: 'C' },
   type: { label: 'Typesetting', color: '#f59e0b', short: 'Ty' }
 };

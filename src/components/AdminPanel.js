@@ -351,7 +351,7 @@ const MangaManagement = () => {
           onClick={() => setDialogOpen(true)}
           disabled={loading}
           sx={{
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
             '&:hover': {
               background: 'linear-gradient(135deg, #5b5bf1, #7c3aed)',
             },
@@ -865,10 +865,10 @@ const StaffManagement = () => {
       case ROLES.JEFE_TRADUCTOR:
         return <SupervisorIcon sx={{ color: '#f59e0b' }} />;
       case ROLES.UPLOADER:
-        return <UploadIcon sx={{ color: '#8b5cf6' }} />;
+        return <UploadIcon sx={{ color: '#a78bfa' }} />;
       case ROLES.EDITOR:
       case ROLES.TRADUCTOR:
-        return <WorkIcon sx={{ color: '#6366f1' }} />;
+        return <WorkIcon sx={{ color: '#6a9eff' }} />;
       default:
         return <AccountCircleIcon />;
     }
@@ -1285,9 +1285,9 @@ const StaffManagement = () => {
             startIcon={<AddIcon />}
             onClick={() => setDialogOpen(true)}
             sx={{
-              background: 'linear-gradient(135deg, #ec4899, #f472b6)',
+              background: 'linear-gradient(135deg, #a78bfa, #f472b6)',
               '&:hover': {
-                background: 'linear-gradient(135deg, #db2777, #ec4899)',
+                background: 'linear-gradient(135deg, #db2777, #a78bfa)',
               },
             }}
           >
@@ -1682,9 +1682,9 @@ const StaffManagement = () => {
             onClick={handleSaveStaff}
             disabled={loading || !formData.name || !formData.email || !formData.password}
             sx={{
-              background: loading ? 'rgba(0,0,0,0.1)' : 'linear-gradient(135deg, #ec4899, #f472b6)',
+              background: loading ? 'rgba(0,0,0,0.1)' : 'linear-gradient(135deg, #a78bfa, #f472b6)',
               '&:hover': {
-                background: loading ? 'rgba(0,0,0,0.1)' : 'linear-gradient(135deg, #db2777, #ec4899)',
+                background: loading ? 'rgba(0,0,0,0.1)' : 'linear-gradient(135deg, #db2777, #a78bfa)',
               },
             }}
           >

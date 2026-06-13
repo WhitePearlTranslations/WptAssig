@@ -70,7 +70,7 @@ const STATUS_CONFIG = {
   },
   [ASSIGNMENT_STATUS.PUBLICADO]: {
     label: 'Publicado en Patreon',
-    color: '#8b5cf6',
+    color: '#a78bfa',
     bgColor: 'rgba(139, 92, 246, 0.1)',
     icon: <PublishIcon />
   },
@@ -93,11 +93,11 @@ const ROLES = {
 const ROLE_CONFIG = {
   [ROLES.TRADUCTOR]: {
     label: 'Traductor',
-    color: '#6366f1'
+    color: '#6a9eff'
   },
   [ROLES.PROOFREADING]: {
     label: 'Proofreading',
-    color: '#ec4899'
+    color: '#a78bfa'
   },
   [ROLES.TYPE]: {
     label: 'Type',
@@ -228,7 +228,7 @@ const AssignmentCard = ({ assignment, onEdit, onDelete, users = [] }) => {
             sx={{
               height: 6,
               borderRadius: 3,
-              backgroundColor: 'rgba(148, 163, 184, 0.2)',
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
               '& .MuiLinearProgress-bar': {
                 background: `linear-gradient(90deg, ${statusConfig.color}, ${statusConfig.color}80)`,
                 borderRadius: 3,
@@ -252,7 +252,7 @@ const AssignmentCard = ({ assignment, onEdit, onDelete, users = [] }) => {
                     borderRadius: '12px',
                     background: isCompleted 
                       ? `${roleConfig.color}10` 
-                      : 'rgba(148, 163, 184, 0.05)',
+                      : 'rgba(255, 255, 255, 0.05)',
                     border: `1px solid ${isCompleted ? roleConfig.color : '#94a3b8'}20`,
                     transition: 'all 0.3s ease',
                   }}
@@ -300,7 +300,7 @@ const AssignmentCard = ({ assignment, onEdit, onDelete, users = [] }) => {
         </Grid>
 
         {/* Additional Info */}
-        <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(148, 163, 184, 0.1)' }}>
+        <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
           <Grid container spacing={2} alignItems="center">
             {assignment.fechaSubida && (
               <Grid item xs={12} sm={6}>
@@ -344,9 +344,9 @@ const AssignmentCard = ({ assignment, onEdit, onDelete, users = [] }) => {
                   rel="noopener noreferrer"
                   sx={{
                     textTransform: 'none',
-                    color: '#6366f1',
+                    color: '#6a9eff',
                     '&:hover': {
-                      backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                      backgroundColor: 'rgba(106, 158, 255, 0.1)',
                     },
                   }}
                 >
@@ -436,12 +436,12 @@ const AssignmentDialog = ({
         sx: {
           background: 'rgba(15, 15, 25, 0.95)',
           backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(148, 163, 184, 0.2)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
         }
       }}
     >
         <DialogTitle sx={{ 
-          background: 'linear-gradient(135deg, #6366f1, #ec4899)',
+          background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
@@ -498,9 +498,9 @@ const AssignmentDialog = ({
               <Grid item xs={12} key={roleKey}>
                 <Box sx={{ 
                   p: 2, 
-                  border: '1px solid rgba(148, 163, 184, 0.2)', 
+                  border: '1px solid rgba(255, 255, 255, 0.2)', 
                   borderRadius: '12px',
-                  background: 'rgba(148, 163, 184, 0.05)',
+                  background: 'rgba(255, 255, 255, 0.05)',
                 }}>
                   <Typography variant="h6" sx={{ mb: 2, color: roleConfig.color, fontWeight: 600 }}>
                     {roleConfig.label}
@@ -622,7 +622,7 @@ const AssignmentDialog = ({
             variant="contained" 
             onClick={handleSubmit}
             sx={{
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
               '&:hover': {
                 background: 'linear-gradient(135deg, #5b5bf1, #7c3aed)',
               },
@@ -751,7 +751,7 @@ const AssignmentManagement = () => {
           component="h1"
           sx={{ 
             fontWeight: 700,
-            background: 'linear-gradient(135deg, #6366f1 0%, #ec4899 100%)',
+            background: 'linear-gradient(135deg, #6a9eff 0%, #a78bfa 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
@@ -781,7 +781,7 @@ const AssignmentManagement = () => {
               sx={{ 
                 cursor: 'pointer',
                 animation: `fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.1}s both`,
-                border: filterStatus === statusKey ? `2px solid ${config.color}` : '1px solid rgba(148, 163, 184, 0.1)',
+                border: filterStatus === statusKey ? `2px solid ${config.color}` : '1px solid rgba(255, 255, 255, 0.1)',
                 '&::before': {
                   content: '""',
                   position: 'absolute',
@@ -862,7 +862,7 @@ const AssignmentManagement = () => {
           startIcon={<AddIcon />}
           onClick={() => setDialogOpen(true)}
           sx={{
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
             '&:hover': {
               background: 'linear-gradient(135deg, #5b5bf1, #7c3aed)',
             },
@@ -912,7 +912,7 @@ const AssignmentManagement = () => {
           position: 'fixed',
           bottom: 24,
           right: 24,
-          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+          background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
           '&:hover': {
             background: 'linear-gradient(135deg, #5b5bf1, #7c3aed)',
           },

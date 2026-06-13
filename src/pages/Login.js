@@ -10,9 +10,7 @@ import {
   CircularProgress,
   InputAdornment,
   IconButton,
-  Fade,
-  Zoom,
-  Grow
+  Fade
 } from '@mui/material';
 import { 
   Email, 
@@ -26,7 +24,7 @@ import {
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { auth } from '../services/firebase';
-import StarsBackground from '../components/StarsBackground';
+import './Login.css';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -126,155 +124,76 @@ const Login = () => {
   };
 
   return (
-    <StarsBackground 
-      style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #0f0820 0%, #1a0d3d 50%, #0f0820 100%)'
-      }}
-      speed={40}
-      starColor="#ffffff"
-      factor={0.03}
-    >
+    <>
+      {/* ── Bokeh background ── */}
+      <div className="bokeh-viewport">
+        <div className="bokeh-orb bokeh-orb--1" />
+        <div className="bokeh-orb bokeh-orb--2" />
+        <div className="bokeh-orb bokeh-orb--3" />
+        <div className="bokeh-orb bokeh-orb--4" />
+        <div className="bokeh-orb bokeh-orb--5" />
+        <div className="bokeh-orb bokeh-orb--6" />
+        <div className="bokeh-orb bokeh-orb--7" />
+        <div className="bokeh-orb bokeh-orb--8" />
+      </div>
+
+      {/* ── Login card ── */}
       <Box
         sx={{
-          minHeight: '100vh',
           position: 'relative',
+          zIndex: 1,
+          minHeight: '100vh',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: { xs: 1, sm: 2 },
-          background: 'transparent'
+          padding: { xs: 2, sm: 3 },
         }}
       >
-      <Container maxWidth="sm">
-        <Zoom in timeout={800}>
-          <Paper
-            elevation={24}
-            sx={{
-              padding: { xs: 2, sm: 3, md: 4 },
-              borderRadius: { xs: 3, sm: 5 },
-              background: 'rgba(15, 8, 32, 0.2)',
-              backdropFilter: { xs: 'blur(15px)', sm: 'blur(25px)' },
-              border: '1px solid rgba(138, 43, 226, 0.2)',
-              boxShadow: {
-                xs: '0 8px 32px rgba(75, 0, 130, 0.3)',
-                sm: '0 12px 48px rgba(75, 0, 130, 0.4)'
-              },
-              position: 'relative',
-              overflow: 'hidden',
-              transition: 'all 0.3s ease-in-out',
-              maxWidth: { xs: '100%', sm: 'none' },
-              // Remove hover effects on mobile
-              '@media (hover: hover)': {
-                '&:hover': {
-                  transform: 'translateY(-5px)',
-                  boxShadow: '0 16px 64px rgba(75, 0, 130, 0.6)',
-                  border: '1px solid rgba(138, 43, 226, 0.4)'
-                },
-                '&:hover::before': {
-                  left: '100%'
-                }
-              },
-              // Touch device optimizations
-              '@media (hover: none)': {
-                '&:hover': {
-                  transform: 'none',
-                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)'
-                },
-                '&:active': {
-                  transform: 'scale(0.98)'
-                }
-              },
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: '-100%',
-                width: '100%',
-                height: '100%',
-                background: 'linear-gradient(90deg, transparent, rgba(138, 43, 226, 0.15), transparent)',
-                transition: 'left 0.8s',
-                // Hide shimmer effect on mobile
-                '@media (max-width: 768px)': {
-                  display: 'none'
-                }
-              }
-            }}
-          >
-            {/* Header animado */}
-            <Fade in timeout={1200}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  mb: 4
-                }}
-              >
-                <Grow in timeout={1000}>
+        <Container maxWidth="xs">
+          <Fade in timeout={500}>
+            <Paper
+              elevation={0}
+              sx={{
+                padding: { xs: 3, sm: 4 },
+                borderRadius: 3,
+                backgroundColor: 'rgba(20, 21, 27, 0.72)',
+                backdropFilter: 'blur(24px)',
+                WebkitBackdropFilter: 'blur(24px)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+                '&:hover': { transform: 'none' },
+              }}
+            >
+              {/* Header */}
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
+                <Box sx={{ mb: 2, p: 2 }}>
                   <Box
+                    component="img"
+                    src="/logo-text.webp"
+                    alt="WhitePearl Logo"
                     sx={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      mb: 2,
-                      p: 3,
-                      borderRadius: '24px',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      backdropFilter: 'blur(15px)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      transition: 'all 0.3s ease',
-                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-                      '&:hover': {
-                        background: 'rgba(255, 255, 255, 0.12)',
-                        transform: 'scale(1.02)',
-                        boxShadow: '0 12px 40px rgba(0, 0, 0, 0.4)'
-                      }
+                      height: { xs: 60, sm: 80 },
+                      width: 'auto',
+                      maxWidth: '100%',
+                      display: 'block',
                     }}
-                  >
-                    <Box
-                      component="img"
-                      src="/logo-text.webp"
-                      alt="WhitePearl Logo"
-                      sx={{
-                        height: { xs: 60, sm: 80, md: 100 },
-                        width: 'auto',
-                        maxWidth: '100%',
-                        filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.3))',
-                        transition: 'all 0.3s ease',
-                        '&:hover': {
-                          filter: 'drop-shadow(0 0 30px rgba(255, 255, 255, 0.5))'
-                        }
-                      }}
-                    />
-                  </Box>
-                </Grow>
-                <Typography 
-                  variant="h6" 
-                  sx={{ 
-                    color: 'rgba(255, 255, 255, 0.9)', 
-                    textAlign: 'center',
-                    fontWeight: 500,
-                    mb: 1
-                  }}
+                  />
+                </Box>
+                <Typography
+                  variant="h6"
+                  sx={{ color: '#e2e4e9', textAlign: 'center', fontWeight: 600, mb: 0.5 }}
                 >
-                  Sistema de Asignaciones de Manga
+                  Sistema de Asignaciones
                 </Typography>
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
-                    color: 'rgba(255, 255, 255, 0.7)', 
-                    textAlign: 'center',
-                    fontWeight: 300
-                  }}
+                <Typography
+                  variant="body2"
+                  sx={{ color: '#7d8190', textAlign: 'center' }}
                 >
                   Inicia sesión para acceder al panel de control
                 </Typography>
               </Box>
-            </Fade>
 
-            {/* Formulario */}
-            <Fade in timeout={1400}>
+              {/* Form */}
               <Box component="form" onSubmit={handleSubmit}>
                 <TextField
                   fullWidth
@@ -287,44 +206,26 @@ const Login = () => {
                   variant="outlined"
                   autoComplete="email"
                   autoFocus
-                  InputLabelProps={{
-                    sx: { 
-                      color: 'rgba(255, 255, 255, 0.8)',
-                      fontSize: { xs: '1rem', sm: '1rem' }
-                    }
-                  }}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <Email sx={{ color: 'rgba(255, 255, 255, 0.6)' }} />
+                        <Email sx={{ color: '#7d8190' }} />
                       </InputAdornment>
                     ),
                     sx: {
-                      color: 'white',
-                      minHeight: { xs: '48px', sm: 'auto' },
-                      fontSize: { xs: '16px', sm: '1rem' }, // Prevents iOS zoom
-                      '& .MuiOutlinedInput-input': {
-                        fontSize: { xs: '16px', sm: '1rem' },
-                        padding: { xs: '16px 14px', sm: '16.5px 14px' }
-                      },
+                      fontSize: { xs: '16px', sm: '0.9375rem' },
                       '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255, 255, 255, 0.3)'
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
                       },
                       '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255, 255, 255, 0.5)'
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
                       },
                       '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255, 255, 255, 0.8)',
-                        borderWidth: '2px'
+                        borderColor: '#6a9eff',
                       },
-                      '& input': {
-                        color: 'white'
-                      },
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      borderRadius: { xs: 1, sm: 2 },
-                      backdropFilter: { xs: 'blur(5px)', sm: 'blur(10px)' },
-                      transition: 'all 0.3s ease'
-                    }
+                      backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                      borderRadius: 2,
+                    },
                   }}
                 />
                 <TextField
@@ -337,13 +238,10 @@ const Login = () => {
                   required
                   variant="outlined"
                   autoComplete="current-password"
-                  InputLabelProps={{
-                    sx: { color: 'rgba(255, 255, 255, 0.8)' }
-                  }}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <Lock sx={{ color: 'rgba(255, 255, 255, 0.6)' }} />
+                        <Lock sx={{ color: '#7d8190' }} />
                       </InputAdornment>
                     ),
                     endAdornment: (
@@ -351,12 +249,9 @@ const Login = () => {
                         <IconButton
                           onClick={handleTogglePassword}
                           edge="end"
-                          sx={{ 
-                            color: 'rgba(255, 255, 255, 0.6)',
-                            '&:hover': {
-                              color: 'rgba(255, 255, 255, 0.8)',
-                              background: 'rgba(255, 255, 255, 0.1)'
-                            }
+                          sx={{
+                            color: '#7d8190',
+                            '&:hover': { color: '#e2e4e9' },
                           }}
                         >
                           {showPassword ? <VisibilityOff /> : <Visibility />}
@@ -364,86 +259,35 @@ const Login = () => {
                       </InputAdornment>
                     ),
                     sx: {
-                      color: 'white',
                       '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255, 255, 255, 0.3)'
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
                       },
                       '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255, 255, 255, 0.5)'
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
                       },
                       '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255, 255, 255, 0.8)',
-                        borderWidth: '2px'
+                        borderColor: '#6a9eff',
                       },
-                      '& input': {
-                        color: 'white'
-                      },
-                      background: 'rgba(255, 255, 255, 0.05)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.04)',
                       borderRadius: 2,
-                      backdropFilter: 'blur(10px)',
-                      transition: 'all 0.3s ease'
-                    }
+                    },
                   }}
                 />
 
-                {/* Mensaje de estado contextual */}
                 {statusMessage && (
-                  <Fade in timeout={800}>
-                    <Alert 
-                      severity={statusSeverity}
-                      icon={statusIcon}
-                      sx={{ 
-                        mt: 2,
-                        borderRadius: 2,
-                        backdropFilter: 'blur(10px)',
-                        border: statusSeverity === 'warning' 
-                          ? '1px solid rgba(255, 193, 7, 0.3)' 
-                          : statusSeverity === 'error' 
-                            ? '1px solid rgba(244, 67, 54, 0.3)'
-                            : '1px solid rgba(33, 150, 243, 0.3)',
-                        background: statusSeverity === 'warning' 
-                          ? 'rgba(255, 193, 7, 0.1)' 
-                          : statusSeverity === 'error' 
-                            ? 'rgba(244, 67, 54, 0.1)'
-                            : 'rgba(33, 150, 243, 0.1)',
-                        color: statusSeverity === 'warning' 
-                          ? '#ffb74d' 
-                          : statusSeverity === 'error' 
-                            ? '#ff6b6b'
-                            : '#64b5f6',
-                        '& .MuiAlert-icon': {
-                          color: statusSeverity === 'warning' 
-                            ? '#ffb74d' 
-                            : statusSeverity === 'error' 
-                              ? '#ff6b6b'
-                              : '#64b5f6'
-                        }
-                      }}
-                    >
-                      {statusMessage}
-                    </Alert>
-                  </Fade>
+                  <Alert
+                    severity={statusSeverity}
+                    icon={statusIcon}
+                    sx={{ mt: 2, borderRadius: 2 }}
+                  >
+                    {statusMessage}
+                  </Alert>
                 )}
 
                 {error && (
-                  <Fade in>
-                    <Alert 
-                      severity="error" 
-                      sx={{ 
-                        mt: 2,
-                        borderRadius: 2,
-                        background: 'rgba(244, 67, 54, 0.1)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(244, 67, 54, 0.3)',
-                        color: '#ff6b6b',
-                        '& .MuiAlert-icon': {
-                          color: '#ff6b6b'
-                        }
-                      }}
-                    >
-                      {error}
-                    </Alert>
-                  </Fade>
+                  <Alert severity="error" sx={{ mt: 2, borderRadius: 2 }}>
+                    {error}
+                  </Alert>
                 )}
 
                 <Button
@@ -455,29 +299,24 @@ const Login = () => {
                   sx={{
                     mt: 3,
                     mb: 2,
-                    py: 1.8,
-                    fontSize: '1.1rem',
+                    py: 1.5,
+                    fontSize: '0.9375rem',
                     fontWeight: 600,
-                    borderRadius: 3,
-                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%)',
-                    backdropFilter: 'blur(20px)',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: 2,
+                    backgroundColor: '#6a9eff',
                     color: 'white',
                     textTransform: 'none',
-                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: 'none',
+                    transition: 'background-color 0.2s ease, box-shadow 0.2s ease',
                     '&:hover': {
-                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.15) 100%)',
-                      transform: 'translateY(-2px)',
-                      boxShadow: '0 8px 30px rgba(0, 0, 0, 0.2)'
+                      backgroundColor: '#5a8eef',
+                      boxShadow: '0 4px 16px rgba(106, 158, 255, 0.3)',
                     },
-                    '&:active': {
-                      transform: 'translateY(0px)'
-                    },
+                    '&:active': { transform: 'scale(0.98)' },
                     '&.Mui-disabled': {
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      color: 'rgba(255, 255, 255, 0.6)'
-                    }
+                      backgroundColor: 'rgba(106, 158, 255, 0.3)',
+                      color: 'rgba(255, 255, 255, 0.5)',
+                    },
                   }}
                 >
                   {loading ? (
@@ -490,42 +329,31 @@ const Login = () => {
                   )}
                 </Button>
               </Box>
-            </Fade>
 
-            {/* Footer */}
-            <Fade in timeout={1600}>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  color: 'rgba(255, 255, 255, 0.6)', 
-                  textAlign: 'center',
-                  mt: 2,
-                  fontWeight: 300
-                }}
+              {/* Footer */}
+              <Typography
+                variant="body2"
+                sx={{ color: '#7d8190', textAlign: 'center', mt: 2 }}
               >
                 ¿No tienes cuenta?{' '}
-                <Box 
-                  component="span" 
-                  sx={{ 
-                    color: 'rgba(255, 255, 255, 0.9)',
+                <Box
+                  component="span"
+                  sx={{
+                    color: '#6a9eff',
                     fontWeight: 500,
-                    textDecoration: 'underline',
                     cursor: 'pointer',
-                    '&:hover': {
-                      color: '#fff'
-                    }
+                    '&:hover': { textDecoration: 'underline' },
                   }}
                 >
                   Contacta al administrador
                 </Box>
                 {' '}para obtener acceso.
               </Typography>
-            </Fade>
-          </Paper>
-        </Zoom>
-      </Container>
+            </Paper>
+          </Fade>
+        </Container>
       </Box>
-    </StarsBackground>
+    </>
   );
 };
 

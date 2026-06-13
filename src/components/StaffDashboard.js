@@ -88,7 +88,7 @@ const AssignmentCard = ({ assignment, userRole, onMarkComplete, onMarkUploaded }
       <Card 
         sx={{ 
           mb: 2,
-          border: isOverdue ? '2px solid #ef4444' : '1px solid rgba(148, 163, 184, 0.1)',
+          border: isOverdue ? '2px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.1)',
           position: 'relative',
           '&::before': isOverdue ? {
             content: '""',
@@ -113,7 +113,7 @@ const AssignmentCard = ({ assignment, userRole, onMarkComplete, onMarkUploaded }
                   label={`Cap. ${assignment.chapter}`}
                   size="small"
                   sx={{
-                    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                    background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
                     color: 'white',
                     fontWeight: 500,
                   }}
@@ -197,7 +197,7 @@ const AssignmentCard = ({ assignment, userRole, onMarkComplete, onMarkUploaded }
                   startIcon={<UploadIcon />}
                   onClick={() => onMarkUploaded(assignment.id)}
                   sx={{
-                    background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                    background: 'linear-gradient(135deg, #a78bfa, #7c3aed)',
                     '&:hover': {
                       background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
                     },
@@ -225,9 +225,9 @@ const AssignmentCard = ({ assignment, userRole, onMarkComplete, onMarkUploaded }
                 sx={{
                   height: 6,
                   borderRadius: 3,
-                  backgroundColor: 'rgba(148, 163, 184, 0.2)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
                   '& .MuiLinearProgress-bar': {
-                    background: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
+                    background: 'linear-gradient(90deg, #6a9eff, #a78bfa)',
                     borderRadius: 3,
                   },
                 }}
@@ -416,10 +416,10 @@ const StaffDashboard = () => {
   const getRoleIcon = (role) => {
     switch (role) {
       case ROLES.UPLOADER:
-        return <CloudUploadIcon sx={{ color: '#8b5cf6' }} />;
+        return <CloudUploadIcon sx={{ color: '#a78bfa' }} />;
       case ROLES.EDITOR:
       case ROLES.TRADUCTOR:
-        return <WorkIcon sx={{ color: '#6366f1' }} />;
+        return <WorkIcon sx={{ color: '#6a9eff' }} />;
       default:
         return <AccountCircleIcon />;
     }
@@ -463,7 +463,7 @@ const StaffDashboard = () => {
               component="h1"
               sx={{ 
                 fontWeight: 700,
-                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                background: 'linear-gradient(135deg, #6a9eff 0%, #a78bfa 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',

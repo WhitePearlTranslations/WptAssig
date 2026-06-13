@@ -251,12 +251,12 @@ const DriveFileList = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'rgba(99, 102, 241, 0.05)',
-        border: '2px dashed rgba(99, 102, 241, 0.2)'
+        background: 'rgba(106, 158, 255, 0.05)',
+        border: '2px dashed rgba(106, 158, 255, 0.2)'
       }}>
         <CardContent sx={{ textAlign: 'center', maxWidth: '500px' }}>
-          <LoginIcon sx={{ fontSize: '4rem', color: '#6366f1', mb: 2 }} />
-          <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 2, color: '#6366f1' }}>
+          <LoginIcon sx={{ fontSize: '4rem', color: '#6a9eff', mb: 2 }} />
+          <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 2, color: '#6a9eff' }}>
             Autenticación requerida
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
@@ -269,7 +269,7 @@ const DriveFileList = ({
             onClick={handleSignIn}
             disabled={loading}
             sx={{
-              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              background: 'linear-gradient(135deg, #6a9eff 0%, #a78bfa 100%)',
               px: 4,
               py: 1.5,
               fontWeight: 'bold'
