@@ -22,10 +22,6 @@ export async function getFirebaseConfig() {
     return getFallbackConfig();
   }
 
-  // Fallback temporal para dominio problemático hasta que se configure CORS
-  if (window.location.hostname === 'wptassig.dpdns.org') {
-    return getEmbeddedConfig();
-  }
 
   // Verificar si tenemos configuración en cache válida
   if (configCache && cacheTimestamp && (Date.now() - cacheTimestamp < CACHE_DURATION)) {

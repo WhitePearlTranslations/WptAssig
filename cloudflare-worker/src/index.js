@@ -4,6 +4,8 @@
  * Incluye funcionalidad administrativa para eliminar usuarios de Authentication
  */
 
+import { instrumentRequest, getMetrics, sendMetricsToGrafana } from './instrumentation.js';
+
 // No necesitamos firebase-admin ya que usaremos la API REST
 // import admin from 'firebase-admin';
 
@@ -36,8 +38,12 @@ async function handleRequest(request, env) {
     return handleOptions(origin);
   }
 
-  // Verificar origen
-  if (!isOriginAllowed(origin)) {
+  // Endpoints públicos sin verificación de origen
+  const publicEndpoints = ['/health', '/metrics'];
+  const isPublicEndpoint = publicEndpoints.includes(url.pathname);
+
+  // Verificar origen (excepto para endpoints públicos)
+  if (!isPublicEndpoint && !isOriginAllowed(origin)) {
     // Origin check failed - logging removed for production
     return new Response(JSON.stringify({ 
       error: 'Origin not allowed',
@@ -70,6 +76,18 @@ async function handleRequest(request, env) {
       timestamp: new Date().toISOString(),
       environment: env.ENVIRONMENT || 'unknown'
     }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders,
+        'Access-Control-Allow-Origin': origin || '*'
+      }
+    });
+  }
+
+  // Ruta para métricas
+  if (url.pathname === '/metrics' && request.method === 'GET') {
+    return new Response(JSON.stringify(getMetrics()), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
@@ -443,9 +461,28 @@ async function handleDeleteUser(request, env, origin) {
   }
 }
 
-// Exportar el handler principal
+// Exportar el handler principal con instrumentación
 export default {
   async fetch(request, env, ctx) {
-    return handleRequest(request, env);
-  }
+    // Enviar métricas a Grafana cada 60 segundos
+    ctx.waitUntil(
+      (async () => {
+        const now = Date.now();
+        const lastSent = globalThis.lastMetricsSent || 0;
+        
+        if (now - lastSent > 60000) { // 60 segundos
+          await sendMetricsToGrafana(env);
+          globalThis.lastMetricsSent = now;
+        }
+      })()
+    );
+    
+    // Instrumentar la request
+    return instrumentRequest(request, env, handleRequest);
+  },
+  
+  // Scheduled handler para enviar métricas periódicamente
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(sendMetricsToGrafana(env));
+  },
 };
