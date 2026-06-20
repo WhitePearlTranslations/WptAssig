@@ -311,13 +311,12 @@ const Profile = () => {
         <Box
           sx={{
             height: 200,
-            bgcolor: 'linear-gradient(45deg, #667eea 30%, #764ba2 90%)',
-            borderRadius: 4,
+            borderRadius: 3,
             overflow: 'hidden',
             position: 'relative',
             background: formData.bannerImage || userProfile.bannerImage 
               ? `url(${formData.bannerImage || userProfile.bannerImage}) center/cover` 
-              : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+              : '#1e1f25'
           }}
         >
           {/* Overlay para mejor legibilidad */}
@@ -381,18 +380,14 @@ const Profile = () => {
               onClick={() => setEditing(true)}
               variant="contained"
               sx={{
-                bgcolor: '#FFC107 !important', // Amarillo sólido
-                background: 'linear-gradient(135deg, #FFC107 0%, #FF9800 100%) !important',
-                backdropFilter: 'blur(10px)',
+                bgcolor: '#f5a623 !important',
                 border: 'none',
                 color: 'white !important',
                 fontWeight: 600,
-                boxShadow: '0 4px 12px rgba(255, 193, 7, 0.3)',
+                boxShadow: 'none',
                 '&:hover': {
-                  bgcolor: '#FFB300 !important',
-                  background: 'linear-gradient(135deg, #FFB300 0%, #F57C00 100%) !important',
-                  transform: 'translateY(-1px)',
-                  boxShadow: '0 6px 20px rgba(255, 193, 7, 0.4)'
+                  bgcolor: '#d9911e !important',
+                  boxShadow: '0 2px 8px rgba(245, 166, 35, 0.25)'
                 }
               }}
             >
@@ -405,18 +400,14 @@ const Profile = () => {
                 onClick={handleSave}
                 variant="contained"
                 sx={{
-                  bgcolor: '#4CAF50 !important', // Verde sólido
-                  background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%) !important',
-                  backdropFilter: 'blur(10px)',
+                  bgcolor: '#34a853 !important',
                   border: 'none',
                   color: 'white !important',
                   fontWeight: 600,
-                  boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
+                  boxShadow: 'none',
                   '&:hover': { 
-                    bgcolor: '#43A047 !important',
-                    background: 'linear-gradient(135deg, #43A047 0%, #1B5E20 100%) !important',
-                    transform: 'translateY(-1px)',
-                    boxShadow: '0 6px 20px rgba(76, 175, 80, 0.4)'
+                    bgcolor: '#2d9249 !important',
+                    boxShadow: '0 2px 8px rgba(52, 168, 83, 0.25)'
                   }
                 }}
               >
@@ -427,18 +418,14 @@ const Profile = () => {
                 onClick={handleCancel}
                 variant="contained"
                 sx={{
-                  bgcolor: '#F44336 !important', // Rojo sólido
-                  background: 'linear-gradient(135deg, #F44336 0%, #C62828 100%) !important',
-                  backdropFilter: 'blur(10px)',
+                  bgcolor: '#e84855 !important',
                   border: 'none',
                   color: 'white !important',
                   fontWeight: 600,
-                  boxShadow: '0 4px 12px rgba(244, 67, 54, 0.3)',
+                  boxShadow: 'none',
                   '&:hover': { 
-                    bgcolor: '#E53935 !important',
-                    background: 'linear-gradient(135deg, #E53935 0%, #B71C1C 100%) !important',
-                    transform: 'translateY(-1px)',
-                    boxShadow: '0 6px 20px rgba(244, 67, 54, 0.4)'
+                    bgcolor: '#c73a47 !important',
+                    boxShadow: '0 2px 8px rgba(232, 72, 85, 0.25)'
                   }
                 }}
               >

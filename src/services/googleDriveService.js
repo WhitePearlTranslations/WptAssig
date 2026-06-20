@@ -370,7 +370,7 @@ class GoogleDriveService {
     
     // Videos
     if (mimeType?.startsWith('video/') || ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'].includes(extension)) {
-      return { type: 'video', category: 'media', icon: '🎥', color: '#8b5cf6' };
+      return { type: 'video', category: 'media', icon: '🎥', color: '#a78bfa' };
     }
     
     // Audio

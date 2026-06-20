@@ -404,8 +404,8 @@ const ReviewPanel = () => {
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ 
             textAlign: 'center',
-            background: 'rgba(99, 102, 241, 0.1)',
-            border: '1px solid rgba(99, 102, 241, 0.2)'
+            background: 'rgba(106, 158, 255, 0.1)',
+            border: '1px solid rgba(106, 158, 255, 0.2)'
           }}>
             <CardContent sx={{ py: 2 }}>
               <Typography variant="h4" fontWeight={700} color="primary">
@@ -420,11 +420,11 @@ const ReviewPanel = () => {
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ 
             textAlign: 'center',
-            background: 'rgba(236, 72, 153, 0.1)',
-            border: '1px solid rgba(236, 72, 153, 0.2)'
+            background: 'rgba(167, 139, 250, 0.1)',
+            border: '1px solid rgba(167, 139, 250, 0.2)'
           }}>
             <CardContent sx={{ py: 2 }}>
-              <Typography variant="h4" fontWeight={700} sx={{ color: '#ec4899' }}>
+              <Typography variant="h4" fontWeight={700} sx={{ color: '#a78bfa' }}>
                 {stats.editing}
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -456,7 +456,7 @@ const ReviewPanel = () => {
         mb: 4,
         background: 'rgba(15, 15, 25, 0.8)',
         backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(148, 163, 184, 0.1)'
+        border: '1px solid rgba(255, 255, 255, 0.1)'
       }}>
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
@@ -569,11 +569,11 @@ const ReviewPanel = () => {
         <TableContainer component={Paper} sx={{ 
           background: 'rgba(15, 15, 25, 0.8)',
           backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(148, 163, 184, 0.1)'
+          border: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
           <Table>
             <TableHead>
-              <TableRow sx={{ '& th': { borderBottom: '1px solid rgba(148, 163, 184, 0.1)' } }}>
+              <TableRow sx={{ '& th': { borderBottom: '1px solid rgba(255, 255, 255, 0.1)' } }}>
                 <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>Asignación</TableCell>
                 <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>Trabajador</TableCell>
                 <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>Tipo</TableCell>
@@ -588,11 +588,11 @@ const ReviewPanel = () => {
                   key={assignment.id}
                   sx={{ 
                     '&:hover': { 
-                      backgroundColor: 'rgba(99, 102, 241, 0.05)',
+                      backgroundColor: 'rgba(106, 158, 255, 0.05)',
                       transform: 'translateX(2px)',
                       transition: 'all 0.2s ease'
                     },
-                    '& td': { borderBottom: '1px solid rgba(148, 163, 184, 0.1)' }
+                    '& td': { borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }
                   }}
                 >
                   <TableCell>
@@ -638,12 +638,12 @@ const ReviewPanel = () => {
                       label={TASK_TYPES[assignment.type] || assignment.type}
                       size="small"
                       sx={{
-                        backgroundColor: assignment.type === 'traduccion' ? 'rgba(99, 102, 241, 0.1)' :
-                                        assignment.type === 'proofreading' ? 'rgba(236, 72, 153, 0.1)' :
+                        backgroundColor: assignment.type === 'traduccion' ? 'rgba(106, 158, 255, 0.1)' :
+                                        assignment.type === 'proofreading' ? 'rgba(167, 139, 250, 0.1)' :
                                         assignment.type === 'cleanRedrawer' ? 'rgba(16, 185, 129, 0.1)' :
                                         'rgba(245, 158, 11, 0.1)',
-                        color: assignment.type === 'traduccion' ? '#6366f1' :
-                               assignment.type === 'proofreading' ? '#ec4899' :
+                        color: assignment.type === 'traduccion' ? '#6a9eff' :
+                               assignment.type === 'proofreading' ? '#a78bfa' :
                                assignment.type === 'cleanRedrawer' ? '#10b981' :
                                '#f59e0b',
                         fontWeight: 500
@@ -683,10 +683,10 @@ const ReviewPanel = () => {
                           <IconButton
                             onClick={() => handlePreviewFiles(assignment)}
                             sx={{
-                              color: '#6366f1',
-                              backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                              color: '#6a9eff',
+                              backgroundColor: 'rgba(106, 158, 255, 0.1)',
                               '&:hover': {
-                                backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                                backgroundColor: 'rgba(106, 158, 255, 0.2)',
                                 transform: 'scale(1.1)'
                               },
                               transition: 'all 0.2s ease'

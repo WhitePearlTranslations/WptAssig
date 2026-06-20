@@ -529,9 +529,9 @@ export const AuthProvider = ({ children }) => {
           <div style={{
             width: '50px',
             height: '50px',
-            border: '3px solid rgba(99, 102, 241, 0.3)',
+            border: '3px solid rgba(106, 158, 255, 0.3)',
             borderRadius: '50%',
-            borderTop: '3px solid #6366f1',
+            borderTop: '3px solid #6a9eff',
             animation: 'spin 1s linear infinite',
             marginBottom: '20px'
           }} />

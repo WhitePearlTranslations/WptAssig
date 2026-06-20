@@ -191,8 +191,8 @@ const FilePreview = ({
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'center',
-          background: 'rgba(99, 102, 241, 0.05)',
-          border: '2px dashed rgba(99, 102, 241, 0.2)'
+          background: 'rgba(106, 158, 255, 0.05)',
+          border: '2px dashed rgba(106, 158, 255, 0.2)'
         }}>
           <CardContent sx={{ textAlign: 'center' }}>
             {getFileIcon(currentFile)}

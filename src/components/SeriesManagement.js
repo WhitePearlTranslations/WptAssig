@@ -135,15 +135,15 @@ const STATUS_CONFIG = {
 };
 
 const ASSIGNMENT_TYPES = {
-  traduccion: { label: 'Traducción', color: '#6366f1', short: 'T' },
-  proofreading: { label: 'Proofreading', color: '#ec4899', short: 'P' },
+  traduccion: { label: 'Traducción', color: '#6a9eff', short: 'T' },
+  proofreading: { label: 'Proofreading', color: '#a78bfa', short: 'P' },
   cleanRedrawer: { label: 'Clean/Redrawer', color: '#10b981', short: 'C' },
   type: { label: 'Typesetting', color: '#f59e0b', short: 'Ty' }
 };
 
 const MANGA_STATUS = {
   active: { label: 'Activo', color: '#10b981' },
-  completed: { label: 'Completado', color: '#6366f1' },
+  completed: { label: 'Completado', color: '#6a9eff' },
   paused: { label: 'Pausado', color: '#f59e0b' },
   cancelled: { label: 'Cancelado', color: '#ef4444' },
   hiatus: { label: 'Hiato', color: '#6b7280' }
@@ -368,22 +368,23 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
     <TableContainer 
       component={Paper} 
       sx={{ 
-        mb: 3,
-        background: 'rgba(15, 15, 25, 0.8)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(148, 163, 184, 0.1)',
-        borderRadius: '16px',
+        mb: 2,
+        mt: 1.5,
+        background: 'rgba(15, 16, 20, 0.5)',
+        border: '1px solid rgba(255,255,255,0.05)',
+        borderRadius: '10px',
+        boxShadow: 'none',
       }}
     >
-      <Table>
+      <Table size="small">
         <TableHead>
-          <TableRow sx={{ '& th': { borderBottom: '1px solid rgba(148, 163, 184, 0.1)' } }}>
-            <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>Capítulo</TableCell>
-            <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>Traducción</TableCell>
-            <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>Proofreading</TableCell>
-            <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>Clean/Redrawer</TableCell>
-            <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>Typesetting</TableCell>
-            <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>Acciones</TableCell>
+          <TableRow sx={{ '& th': { borderBottom: '1px solid rgba(255,255,255,0.06)', py: 1.5 } }}>
+            <TableCell sx={{ fontWeight: 600, color: '#7d8190', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cap.</TableCell>
+            <TableCell sx={{ fontWeight: 600, color: '#7d8190', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Traducción</TableCell>
+            <TableCell sx={{ fontWeight: 600, color: '#7d8190', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Proofreading</TableCell>
+            <TableCell sx={{ fontWeight: 600, color: '#7d8190', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Clean/Redraw</TableCell>
+            <TableCell sx={{ fontWeight: 600, color: '#7d8190', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Typesetting</TableCell>
+            <TableCell sx={{ fontWeight: 600, color: '#7d8190', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Acciones</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -444,84 +445,38 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
             const hasWorkInProgress = assignedCount > 0 && !isChapterCompleted && !isChapterUploaded;
             
             
+            const rowColor = isChapterUploaded ? '#3b82f6' 
+              : isChapterCompleted ? '#10b981' 
+              : hasWorkInProgress ? '#f59e0b' 
+              : null;
+
             return (
               <TableRow
                 key={chapter}
+                className="sm-table-row"
                 sx={{
                   '& td': {
-                    borderBottom: '1px solid rgba(148, 163, 184, 0.05)',
-                    py: 2,
+                    borderBottom: '1px solid rgba(255,255,255,0.04)',
+                    py: 1.5,
+                    position: 'relative',
                   },
-                  // Resaltado azul cuando todo el capítulo está subido
-                  ...(isChapterUploaded && {
-                    backgroundColor: 'rgba(59, 130, 246, 0.08)',
-                    '& td': {
-                      borderBottom: '1px solid rgba(59, 130, 246, 0.2)',
-                      py: 2,
-                      position: 'relative',
-                    },
-                    '&:hover': {
-                      backgroundColor: 'rgba(59, 130, 246, 0.12)',
-                    },
+                  ...(rowColor && {
+                    backgroundColor: `${rowColor}08`,
                     '& td:first-of-type::before': {
                       content: '""',
                       position: 'absolute',
                       left: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: '4px',
-                      backgroundColor: '#3b82f6',
+                      top: 4,
+                      bottom: 4,
+                      width: '3px',
+                      backgroundColor: rowColor,
                       borderRadius: '0 2px 2px 0',
                     }
                   }),
-                  // Resaltado verde cuando todo el capítulo está completado (solo si no está subido)
-                  ...(!isChapterUploaded && isChapterCompleted && {
-                    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                    '& td': {
-                      borderBottom: '1px solid rgba(16, 185, 129, 0.2)',
-                      py: 2,
-                      position: 'relative',
-                    },
-                    '&:hover': {
-                      backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                    },
-                    '& td:first-of-type::before': {
-                      content: '""',
-                      position: 'absolute',
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: '4px',
-                      backgroundColor: '#10b981',
-                      borderRadius: '0 2px 2px 0',
-                    }
-                  }),
-                  // Resaltado amarillo cuando el capítulo tiene asignaciones parciales
-                  ...(!isChapterCompleted && hasWorkInProgress && {
-                    backgroundColor: 'rgba(245, 158, 11, 0.08)',
-                    '& td': {
-                      borderBottom: '1px solid rgba(245, 158, 11, 0.2)',
-                      py: 2,
-                      position: 'relative',
-                    },
-                    '&:hover': {
-                      backgroundColor: 'rgba(245, 158, 11, 0.12)',
-                    },
-                    '& td:first-of-type::before': {
-                      content: '""',
-                      position: 'absolute',
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: '4px',
-                      backgroundColor: '#f59e0b',
-                      borderRadius: '0 2px 2px 0',
-                    }
-                  })
                 }}
               >
                 <TableCell>
-                  <Typography fontWeight={600} color="text.primary">
+                  <Typography fontWeight={600} color="text.primary" sx={{ fontSize: '0.875rem' }}>
                     Capítulo {chapter}
                   </Typography>
                 </TableCell>
@@ -893,14 +848,16 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                             onMarkUploaded(assignment.id);
                           });
                         }}
+                        className="sm-btn"
                         sx={{ 
                           fontSize: '0.75rem', 
                           px: 1, 
                           py: 0.5,
-                          background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                          backgroundColor: '#a78bfa',
                           color: 'white',
+                          borderRadius: '6px',
                           '&:hover': {
-                            background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                            backgroundColor: '#7c3aed',
                           }
                         }}
                       >
@@ -921,14 +878,16 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                             onMarkNotUploaded(assignment.id);
                           });
                         }}
+                        className="sm-btn"
                         sx={{ 
                           fontSize: '0.75rem', 
                           px: 1, 
                           py: 0.5,
-                          background: 'linear-gradient(135deg, #10b981, #059669)',
+                          backgroundColor: '#10b981',
                           color: 'white',
+                          borderRadius: '6px',
                           '&:hover': {
-                            background: 'linear-gradient(135deg, #059669, #047857)',
+                            backgroundColor: '#059669',
                           }
                         }}
                       >
@@ -1237,16 +1196,16 @@ const AssignmentDialog = ({ open, onClose, assignment, manga, users, onSave, pre
                       // Diseño cuando HAY foto
                       ...(option.profileImage || option.photoURL || option.avatar) && {
                         bgcolor: 'transparent',
-                        border: `2px solid #6366f160`,
+                        border: `2px solid #6a9eff60`,
                         boxShadow: '0 3px 12px rgba(0,0,0,0.15)',
                       },
                       // Diseño cuando NO hay foto (mostrar iniciales)
                       ...(!(option.profileImage || option.photoURL || option.avatar)) && {
-                        bgcolor: option.uid ? '#6366f1' : '#6b7280',
+                        bgcolor: option.uid ? '#6a9eff' : '#6b7280',
                         color: 'white',
-                        border: `2px solid ${option.uid ? '#6366f1' : '#6b7280'}`,
-                        boxShadow: `0 2px 8px ${option.uid ? '#6366f1' : '#6b7280'}40`,
-                        background: `linear-gradient(135deg, ${option.uid ? '#6366f1' : '#6b7280'}, ${option.uid ? '#6366f1dd' : '#6b7280dd'})`,
+                        border: `2px solid ${option.uid ? '#6a9eff' : '#6b7280'}`,
+                        boxShadow: `0 2px 8px ${option.uid ? '#6a9eff' : '#6b7280'}40`,
+                        background: `linear-gradient(135deg, ${option.uid ? '#6a9eff' : '#6b7280'}, ${option.uid ? '#6a9effdd' : '#6b7280dd'})`,
                       },
                       fontWeight: 700,
                       letterSpacing: '0.5px',
@@ -1289,12 +1248,12 @@ const AssignmentDialog = ({ open, onClose, assignment, manga, users, onSave, pre
                               assignableUsers.find(u => (u.uid || u.id) === formData.assignedTo)?.photoURL ||
                               assignableUsers.find(u => (u.uid || u.id) === formData.assignedTo)?.avatar) && {
                             bgcolor: 'transparent',
-                            border: `1px solid #6366f160`,
+                            border: `1px solid #6a9eff60`,
                           },
                           ...(!(assignableUsers.find(u => (u.uid || u.id) === formData.assignedTo)?.profileImage ||
                                assignableUsers.find(u => (u.uid || u.id) === formData.assignedTo)?.photoURL ||
                                assignableUsers.find(u => (u.uid || u.id) === formData.assignedTo)?.avatar)) && {
-                            bgcolor: '#6366f1',
+                            bgcolor: '#6a9eff',
                             color: 'white',
                             fontWeight: 700,
                           }
@@ -1457,7 +1416,7 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded })
           border: hasOverdueTask ? '2px solid #ef4444' : 
                   isChapterCompleted ? '2px solid #10b981' : 
                   isChapterInProgress ? '2px solid #f59e0b' : 
-                  '1px solid rgba(148, 163, 184, 0.1)',
+                  '1px solid rgba(255, 255, 255, 0.1)',
           position: 'relative',
           backgroundColor: hasOverdueTask ? 'inherit' :
                           isChapterCompleted ? 'rgba(16, 185, 129, 0.05)' : 
@@ -1503,7 +1462,7 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded })
                   label={`Cap. ${chapterGroup.chapter}`}
                   size="small"
                   sx={{
-                    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                    background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
                     color: 'white',
                     fontWeight: 500,
                   }}
@@ -1602,9 +1561,9 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded })
                   sx={{
                     height: 6,
                     borderRadius: 3,
-                    backgroundColor: 'rgba(148, 163, 184, 0.2)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
                     '& .MuiLinearProgress-bar': {
-                      background: isChapterCompleted ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #6366f1, #8b5cf6)',
+                      background: isChapterCompleted ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #6a9eff, #a78bfa)',
                       borderRadius: 3,
                     },
                   }}
@@ -1671,7 +1630,7 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded })
                     completedTasks.forEach(task => onMarkUploaded(task.id));
                   }}
                   sx={{
-                    background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                    background: 'linear-gradient(135deg, #a78bfa, #7c3aed)',
                     '&:hover': {
                       background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
                     },
@@ -1762,7 +1721,7 @@ const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded })
                         setDetailsOpen(false);
                       }}
                       sx={{
-                        background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                        background: 'linear-gradient(135deg, #a78bfa, #7c3aed)',
                         '&:hover': {
                           background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
                         },
@@ -2858,10 +2817,10 @@ const SeriesManagement = () => {
   const getRoleIcon = (role) => {
     switch (role) {
       case ROLES.UPLOADER:
-        return <CloudUploadIcon sx={{ color: '#8b5cf6' }} />;
+        return <CloudUploadIcon sx={{ color: '#a78bfa' }} />;
       case ROLES.EDITOR:
       case ROLES.TRADUCTOR:
-        return <WorkIcon sx={{ color: '#6366f1' }} />;
+        return <WorkIcon sx={{ color: '#6a9eff' }} />;
       default:
         return <AccountCircleIcon />;
     }
@@ -2933,398 +2892,239 @@ const SeriesManagement = () => {
   if (loading) {
     return (
       <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-          <CircularProgress size={60} />
+        <Box className="sm-loading-spinner" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+          <CircularProgress size={48} sx={{ color: '#6a9eff' }} />
         </Box>
       </Container>
     );
   }
 
   return (
-    <Container maxWidth="xl" sx={{ 
-      mt: 4, 
-      mb: 4,
-      minHeight: '100vh',
-      background: 'radial-gradient(ellipse at top, rgba(99, 102, 241, 0.05) 0%, transparent 70%)',
-    }}>
-      {/* Header with glassmorphism effect */}
-      <Box 
-        className="animate-fade-in" 
-        sx={{ 
-          mb: 6,
-          position: 'relative',
-          overflow: 'hidden',
-          borderRadius: '24px',
-          background: 'rgba(255, 255, 255, 0.05)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          p: 4,
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%)',
-            opacity: 0.5,
-            zIndex: -1,
-          }
+    <Container maxWidth="xl" className="sm-container" sx={{ mt: 4, mb: 4, minHeight: '100vh' }}>
+
+      {/* ── Header ── */}
+      <Box
+        className="sm-header"
+        sx={{
+          mb: 5,
+          p: { xs: 3, md: 4 },
+          borderRadius: '16px',
+          background: 'rgba(20, 21, 27, 0.72)',
+          backdropFilter: 'blur(24px)',
+          border: '1px solid rgba(255,255,255,0.07)',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
           <Box
+            className="sm-header-icon"
             sx={{
-              width: 64,
-              height: 64,
-              borderRadius: '16px',
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              width: 52,
+              height: 52,
+              borderRadius: '14px',
+              background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 8px 32px rgba(99, 102, 241, 0.3)',
-              animation: 'float 3s ease-in-out infinite',
+              flexShrink: 0,
             }}
           >
-            <MenuBookIcon sx={{ fontSize: '32px', color: 'white' }} />
+            <MenuBookIcon sx={{ fontSize: 26, color: 'white' }} />
           </Box>
-          <Box>
-            <Typography 
-              variant="h2" 
+          <Box sx={{ minWidth: 0 }}>
+            <Typography
+              variant="h4"
               component="h1"
-              sx={{ 
-                fontWeight: 800,
-                background: 'linear-gradient(135deg, #6366f1 0%, #ec4899 50%, #8b5cf6 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                mb: 1,
-                fontSize: { xs: '2rem', md: '3rem' },
+              sx={{
+                fontWeight: 700,
+                color: '#e2e4e9',
+                fontSize: { xs: '1.5rem', md: '2rem' },
                 letterSpacing: '-0.02em',
-                textShadow: '0 0 20px rgba(99, 102, 241, 0.3)',
+                lineHeight: 1.2,
               }}
             >
               Gestión por Series
             </Typography>
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                fontWeight: 500,
-                color: 'rgba(255, 255, 255, 0.8)',
-                fontSize: { xs: '1rem', md: '1.25rem' },
-              }}
-            >
+            <Typography variant="body2" sx={{ color: '#7d8190', mt: 0.5, fontWeight: 400 }}>
               Vista organizada por series mostrando todas las asignaciones
             </Typography>
           </Box>
         </Box>
-        
-        {/* Stats Cards */}
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 3 }}>
-          <Chip 
-            icon={<MenuBookIcon />}
-            label={`${filteredMangas.length} Series Activas`} 
-            sx={{
-              background: 'linear-gradient(135deg, #10b981, #059669)',
-              color: 'white',
-              fontWeight: 600,
-              px: 2,
-              py: 1,
-              '& .MuiChip-icon': { color: 'white' },
-              boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)',
-            }}
-          />
-          <Chip 
-            icon={<AssignmentIcon />}
-            label={`${assignments.length} Asignaciones Totales`} 
-            sx={{
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-              color: 'white',
-              fontWeight: 600,
-              px: 2,
-              py: 1,
-              '& .MuiChip-icon': { color: 'white' },
-              boxShadow: '0 4px 16px rgba(99, 102, 241, 0.3)',
-            }}
-          />
-          <Chip 
-            icon={<CheckCircleIcon />}
-            label={`${assignments.filter(a => a.status === 'completado').length} Completadas`} 
-            sx={{
-              background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-              color: 'white',
-              fontWeight: 600,
-              px: 2,
-              py: 1,
-              '& .MuiChip-icon': { color: 'white' },
-              boxShadow: '0 4px 16px rgba(245, 158, 11, 0.3)',
-            }}
-          />
+
+        {/* Stat pills */}
+        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 3 }}>
+          <Box className="sm-stat-pill" sx={{
+            px: 2, py: 1, borderRadius: '10px',
+            background: 'rgba(16, 185, 129, 0.1)',
+            border: '1px solid rgba(16, 185, 129, 0.18)',
+            display: 'flex', alignItems: 'center', gap: 1,
+          }}>
+            <MenuBookIcon sx={{ color: '#10b981', fontSize: 18 }} />
+            <Typography variant="body2" sx={{ color: '#10b981', fontWeight: 600 }}>
+              {filteredMangas.length}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(16,185,129,0.7)', fontWeight: 500 }}>
+              series
+            </Typography>
+          </Box>
+
+          <Box className="sm-stat-pill" sx={{
+            px: 2, py: 1, borderRadius: '10px',
+            background: 'rgba(106, 158, 255, 0.1)',
+            border: '1px solid rgba(106, 158, 255, 0.18)',
+            display: 'flex', alignItems: 'center', gap: 1,
+          }}>
+            <AssignmentIcon sx={{ color: '#6a9eff', fontSize: 18 }} />
+            <Typography variant="body2" sx={{ color: '#6a9eff', fontWeight: 600 }}>
+              {assignments.length}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(106,158,255,0.7)', fontWeight: 500 }}>
+              asignaciones
+            </Typography>
+          </Box>
+
+          <Box className="sm-stat-pill" sx={{
+            px: 2, py: 1, borderRadius: '10px',
+            background: 'rgba(245, 158, 11, 0.1)',
+            border: '1px solid rgba(245, 158, 11, 0.18)',
+            display: 'flex', alignItems: 'center', gap: 1,
+          }}>
+            <CheckCircleIcon sx={{ color: '#f59e0b', fontSize: 18 }} />
+            <Typography variant="body2" sx={{ color: '#f59e0b', fontWeight: 600 }}>
+              {assignments.filter(a => a.status === 'completado').length}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(245,158,11,0.7)', fontWeight: 500 }}>
+              completadas
+            </Typography>
+          </Box>
         </Box>
       </Box>
 
-      {/* Tabs */}
-      <Card sx={{ mb: 3 }}>
-        <Tabs 
-          value={tabValue} 
-          onChange={(e, newValue) => setTabValue(newValue)}
-          sx={{
-            '& .MuiTabs-indicator': {
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-            },
+      {/* ── Controls ── */}
+      <Box sx={{ mb: 4, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+        <TextField
+          size="small"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Buscar por título o autor..."
+          className="sm-search-field"
+          InputProps={{
+            startAdornment: <SearchIcon sx={{ color: '#7d8190', mr: 1, fontSize: 20 }} />,
           }}
-        >
-          <Tab 
-            label="Gestión por Series" 
-            icon={<MenuBookIcon />} 
-            iconPosition="start"
-            sx={{ 
-              textTransform: 'none',
-              fontWeight: 500,
-              fontSize: '1rem',
+          sx={{
+            flex: { xs: '1 1 100%', sm: '1 1 280px' },
+            maxWidth: { sm: 360 },
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '10px',
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.07)',
+              height: 42,
+              fontSize: '0.875rem',
+              transition: 'border-color 200ms ease, box-shadow 200ms ease',
+              '& fieldset': { border: 'none' },
+              '&:hover': { borderColor: 'rgba(106,158,255,0.2)' },
+              '&.Mui-focused': {
+                borderColor: 'rgba(106,158,255,0.5)',
+                boxShadow: '0 0 0 3px rgba(106,158,255,0.08)',
+              },
+            },
+            '& .MuiOutlinedInput-input': { color: '#e2e4e9' },
+          }}
+        />
+
+        <FormControl size="small" sx={{ minWidth: 160 }}>
+          <Select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            displayEmpty
+            sx={{
+              borderRadius: '10px',
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.07)',
+              height: 42,
+              fontSize: '0.875rem',
+              color: '#e2e4e9',
+              transition: 'border-color 200ms ease',
+              '& fieldset': { border: 'none' },
+              '&:hover': { borderColor: 'rgba(106,158,255,0.2)' },
+              '& .MuiSelect-icon': { color: '#7d8190' },
             }}
-          />
-        </Tabs>
-      </Card>
-
-      {/* Controls with glassmorphism */}
-      <Card 
-        sx={{ 
-          mb: 4, 
-          background: 'rgba(255, 255, 255, 0.08)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          borderRadius: '20px',
-          overflow: 'hidden',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
-        }}
-      >
-        <Box sx={{ p: 3 }}>
-          <Grid container spacing={3} alignItems="center">
-            <Grid item xs={12} sm={6} md={5}>
-              <TextField
-                fullWidth
-                size="medium"
-                label="Buscar series"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por título o autor..."
-                InputProps={{
-                  startAdornment: (
-                    <Box
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '12px',
-                        background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        mr: 2,
-                        boxShadow: '0 4px 16px rgba(99, 102, 241, 0.3)',
-                      }}
-                    >
-                      <SearchIcon sx={{ color: 'white', fontSize: '18px' }} />
-                    </Box>
-                  ),
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '16px',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    height: '56px',
-                    '&:hover': {
-                      border: '1px solid rgba(99, 102, 241, 0.3)',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                    },
-                    '&.Mui-focused': {
-                      border: '2px solid rgba(99, 102, 241, 0.5)',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      boxShadow: '0 0 20px rgba(99, 102, 241, 0.2)',
-                    },
+            MenuProps={{
+              PaperProps: {
+                sx: {
+                  background: 'rgba(20,21,27,0.96)',
+                  backdropFilter: 'blur(24px)',
+                  border: '1px solid rgba(255,255,255,0.07)',
+                  borderRadius: '10px',
+                  mt: 0.5,
+                  '& .MuiMenuItem-root': {
+                    fontSize: '0.875rem',
+                    borderRadius: '6px',
+                    mx: 0.5,
+                    '&:hover': { background: 'rgba(106,158,255,0.1)' },
+                    '&.Mui-selected': { background: 'rgba(106,158,255,0.15)' },
                   },
-                  '& .MuiInputLabel-root': {
-                    color: 'rgba(255, 255, 255, 0.7)',
-                    fontWeight: 500,
-                  },
-                  '& .MuiOutlinedInput-input': {
-                    color: 'white',
-                    fontWeight: 500,
-                  },
-                }}
-              />
-            </Grid>
-            
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="medium">
-                <InputLabel 
-                  sx={{ 
-                    color: 'rgba(255, 255, 255, 0.7)',
-                    fontWeight: 500,
-                    '&.Mui-focused': {
-                      color: '#6366f1',
-                    },
-                  }}
-                >
-                  Estado
-                </InputLabel>
-                <Select
-                  value={statusFilter}
-                  label="Estado"
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  sx={{
-                    borderRadius: '16px',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    height: '56px',
-                    color: 'white',
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      border: '1px solid rgba(99, 102, 241, 0.3)',
-                    },
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      border: '2px solid rgba(99, 102, 241, 0.5)',
-                      boxShadow: '0 0 20px rgba(99, 102, 241, 0.2)',
-                    },
-                    '& .MuiSelect-icon': {
-                      color: 'rgba(255, 255, 255, 0.7)',
-                    },
-                  }}
-                  MenuProps={{
-                    PaperProps: {
-                      sx: {
-                        background: 'rgba(15, 15, 25, 0.95)',
-                        backdropFilter: 'blur(20px)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '12px',
-                        mt: 1,
-                        '& .MuiMenuItem-root': {
-                          color: 'white',
-                          '&:hover': {
-                            background: 'rgba(99, 102, 241, 0.2)',
-                          },
-                          '&.Mui-selected': {
-                            background: 'rgba(99, 102, 241, 0.3)',
-                            '&:hover': {
-                              background: 'rgba(99, 102, 241, 0.4)',
-                            },
-                          },
-                        },
-                      },
-                    },
-                  }}
-                >
-                  <MenuItem value="all">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <FilterIcon sx={{ fontSize: '16px' }} />
-                      Todos los Estados
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="active">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <CheckCircleIcon sx={{ fontSize: '16px', color: '#10b981' }} />
-                      Activo
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="completed">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <BookIcon sx={{ fontSize: '16px', color: '#6366f1' }} />
-                      Completado
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="paused">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <ScheduleIcon sx={{ fontSize: '16px', color: '#f59e0b' }} />
-                      Pausado
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="cancelled">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <CancelIcon sx={{ fontSize: '16px', color: '#ef4444' }} />
-                      Cancelado
-                    </Box>
-                  </MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} md={4}>
-              <Box sx={{ display: 'flex', gap: 2, justifyContent: { xs: 'center', md: 'flex-end' }, flexWrap: 'wrap' }}>
-                <Box
-                  sx={{
-                    px: 3,
-                    py: 1.5,
-                    borderRadius: '16px',
-                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.1))',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5,
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: '0 4px 16px rgba(16, 185, 129, 0.2)',
-                  }}
-                >
-                  <MenuBookIcon sx={{ color: '#10b981', fontSize: '20px' }} />
-                  <Box>
-                    <Typography variant="body2" sx={{ color: '#10b981', fontWeight: 700, fontSize: '1.1rem' }}>
-                      {filteredMangas.length}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'rgba(16, 185, 129, 0.8)', fontWeight: 500 }}>
-                      Series
-                    </Typography>
-                  </Box>
-                </Box>
-                
-                <Box
-                  sx={{
-                    px: 3,
-                    py: 1.5,
-                    borderRadius: '16px',
-                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.1))',
-                    border: '1px solid rgba(99, 102, 241, 0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5,
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: '0 4px 16px rgba(99, 102, 241, 0.2)',
-                  }}
-                >
-                  <AssignmentIcon sx={{ color: '#6366f1', fontSize: '20px' }} />
-                  <Box>
-                    <Typography variant="body2" sx={{ color: '#6366f1', fontWeight: 700, fontSize: '1.1rem' }}>
-                      {assignments.length}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'rgba(99, 102, 241, 0.8)', fontWeight: 500 }}>
-                      Asignaciones
-                    </Typography>
-                  </Box>
-                </Box>
+                },
+              },
+            }}
+          >
+            <MenuItem value="all">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <FilterIcon sx={{ fontSize: 16, color: '#7d8190' }} />
+                Todos
               </Box>
-            </Grid>
-          </Grid>
-        </Box>
-      </Card>
+            </MenuItem>
+            <MenuItem value="active">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box className="sm-status-dot sm-status-dot--active" />
+                Activo
+              </Box>
+            </MenuItem>
+            <MenuItem value="completed">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box className="sm-status-dot sm-status-dot--completed" />
+                Completado
+              </Box>
+            </MenuItem>
+            <MenuItem value="paused">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box className="sm-status-dot sm-status-dot--progress" />
+                Pausado
+              </Box>
+            </MenuItem>
+            <MenuItem value="cancelled">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', boxShadow: '0 0 8px rgba(239,68,85,0.4)' }} />
+                Cancelado
+              </Box>
+            </MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
 
-      {/* Content - Series Management */}
+      {/* ── Content ── */}
       {filteredMangas.length === 0 ? (
-          <Card sx={{ p: 4, textAlign: 'center' }}>
-            <MenuBookIcon sx={{ fontSize: '4rem', color: 'text.secondary', mb: 2 }} />
-            <Typography variant="h6" color="text.secondary">
+          <Box sx={{
+            p: 6, textAlign: 'center',
+            borderRadius: '16px',
+            background: 'rgba(20,21,27,0.72)',
+            backdropFilter: 'blur(24px)',
+            border: '1px solid rgba(255,255,255,0.07)',
+          }}>
+            <MenuBookIcon sx={{ fontSize: 48, color: '#7d8190', mb: 2 }} />
+            <Typography variant="h6" sx={{ color: '#7d8190', fontWeight: 500 }}>
               {searchTerm || statusFilter !== 'all' ? 
                 'No se encontraron series que coincidan con los filtros' : 
                 'No hay series disponibles'
               }
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {!searchTerm && statusFilter === 'all' && 
-                'Las series aparecerán aquí cuando sean creadas desde el panel de administración'
-              }
-            </Typography>
-          </Card>
+            {!searchTerm && statusFilter === 'all' && (
+              <Typography variant="body2" sx={{ color: '#7d8190', mt: 1, opacity: 0.7 }}>
+                Las series aparecerán aquí cuando sean creadas desde el panel de administración
+              </Typography>
+            )}
+          </Box>
         ) : (
-          filteredMangas.map((manga, index) => {
+          filteredMangas.map((manga) => {
             const isExpanded = expandedSeries[manga.id];
             const stats = getAssignmentStats(manga);
             const statusConfig = MANGA_STATUS[manga.status] || MANGA_STATUS.active;
@@ -3332,30 +3132,28 @@ const SeriesManagement = () => {
             return (
               <Card
                 key={manga.id}
-                className="hover-glow"
+                className="series-card"
                 sx={{
-                  mb: 3,
-                  background: 'rgba(15, 15, 25, 0.8)',
-                  backdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(148, 163, 184, 0.1)',
-                  borderRadius: '16px',
+                  mb: 2,
+                  background: 'rgba(20, 21, 27, 0.72)',
+                  backdropFilter: 'blur(24px)',
+                  border: '1px solid rgba(255,255,255,0.07)',
+                  borderRadius: '14px',
                   overflow: 'hidden',
-                  animation: `fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.1}s both`,
-                  // Mobile responsive fixes
                   width: '100%',
-                  maxWidth: { xs: 'calc(100vw - 16px)', sm: '100%' },
-                  mx: { xs: 0, sm: 'auto' },
                 }}
               >
                 <CardContent sx={{ p: 0 }}>
                   {/* Manga Header */}
                   <Box 
                     sx={{ 
-                      p: 3,
+                      p: { xs: 2, md: 2.5 },
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 3,
+                      gap: 2.5,
+                      transition: 'background-color 200ms ease',
+                      '&:hover': { backgroundColor: 'rgba(106,158,255,0.03)' },
                     }}
                     onClick={() => handleToggleExpand(manga.id)}
                   >
@@ -3365,189 +3163,156 @@ const SeriesManagement = () => {
                         component="img"
                         src={manga.coverImage}
                         alt={manga.title}
+                        className="sm-cover"
                         sx={{
-                          width: 80,
-                          height: 120,
+                          width: { xs: 56, md: 68 },
+                          height: { xs: 80, md: 96 },
                           objectFit: 'cover',
                           borderRadius: '8px',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                          flexShrink: 0,
                         }}
                       />
                     ) : (
                       <Box
+                        className="sm-cover"
                         sx={{
-                          width: 80,
-                          height: 120,
+                          width: { xs: 56, md: 68 },
+                          height: { xs: 80, md: 96 },
                           borderRadius: '8px',
-                          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                          background: 'rgba(106,158,255,0.12)',
+                          border: '1px solid rgba(106,158,255,0.15)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: 'white',
-                          fontWeight: 600,
+                          flexShrink: 0,
                         }}
                       >
-                        <BookIcon sx={{ fontSize: '2rem' }} />
+                        <BookIcon sx={{ fontSize: 28, color: '#6a9eff' }} />
                       </Box>
                     )}
 
                     {/* Info */}
-                    <Box sx={{ 
-                      flex: 1,
-                      minWidth: 0, // Fix flex shrink issue
-                      width: { xs: '100%', sm: 'auto' }
-                    }}>
-                      <Box sx={{ 
-                        display: 'flex', 
-                        flexDirection: { xs: 'column', sm: 'row' },
-                        alignItems: { xs: 'flex-start', sm: 'center' }, 
-                        gap: { xs: 1, sm: 2 }, 
-                        mb: 1,
-                        width: '100%'
-                      }}>
-                        <Typography 
-                          variant="h5" 
-                          fontWeight={700}
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
+                        <Typography
+                          variant="subtitle1"
                           sx={{
-                            fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' },
-                            wordBreak: 'break-word',
+                            fontWeight: 600,
+                            color: '#e2e4e9',
+                            fontSize: { xs: '0.95rem', md: '1.05rem' },
+                            lineHeight: 1.3,
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
-                            lineHeight: 1.2,
-                            width: { xs: '100%', sm: 'auto' }
+                            whiteSpace: 'nowrap',
+                            maxWidth: { xs: 180, sm: 'none' },
                           }}
                         >
                           {manga.title}
                         </Typography>
-                        {/* Botón de Drive general - solo para jefes y admins */}
-                        {(userProfile?.role === 'admin' || userProfile?.role === 'jefe_editor' || userProfile?.role === 'jefe_traductor') && manga.driveLink && (
-                          <Button
-                            size="small"
-                            startIcon={<LinkIcon />}
-                            href={manga.driveLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            sx={{
-                              minWidth: 'auto',
-                              px: 1.5,
-                              py: 0.5,
-                              fontSize: '0.75rem',
-                              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                              color: '#3b82f6',
-                              border: '1px solid rgba(59, 130, 246, 0.3)',
-                              '&:hover': {
-                                backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                                borderColor: 'rgba(59, 130, 246, 0.5)',
-                              },
-                              textTransform: 'none',
-                              fontWeight: 500,
-                            }}
-                          >
-                            Drive General
-                          </Button>
-                        )}
-                      </Box>
-                      
-                      {manga.author && (
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                          Por: {manga.author}
-                        </Typography>
-                      )}
-                      
-                      <Box sx={{ 
-                        display: 'flex', 
-                        flexWrap: 'wrap',
-                        gap: { xs: 1, sm: 2 }, 
-                        mb: 2,
-                        width: '100%'
-                      }}>
                         <Chip
                           label={statusConfig.label}
                           size="small"
-                          sx={{ 
-                            bgcolor: `${statusConfig.color}20`, 
+                          className="sm-chip"
+                          sx={{
+                            height: 22,
+                            fontSize: '0.7rem',
+                            fontWeight: 500,
+                            bgcolor: `${statusConfig.color}15`,
                             color: statusConfig.color,
-                            fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                            height: { xs: 24, sm: 28 },
-                            maxWidth: { xs: '48%', sm: 'none' }
+                            border: `1px solid ${statusConfig.color}25`,
                           }}
                         />
                         {manga.isJoint && (
                           <Chip
-                            label={`Joint con ${manga.jointPartner || 'Otro grupo'}`}
+                            label={`Joint · ${manga.jointPartner || 'Otro grupo'}`}
                             size="small"
-                            sx={{ 
-                              bgcolor: 'rgba(147, 51, 234, 0.1)', 
-                              color: '#9333ea',
-                              fontWeight: 600,
-                              fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                              height: { xs: 24, sm: 28 },
-                              maxWidth: { xs: '100%', sm: 'none' },
-                              '& .MuiChip-label': {
-                                padding: { xs: '0 6px', sm: '0 12px' }
-                              }
+                            className="sm-chip"
+                            sx={{
+                              height: 22,
+                              fontSize: '0.7rem',
+                              fontWeight: 500,
+                              bgcolor: 'rgba(147,51,234,0.1)',
+                              color: '#a78bfa',
+                              border: '1px solid rgba(147,51,234,0.2)',
                             }}
                           />
                         )}
-                        <Chip
-                          label={`${stats.totalAssignments} asignaciones`}
-                          size="small"
-                          sx={{ 
-                            bgcolor: 'rgba(59, 130, 246, 0.1)', 
-                            color: '#3b82f6',
-                            fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                            height: { xs: 24, sm: 28 },
-                            maxWidth: { xs: '48%', sm: 'none' }
-                          }}
-                        />
-                        <Chip
-                          label={`${stats.totalChapters} capítulos`}
-                          size="small"
-                          sx={{ 
-                            bgcolor: 'rgba(16, 185, 129, 0.1)', 
-                            color: '#10b981',
-                            fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                            height: { xs: 24, sm: 28 },
-                            maxWidth: { xs: '48%', sm: 'none' }
-                          }}
-                        />
+                        {(userProfile?.role === 'admin' || userProfile?.role === 'jefe_editor' || userProfile?.role === 'jefe_traductor') && manga.driveLink && (
+                          <Button
+                            size="small"
+                            className="sm-btn"
+                            startIcon={<LinkIcon sx={{ fontSize: '14px !important' }} />}
+                            href={manga.driveLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            sx={{
+                              minWidth: 'auto',
+                              px: 1,
+                              py: 0.25,
+                              fontSize: '0.7rem',
+                              height: 22,
+                              backgroundColor: 'rgba(106,158,255,0.08)',
+                              color: '#6a9eff',
+                              border: '1px solid rgba(106,158,255,0.15)',
+                              borderRadius: '6px',
+                              textTransform: 'none',
+                              fontWeight: 500,
+                              '&:hover': { backgroundColor: 'rgba(106,158,255,0.15)' },
+                            }}
+                          >
+                            Drive
+                          </Button>
+                        )}
+                      </Box>
+
+                      {manga.author && (
+                        <Typography variant="caption" sx={{ color: '#7d8190', display: 'block', mb: 1 }}>
+                          {manga.author}
+                        </Typography>
+                      )}
+
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                        <Typography variant="caption" sx={{ color: '#7d8190' }}>
+                          <Box component="span" sx={{ color: '#6a9eff', fontWeight: 600 }}>{stats.totalChapters}</Box> caps
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#7d8190' }}>
+                          <Box component="span" sx={{ color: '#6a9eff', fontWeight: 600 }}>{stats.totalAssignments}</Box> asignaciones
+                        </Typography>
+                        {stats.total > 0 && (
+                          <Typography variant="caption" sx={{ color: '#7d8190' }}>
+                            <Box component="span" sx={{ color: '#10b981', fontWeight: 600 }}>{stats.completed}</Box>/{stats.total} completados
+                          </Typography>
+                        )}
                       </Box>
 
                       {stats.total > 0 && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="body2" color="textSecondary">
-                            Progreso: {stats.completed}/{stats.total}
-                          </Typography>
+                        <Box className="sm-progress-track" sx={{ mt: 1.5 }}>
                           <Box
-                            sx={{
-                              flex: 1,
-                              height: 6,
-                              bgcolor: 'rgba(148, 163, 184, 0.2)',
-                              borderRadius: 3,
-                              overflow: 'hidden',
-                            }}
-                          >
-                            <Box
-                              sx={{
-                                width: `${stats.progress}%`,
-                                height: '100%',
-                                background: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
-                                transition: 'width 0.3s ease',
-                              }}
-                            />
-                          </Box>
+                            className="sm-progress-fill"
+                            sx={{ width: `${stats.progress}%` }}
+                          />
                         </Box>
                       )}
                     </Box>
 
-                    <IconButton>
-                      {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    <IconButton size="small" sx={{ color: '#7d8190', ml: 1 }}>
+                      <ExpandMoreIcon
+                        className={`sm-expand-icon ${isExpanded ? 'sm-expand-icon--open' : ''}`}
+                      />
                     </IconButton>
                   </Box>
 
                   {/* Assignments Table */}
-                  <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                    <Box sx={{ px: 3, pb: 3 }}>
+                  <Collapse in={isExpanded} timeout={300} unmountOnExit easing={{
+                    enter: 'cubic-bezier(0.23, 1, 0.32, 1)',
+                    exit: 'cubic-bezier(0.23, 1, 0.32, 1)',
+                  }}>
+                    <Box sx={{
+                      px: { xs: 2, md: 2.5 },
+                      pb: 2.5,
+                      borderTop: '1px solid rgba(255,255,255,0.05)',
+                    }}>
                       <AssignmentsTable
                         manga={manga}
                         assignments={assignments}
@@ -3605,8 +3370,16 @@ const SeriesManagement = () => {
         onClose={() => setUnavailableTextDialog({ open: false, manga: null, chapter: null, taskType: null, currentText: '' })}
         maxWidth="sm" 
         fullWidth
+        PaperProps={{
+          sx: {
+            background: 'rgba(20,21,27,0.96)',
+            backdropFilter: 'blur(24px)',
+            border: '1px solid rgba(255,255,255,0.07)',
+            borderRadius: '14px',
+          }
+        }}
       >
-        <DialogTitle>
+        <DialogTitle sx={{ color: '#e2e4e9', fontWeight: 600, fontSize: '1.1rem' }}>
           Editar texto personalizado
         </DialogTitle>
         <DialogContent>
@@ -3629,10 +3402,11 @@ const SeriesManagement = () => {
             sx={{ mt: 1 }}
           />
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button 
             onClick={() => setUnavailableTextDialog({ open: false, manga: null, chapter: null, taskType: null, currentText: '' })}
-            color="inherit"
+            className="sm-btn"
+            sx={{ color: '#7d8190', textTransform: 'none', fontWeight: 500 }}
           >
             Cancelar
           </Button>
@@ -3641,7 +3415,15 @@ const SeriesManagement = () => {
               handleSaveUnavailableText(unavailableTextDialog.currentText);
               setUnavailableTextDialog({ open: false, manga: null, chapter: null, taskType: null, currentText: '' });
             }}
+            className="sm-btn"
             variant="contained"
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: '8px',
+              backgroundColor: '#6a9eff',
+              '&:hover': { backgroundColor: '#5b8de6' },
+            }}
           >
             Guardar
           </Button>
@@ -3651,13 +3433,21 @@ const SeriesManagement = () => {
       {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={6000}
+        autoHideDuration={4000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Alert 
           onClose={() => setSnackbar({ ...snackbar, open: false })} 
           severity={snackbar.severity}
-          sx={{ width: '100%' }}
+          variant="filled"
+          sx={{
+            width: '100%',
+            borderRadius: '10px',
+            fontWeight: 500,
+            fontSize: '0.875rem',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          }}
         >
           {snackbar.message}
         </Alert>

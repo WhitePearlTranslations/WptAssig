@@ -794,8 +794,8 @@ const Assignments = () => {
 
   const getTaskColor = (task) => {
     switch (task) {
-      case 'traduccion': return { color: '#6366f1', bg: 'rgba(99, 102, 241, 0.1)' };
-      case 'proofreading': return { color: '#ec4899', bg: 'rgba(236, 72, 153, 0.1)' };
+      case 'traduccion': return { color: '#6a9eff', bg: 'rgba(106, 158, 255, 0.1)' };
+      case 'proofreading': return { color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.1)' };
       case 'cleanRedrawer': return { color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)' };
       case 'type': return { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)' };
       default: return { color: '#6b7280', bg: 'rgba(107, 114, 128, 0.1)' };
@@ -1112,20 +1112,17 @@ const Assignments = () => {
         justifyContent: 'space-between', 
         alignItems: 'center', 
         mb: 4,
-        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%)',
         p: 3,
         borderRadius: 3,
-        border: '1px solid rgba(99, 102, 241, 0.2)'
+        border: '1px solid rgba(255, 255, 255, 0.06)'
       }}>
         <Box>
           <Typography 
             variant="h3" 
             sx={{ 
               fontWeight: 700,
-              background: 'linear-gradient(135deg, #6366f1 0%, #ec4899 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
+              color: '#e2e4e9',
+              letterSpacing: '-0.01em',
               mb: 1
             }}
           >
@@ -1151,10 +1148,10 @@ const Assignments = () => {
                 onClick={handleSyncAssignments}
                 disabled={syncLoading || assignmentsLoading}
                 sx={{
-                  backgroundColor: syncLoading ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.1)',
-                  color: '#6366f1',
+                  backgroundColor: syncLoading ? 'rgba(106, 158, 255, 0.2)' : 'rgba(106, 158, 255, 0.1)',
+                  color: '#6a9eff',
                   '&:hover': {
-                    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                    backgroundColor: 'rgba(106, 158, 255, 0.2)',
                     transform: syncLoading ? 'none' : 'scale(1.05)'
                   },
                   '&:disabled': {
@@ -1213,12 +1210,11 @@ const Assignments = () => {
               startIcon={<Add />}
               onClick={() => handleOpenAssignmentDialog()}
               sx={{
-                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                boxShadow: '0 8px 32px rgba(99, 102, 241, 0.3)',
+                backgroundColor: '#6a9eff',
+                boxShadow: 'none',
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #5b21b6, #7c3aed)',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 12px 40px rgba(99, 102, 241, 0.4)',
+                  backgroundColor: '#5a8eef',
+                  boxShadow: '0 2px 8px rgba(106, 158, 255, 0.25)',
                 }
               }}
             >
@@ -1231,9 +1227,8 @@ const Assignments = () => {
       {/* Filtros */}
       <Card sx={{ 
         mb: 4,
-        background: 'rgba(15, 15, 25, 0.8)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(148, 163, 184, 0.1)'
+        background: '#17181d',
+        border: '1px solid rgba(255, 255, 255, 0.1)'
       }}>
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
@@ -1362,10 +1357,10 @@ const Assignments = () => {
                         fontSize: '0.75rem',
                         ...(option.profileImage || option.photoURL || option.avatar) && {
                           bgcolor: 'transparent',
-                          border: `2px solid #6366f160`,
+                          border: `2px solid #6a9eff60`,
                         },
                         ...(!(option.profileImage || option.photoURL || option.avatar)) && {
-                          bgcolor: option.uid ? '#6366f1' : '#6b7280',
+                          bgcolor: option.uid ? '#6a9eff' : '#6b7280',
                           color: 'white',
                           fontWeight: 700,
                         }
@@ -1413,9 +1408,9 @@ const Assignments = () => {
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ 
-            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+            backgroundColor: '#6a9eff',
             color: 'white',
-            boxShadow: '0 8px 32px rgba(99, 102, 241, 0.3)'
+            boxShadow: 'none'
           }}>
             <CardContent>
               <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
@@ -1492,17 +1487,16 @@ const Assignments = () => {
               <Card 
                 sx={{ 
                   height: '100%',
-                  background: 'rgba(15, 15, 25, 0.8)',
-                  backdropFilter: 'blur(20px)',
+                  background: '#17181d',
                   border: isOverdue ? '2px solid #ef4444' : 
                           groupStatus === 'completado' ? '2px solid #10b981' :
                           groupStatus === 'en_progreso' ? '2px solid #f59e0b' :
-                          '1px solid rgba(148, 163, 184, 0.1)',
+                          '1px solid rgba(255, 255, 255, 0.1)',
                   borderRadius: 3,
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   '&:hover': {
-                    transform: 'translateY(-8px)',
-                    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
+                    borderColor: 'rgba(255, 255, 255, 0.12)',
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
                   },
                   position: 'relative',
                   overflow: 'hidden',
@@ -1531,9 +1525,9 @@ const Assignments = () => {
                           height: 48,
                           fontSize: '1rem',
                           ...(userAvatar ? {
-                            border: '3px solid rgba(99, 102, 241, 0.3)',
+                            border: '3px solid rgba(106, 158, 255, 0.3)',
                           } : {
-                            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                            backgroundColor: '#6a9eff',
                             color: 'white',
                             fontWeight: 700
                           })
@@ -1555,7 +1549,7 @@ const Assignments = () => {
                       color="primary"
                       sx={{
                         '& .MuiBadge-badge': {
-                          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                          backgroundColor: '#6a9eff',
                           fontWeight: 600
                         }
                       }}
@@ -1573,7 +1567,7 @@ const Assignments = () => {
                       label={`Capítulo ${group.chapter}`} 
                       size="small"
                       sx={{
-                        background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                        backgroundColor: '#6a9eff',
                         color: 'white',
                         fontWeight: 500
                       }}
@@ -1637,7 +1631,7 @@ const Assignments = () => {
                       sx={{
                         height: 8,
                         borderRadius: 4,
-                        backgroundColor: 'rgba(148, 163, 184, 0.2)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.2)',
                         '& .MuiLinearProgress-bar': {
                           borderRadius: 4,
                           background: overallProgress === 100 ? 'linear-gradient(90deg, #10b981, #059669)' :
@@ -1673,8 +1667,8 @@ const Assignments = () => {
                               size="small"
                               onClick={() => handleOpenDialog(assignment)}
                               sx={{
-                                backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                                '&:hover': { backgroundColor: 'rgba(99, 102, 241, 0.2)' }
+                                backgroundColor: 'rgba(106, 158, 255, 0.1)',
+                                '&:hover': { backgroundColor: 'rgba(106, 158, 255, 0.2)' }
                               }}
                             >
                               <Edit sx={{ fontSize: '1rem' }} />
@@ -1764,9 +1758,8 @@ const Assignments = () => {
         <Card sx={{ 
           textAlign: 'center', 
           py: 8,
-          background: 'rgba(15, 15, 25, 0.8)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(148, 163, 184, 0.1)'
+          background: '#17181d',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
           <Assignment sx={{ fontSize: '4rem', color: 'text.secondary', mb: 2 }} />
           <Typography variant="h5" color="text.secondary" sx={{ mb: 1 }}>
@@ -2048,9 +2041,9 @@ const Assignments = () => {
               height: 40,
               fontSize: '0.9rem',
               ...(detailsDialog.group && getUserAvatar(detailsDialog.group.assignedTo) ? {
-                border: '2px solid rgba(99, 102, 241, 0.3)',
+                border: '2px solid rgba(106, 158, 255, 0.3)',
               } : {
-                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
                 color: 'white',
                 fontWeight: 700
               })
@@ -2075,8 +2068,8 @@ const Assignments = () => {
               {/* Información general */}
               <Grid item xs={12} md={6}>
                 <Card sx={{ 
-                  background: 'rgba(99, 102, 241, 0.05)',
-                  border: '1px solid rgba(99, 102, 241, 0.2)'
+                  background: 'rgba(106, 158, 255, 0.05)',
+                  border: '1px solid rgba(106, 158, 255, 0.2)'
                 }}>
                   <CardContent>
                     <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
@@ -2096,7 +2089,7 @@ const Assignments = () => {
                         label={`Capítulo ${detailsDialog.group.chapter}`}
                         size="small"
                         sx={{
-                          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                          background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
                           color: 'white',
                           fontWeight: 500
                         }}
@@ -2145,7 +2138,7 @@ const Assignments = () => {
                             flex: 1,
                             height: 8,
                             borderRadius: 4,
-                            backgroundColor: 'rgba(148, 163, 184, 0.2)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
                             '& .MuiLinearProgress-bar': {
                               borderRadius: 4,
                               background: getOverallProgress(detailsDialog.group.assignments) === 100 ? 
@@ -2277,7 +2270,7 @@ const Assignments = () => {
                                   sx={{
                                     height: 6,
                                     borderRadius: 3,
-                                    backgroundColor: 'rgba(148, 163, 184, 0.2)',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
                                     '& .MuiLinearProgress-bar': {
                                       borderRadius: 3,
                                       background: (assignment.progress || 0) === 100 ? 
@@ -2337,8 +2330,7 @@ const Assignments = () => {
             background: (theme) => theme.palette.mode === 'dark' 
               ? 'rgba(30, 30, 40, 0.98)' 
               : 'rgba(255, 255, 255, 0.98)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(148, 163, 184, 0.2)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
             borderRadius: 2,
             margin: '32px auto',
             position: 'relative'
@@ -2346,8 +2338,7 @@ const Assignments = () => {
         }}
       >
         <DialogTitle sx={{ 
-          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(236, 72, 153, 0.08) 100%)',
-          borderBottom: '1px solid rgba(148, 163, 184, 0.2)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
           py: 3
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -2676,7 +2667,7 @@ const Assignments = () => {
           </Grid>
         </DialogContent>
         
-        <DialogActions sx={{ p: 3, borderTop: '1px solid rgba(148, 163, 184, 0.1)' }}>
+        <DialogActions sx={{ p: 3, borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
           <Button 
             onClick={handleCloseAssignmentDialog}
             variant="outlined"
@@ -2689,12 +2680,12 @@ const Assignments = () => {
             variant="contained"
             disabled={!newAssignmentForm.mangaId || !newAssignmentForm.chapter}
             sx={{
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              backgroundColor: '#6a9eff',
               '&:hover': {
-                background: 'linear-gradient(135deg, #5b21b6, #7c3aed)'
+                backgroundColor: '#5a8eef'
               },
               '&:disabled': {
-                background: 'rgba(107, 114, 128, 0.3)',
+                backgroundColor: 'rgba(107, 114, 128, 0.3)',
                 color: 'rgba(255, 255, 255, 0.5)'
               }
             }}
@@ -2719,7 +2710,6 @@ const Assignments = () => {
             background: (theme) => theme.palette.mode === 'dark' 
               ? 'rgba(30, 30, 40, 0.98)' 
               : 'rgba(255, 255, 255, 0.98)',
-            backdropFilter: 'blur(20px)',
             border: '2px solid #ef4444',
             borderRadius: 3
           }
@@ -2775,7 +2765,7 @@ const Assignments = () => {
                     label={`Capítulo ${chapterCompletedDialog.chapter}`}
                     size="small"
                     sx={{
-                      background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                      background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
                       color: 'white',
                       fontWeight: 500
                     }}
@@ -2836,9 +2826,9 @@ const Assignments = () => {
             }}
             variant="contained"
             sx={{
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              backgroundColor: '#6a9eff',
               '&:hover': {
-                background: 'linear-gradient(135deg, #5b21b6, #7c3aed)'
+                backgroundColor: '#5a8eef'
               }
             }}
           >

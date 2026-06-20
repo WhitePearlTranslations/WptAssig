@@ -1,6 +1,5 @@
 import React from 'react';
-import { Box, Typography, Fade, Skeleton } from '@mui/material';
-import { Book } from '@mui/icons-material';
+import { Box, Typography, Fade } from '@mui/material';
 import { useSystemConfig } from '../hooks/useSystemConfig';
 
 const SystemFooter = ({ sx = {}, showCopyright = true, size = 'medium' }) => {
@@ -36,117 +35,31 @@ const SystemFooter = ({ sx = {}, showCopyright = true, size = 'medium' }) => {
   const currentSize = sizeStyles[size] || sizeStyles.medium;
 
   return (
-    <Fade in timeout={800}>
+    <Fade in timeout={600}>
       <Box
         sx={{
           display: 'flex',
-          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
+          gap: 1,
           py: currentSize.py,
-          px: 3,
-          mt: 4,
-          borderTop: '1px solid',
-          borderColor: 'divider',
-          backgroundColor: 'rgba(15, 15, 25, 0.3)',
-          backdropFilter: 'blur(10px)',
-          borderRadius: '12px 12px 0 0',
+          px: 2,
+          mt: 3,
+          borderTop: '1px solid rgba(255, 255, 255, 0.04)',
           ...sx
         }}
       >
-        {/* Logo y nombre del sistema */}
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: currentSize.gap,
-            mb: 1
-          }}
-        >
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              position: 'relative'
-            }}
-          >
-            <img 
-              src="/logo.webp" 
-              alt="WPTAssig Logo" 
-              style={{
-                width: currentSize.logo.width,
-                height: currentSize.logo.height,
-                objectFit: 'cover',
-                borderRadius: '4px'
-              }}
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'block';
-              }}
-            />
-            <Book 
-              sx={{ 
-                color: 'primary.main', 
-                fontSize: currentSize.logo.fontSize, 
-                display: 'none' 
-              }} 
-            />
-          </Box>
-          
-          {loading ? (
-            <Skeleton width={100} height={currentSize.name.fontSize} />
-          ) : (
-            <Typography
-              variant="h6"
-              sx={{
-                fontWeight: 700,
-                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                fontSize: currentSize.name.fontSize,
-                letterSpacing: '0.05em'
-              }}
-            >
-              {systemName}
-            </Typography>
-          )}
-          
-          {loading ? (
-            <Skeleton width={60} height={currentSize.version.fontSize} />
-          ) : (
-            <Typography
-              variant="body2"
-              sx={{
-                color: 'text.secondary',
-                fontWeight: 500,
-                fontSize: currentSize.version.fontSize,
-                px: 1.5,
-                py: 0.5,
-                bgcolor: 'rgba(99, 102, 241, 0.1)',
-                border: '1px solid rgba(99, 102, 241, 0.2)',
-                borderRadius: '12px',
-                lineHeight: 1
-              }}
-            >
-              ver. {systemVersion}
-            </Typography>
-          )}
-        </Box>
-
-        {/* Copyright */}
         {showCopyright && (
           <Typography
             variant="caption"
             sx={{
-              color: 'text.secondary',
+              color: '#7d8190',
               fontSize: currentSize.copyright.fontSize,
               textAlign: 'center',
-              opacity: 0.8,
-              fontWeight: 400
+              fontWeight: 400,
             }}
           >
-            © {new Date().getFullYear()} WhitePearl Translations. Todos los derechos reservados
+            © {new Date().getFullYear()} {loading ? 'White Pearl Translation' : systemName}
           </Typography>
         )}
       </Box>
