@@ -64,6 +64,12 @@ export const STATUS_CONFIG = {
     ...tone(colors.error),
     icon: <WarningIcon />
   },
+  // Devuelto por un jefe: espera que la persona lo rehaga (Rojo Espera)
+  rechazado: {
+    label: 'Rechazado',
+    ...tone(colors.error),
+    icon: <WarningIcon />
+  },
   [ASSIGNMENT_STATUS.UPLOADED]: {
     label: 'Subido',
     ...tone(colors.goodNews),
