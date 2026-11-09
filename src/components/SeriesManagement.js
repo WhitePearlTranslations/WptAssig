@@ -2,10 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './SeriesManagement.css';
 import {
   Box,
-  Container,
   Typography,
-  Card,
-  CardContent,
   Table,
   TableBody,
   TableCell,
@@ -13,7 +10,6 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Chip,
   Button,
   IconButton,
   Collapse,
@@ -29,242 +25,76 @@ import {
   FormControl,
   InputLabel,
   Grid,
-  LinearProgress,
   CircularProgress,
   Alert,
-  Fab,
   Snackbar,
   DialogContentText,
-  Tabs,
-  Tab,
   Autocomplete,
-  ListItemText,
-  ListItemAvatar,
+  ButtonBase,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Person as PersonIcon,
-  Schedule as ScheduleIcon,
   CheckCircle as CheckCircleIcon,
-  Warning as WarningIcon,
-  Assignment as AssignmentIcon,
   Book as BookIcon,
-  CalendarToday as CalendarIcon,
   Link as LinkIcon,
-  Save as SaveIcon,
-  Cancel as CancelIcon,
   Search as SearchIcon,
-  Filter as FilterIcon,
-  Refresh as RefreshIcon,
   MenuBook as MenuBookIcon,
   PlaylistAdd as PlaylistAddIcon,
   Work as WorkIcon,
   AccountCircle as AccountCircleIcon,
   CloudUpload as CloudUploadIcon,
-  Download as DownloadIcon,
   Upload as UploadIcon,
 } from '@mui/icons-material';
 import { realtimeService } from '../services/realtimeService';
 import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { getUniqueUsers } from '../utils/cleanDuplicateUsers';
-import { formatLocalDate, isoStringToDateInput, dateInputToISOString } from '../utils/dateUtils';
+import { isoStringToDateInput, dateInputToISOString } from '../utils/dateUtils';
+import { ASSIGNMENT_TYPES, ROLE_LABELS } from '../utils/constants';
+import { PageHeader, Panel, MeterBar, EmptyState, StatusBadge } from './ui';
+import { triggerHaptic } from '../hooks/useWebHaptics';
+import { colors, radius, rowDivider, focusOutline, withAlpha } from '../theme/tokens';
 
 // Estados y configuraciones
-const ASSIGNMENT_STATUS = {
-  PENDIENTE: 'pendiente',
-  EN_PROGRESO: 'en_progreso',
-  COMPLETADO: 'completado',
-  RETRASADO: 'retrasado',
-  SIN_ASIGNAR: 'sin_asignar',
-  UPLOADED: 'uploaded'
-};
-
-const STATUS_CONFIG = {
-  [ASSIGNMENT_STATUS.PENDIENTE]: {
-    label: 'Pendiente',
-    color: '#6b7280',
-    bgColor: 'rgba(107, 114, 128, 0.1)',
-    icon: <AssignmentIcon />
-  },
-  [ASSIGNMENT_STATUS.EN_PROGRESO]: {
-    label: 'En Progreso',
-    color: '#3b82f6',
-    bgColor: 'rgba(59, 130, 246, 0.1)',
-    icon: <ScheduleIcon />
-  },
-  [ASSIGNMENT_STATUS.COMPLETADO]: {
-    label: 'Completado',
-    color: '#10b981',
-    bgColor: 'rgba(16, 185, 129, 0.1)',
-    icon: <CheckCircleIcon />
-  },
-  'aprobado': {
-    label: 'Aprobado',
-    color: '#10b981',
-    bgColor: 'rgba(16, 185, 129, 0.1)',
-    icon: <CheckCircleIcon />
-  },
-  'pendiente_aprobacion': {
-    label: 'Esperando Aprobación',
-    color: '#f59e0b',
-    bgColor: 'rgba(245, 158, 11, 0.1)',
-    icon: <ScheduleIcon />
-  },
-  [ASSIGNMENT_STATUS.RETRASADO]: {
-    label: 'Retrasado',
-    color: '#ef4444',
-    bgColor: 'rgba(239, 68, 68, 0.1)',
-    icon: <WarningIcon />
-  },
-  [ASSIGNMENT_STATUS.SIN_ASIGNAR]: {
-    label: 'Sin Asignar',
-    color: '#6b7280',
-    bgColor: 'rgba(107, 114, 128, 0.1)',
-    icon: <AssignmentIcon />
-  },
-  [ASSIGNMENT_STATUS.UPLOADED]: {
-    label: 'Subido',
-    color: '#3b82f6',
-    bgColor: 'rgba(59, 130, 246, 0.1)',
-    icon: <UploadIcon />
-  }
-};
-
-const ASSIGNMENT_TYPES = {
-  traduccion: { label: 'Traducción', color: '#6a9eff', short: 'T' },
-  proofreading: { label: 'Proofreading', color: '#a78bfa', short: 'P' },
-  cleanRedrawer: { label: 'Clean/Redrawer', color: '#10b981', short: 'C' },
-  type: { label: 'Typesetting', color: '#f59e0b', short: 'Ty' }
-};
-
+// Estados y tipos de tarea compartidos (src/utils/constants.js)
+// Estado de la serie. Cancelada/hiato no son urgentes: humo, no rojo.
 const MANGA_STATUS = {
-  active: { label: 'Activo', color: '#10b981' },
-  completed: { label: 'Completado', color: '#6a9eff' },
-  paused: { label: 'Pausado', color: '#f59e0b' },
-  cancelled: { label: 'Cancelado', color: '#ef4444' },
-  hiatus: { label: 'Hiato', color: '#6b7280' }
+  active: { label: 'Activa', color: colors.goodNews },
+  completed: { label: 'Completada', color: colors.primary },
+  paused: { label: 'Pausada', color: colors.attention },
+  cancelled: { label: 'Cancelada', color: colors.outline },
+  hiatus: { label: 'En hiato', color: colors.outline }
 };
 
 // Componente para mostrar información de asignación
 const AssignmentInfo = ({ assignment, users }) => {
-  if (!assignment) {
+  if (!assignment || !assignment.assignedTo || assignment.status === 'sin_asignar') {
     return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, opacity: 0.5 }}>
-        <AssignmentIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
-        <Typography variant="caption" color="text.secondary">
-          Sin asignar
-        </Typography>
-      </Box>
+      <Typography sx={{ fontSize: '0.75rem', color: colors.outline }}>Sin asignar</Typography>
     );
   }
 
-  // Buscar usuario por uid o id
   const assignedUser = users.find(u => (u.uid || u.id) === assignment.assignedTo);
-  const statusConfig = STATUS_CONFIG[assignment.status] || STATUS_CONFIG[ASSIGNMENT_STATUS.PENDIENTE];
   const typeConfig = ASSIGNMENT_TYPES[assignment.type] || ASSIGNMENT_TYPES.traduccion;
-
-  // Manejar caso de asignación sin usuario asignado
-  if (!assignment.assignedTo || assignment.status === 'sin_asignar') {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, opacity: 0.7 }}>
-        <Tooltip title={`${typeConfig.label}: Capítulo creado sin asignar`}>
-          <Avatar
-            sx={{
-              width: 28,
-              height: 28,
-              fontSize: '0.65rem',
-              bgcolor: `rgba(107, 114, 128, 0.1)`,
-              color: '#6b7280',
-              border: `1px solid rgba(107, 114, 128, 0.2)`,
-              fontWeight: 600,
-            }}
-          >
-            ?
-          </Avatar>
-        </Tooltip>
-        <Box>
-          <Typography variant="caption" sx={{ display: 'block', fontWeight: 500, color: 'text.secondary' }}>
-            Sin asignar
-          </Typography>
-          <Chip
-            size="small"
-            label="Sin Asignar"
-            sx={{
-              fontSize: '0.65rem',
-              height: 16,
-              backgroundColor: 'rgba(107, 114, 128, 0.1)',
-              color: '#6b7280',
-              '& .MuiChip-label': { px: 0.5 }
-            }}
-          />
-        </Box>
-      </Box>
-    );
-  }
-
-  // Usar el nombre almacenado en la asignación si no se encuentra el usuario
   const userName = assignedUser?.name || assignment.assignedToName || 'Usuario desconocido';
-  // Buscar imagen en múltiples campos posibles
   const userPhotoURL = assignedUser?.profileImage || assignedUser?.photoURL || assignedUser?.avatar;
 
-
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
       <Tooltip title={`${typeConfig.label}: ${userName}`}>
-        <Avatar
-          src={userPhotoURL} // Usar foto de perfil si está disponible
-          sx={{
-            width: 32,
-            height: 32,
-            fontSize: '0.75rem',
-            // Diseño cuando HAY foto
-            ...(userPhotoURL && {
-              bgcolor: 'transparent',
-              border: `2px solid ${typeConfig.color}60`,
-              boxShadow: '0 3px 12px rgba(0,0,0,0.15)',
-            }),
-            // Diseño cuando NO hay foto (mostrar iniciales)
-            ...(!userPhotoURL && {
-              bgcolor: typeConfig.color,
-              color: 'white',
-              border: `2px solid ${typeConfig.color}`,
-              boxShadow: `0 2px 8px ${typeConfig.color}40`,
-              background: `linear-gradient(135deg, ${typeConfig.color}, ${typeConfig.color}dd)`,
-            }),
-            fontWeight: 700,
-            letterSpacing: '0.5px',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            '&:hover': {
-              transform: 'scale(1.1)',
-              boxShadow: userPhotoURL 
-                ? '0 6px 20px rgba(0,0,0,0.25)' 
-                : `0 4px 16px ${typeConfig.color}60`,
-            }
-          }}
-        >
-          {/* Solo mostrar iniciales si no hay foto */}
+        <Avatar src={userPhotoURL || undefined} alt="" sx={{ width: 26, height: 26, fontSize: '0.6875rem', fontWeight: 700 }}>
           {!userPhotoURL && userName.substring(0, 2).toUpperCase()}
         </Avatar>
       </Tooltip>
-      <Box>
-        <Typography variant="caption" sx={{ display: 'block', fontWeight: 500 }}>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography noWrap sx={{ fontSize: '0.75rem', fontWeight: 500, color: colors.onSurface, lineHeight: 1.3 }}>
           {userName}
         </Typography>
-        <Chip
-          size="small"
-          label={statusConfig.label}
-          sx={{
-            fontSize: '0.65rem',
-            height: 16,
-            backgroundColor: statusConfig.bgColor,
-            color: statusConfig.color,
-            '& .MuiChip-label': { px: 0.5 }
-          }}
-        />
+        <StatusBadge status={assignment.status} sx={{ height: 18, px: 0.625, mt: 0.25 }} />
       </Box>
     </Box>
   );
@@ -368,23 +198,21 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
     <TableContainer 
       component={Paper} 
       sx={{ 
-        mb: 2,
-        mt: 1.5,
-        background: 'rgba(15, 16, 20, 0.5)',
-        border: '1px solid rgba(255,255,255,0.05)',
-        borderRadius: '10px',
-        boxShadow: 'none',
+        mb: 1,
+        mt: 1,
+        backgroundColor: colors.surfaceContainer,
+        borderRadius: `${radius.lg}px`,
       }}
     >
       <Table size="small">
         <TableHead>
-          <TableRow sx={{ '& th': { borderBottom: '1px solid rgba(255,255,255,0.06)', py: 1.5 } }}>
-            <TableCell sx={{ fontWeight: 600, color: '#a4abbf', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cap.</TableCell>
-            <TableCell sx={{ fontWeight: 600, color: '#a4abbf', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Traducción</TableCell>
-            <TableCell sx={{ fontWeight: 600, color: '#a4abbf', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Proofreading</TableCell>
-            <TableCell sx={{ fontWeight: 600, color: '#a4abbf', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Clean/Redraw</TableCell>
-            <TableCell sx={{ fontWeight: 600, color: '#a4abbf', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Typesetting</TableCell>
-            <TableCell sx={{ fontWeight: 600, color: '#a4abbf', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Acciones</TableCell>
+          <TableRow sx={{ '& th': { py: 1.25 } }}>
+            <TableCell >Cap.</TableCell>
+            <TableCell >Traducción</TableCell>
+            <TableCell >Proofreading</TableCell>
+            <TableCell >Clean/Redraw</TableCell>
+            <TableCell >Typesetting</TableCell>
+            <TableCell >Acciones</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -445,40 +273,38 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
             const hasWorkInProgress = assignedCount > 0 && !isChapterCompleted && !isChapterUploaded;
             
             
-            const rowColor = isChapterUploaded ? '#3b82f6' 
-              : isChapterCompleted ? '#10b981' 
-              : hasWorkInProgress ? '#f59e0b' 
+            // Estado del capítulo: el tono va en un punto junto al número (nada de franjas)
+            const rowColor = isChapterUploaded ? colors.goodNews
+              : isChapterCompleted ? colors.primary
+              : hasWorkInProgress ? colors.attention
               : null;
+            const rowLabel = isChapterUploaded ? 'Subido'
+              : isChapterCompleted ? 'Completado'
+              : hasWorkInProgress ? 'En curso'
+              : 'Sin empezar';
 
             return (
               <TableRow
                 key={chapter}
                 className="sm-table-row"
                 sx={{
-                  '& td': {
-                    borderBottom: '1px solid rgba(255,255,255,0.04)',
-                    py: 1.5,
-                    position: 'relative',
-                  },
-                  ...(rowColor && {
-                    backgroundColor: `${rowColor}08`,
-                    '& td:first-of-type::before': {
-                      content: '""',
-                      position: 'absolute',
-                      left: 0,
-                      top: 4,
-                      bottom: 4,
-                      width: '3px',
-                      backgroundColor: rowColor,
-                      borderRadius: '0 2px 2px 0',
-                    }
-                  }),
+                  '& td': { py: 1.25 },
+                  '&:last-of-type td': { borderBottom: 'none' },
                 }}
               >
                 <TableCell>
-                  <Typography fontWeight={600} color="text.primary" sx={{ fontSize: '0.875rem' }}>
-                    Capítulo {chapter}
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Tooltip title={rowLabel}>
+                      <Box
+                        component="span"
+                        aria-label={rowLabel}
+                        sx={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, backgroundColor: rowColor || colors.outlineVariant }}
+                      />
+                    </Tooltip>
+                    <Typography fontWeight={600} color="text.primary" sx={{ fontSize: '0.875rem', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                      Cap. {chapter}
+                    </Typography>
+                  </Box>
                 </TableCell>
                 
                 {/* Traducción */}
@@ -823,10 +649,7 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                           fontSize: '0.75rem', 
                           px: 1, 
                           py: 0.5,
-                          color: 'error.main',
-                          '&:hover': {
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)'
-                          }
+                          color: 'error.main'
                         }}
                       >
                         Eliminar Cap.
@@ -848,18 +671,8 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                             onMarkUploaded(assignment.id);
                           });
                         }}
-                        className="sm-btn"
-                        sx={{ 
-                          fontSize: '0.75rem', 
-                          px: 1, 
-                          py: 0.5,
-                          backgroundColor: '#a78bfa',
-                          color: 'white',
-                          borderRadius: '6px',
-                          '&:hover': {
-                            backgroundColor: '#7c3aed',
-                          }
-                        }}
+                        variant="outlined"
+                        sx={{ fontSize: '0.75rem', px: 1, py: 0.5 }}
                       >
                         Marcar Subido
                       </Button>
@@ -878,18 +691,7 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
                             onMarkNotUploaded(assignment.id);
                           });
                         }}
-                        className="sm-btn"
-                        sx={{ 
-                          fontSize: '0.75rem', 
-                          px: 1, 
-                          py: 0.5,
-                          backgroundColor: '#10b981',
-                          color: 'white',
-                          borderRadius: '6px',
-                          '&:hover': {
-                            backgroundColor: '#059669',
-                          }
-                        }}
+                        sx={{ fontSize: '0.75rem', px: 1, py: 0.5 }}
                       >
                         Desmarcar Subido
                       </Button>
@@ -1188,31 +990,11 @@ const AssignmentDialog = ({ open, onClose, assignment, manga, users, onSave, pre
               renderOption={(props, option) => (
                 <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1 }}>
                   <Avatar
-                    src={option.profileImage || option.photoURL || option.avatar}
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      fontSize: '0.75rem',
-                      // Diseño cuando HAY foto
-                      ...(option.profileImage || option.photoURL || option.avatar) && {
-                        bgcolor: 'transparent',
-                        border: `2px solid #6a9eff60`,
-                        boxShadow: '0 3px 12px rgba(0,0,0,0.15)',
-                      },
-                      // Diseño cuando NO hay foto (mostrar iniciales)
-                      ...(!(option.profileImage || option.photoURL || option.avatar)) && {
-                        bgcolor: option.uid ? '#6a9eff' : '#6b7280',
-                        color: 'white',
-                        border: `2px solid ${option.uid ? '#6a9eff' : '#6b7280'}`,
-                        boxShadow: `0 2px 8px ${option.uid ? '#6a9eff' : '#6b7280'}40`,
-                        background: `linear-gradient(135deg, ${option.uid ? '#6a9eff' : '#6b7280'}, ${option.uid ? '#6a9effdd' : '#6b7280dd'})`,
-                      },
-                      fontWeight: 700,
-                      letterSpacing: '0.5px',
-                    }}
+                    src={option.profileImage || option.photoURL || option.avatar || undefined}
+                    alt=""
+                    sx={{ width: 30, height: 30, fontSize: '0.6875rem', fontWeight: 700 }}
                   >
-                    {/* Solo mostrar iniciales si no hay foto */}
-                    {!(option.profileImage || option.photoURL || option.avatar) && option.name && 
+                    {!(option.profileImage || option.photoURL || option.avatar) && option.name &&
                      (option.uid ? option.name.substring(0, 2).toUpperCase() : '?')}
                   </Avatar>
                   <Box>
@@ -1221,7 +1003,7 @@ const AssignmentDialog = ({ open, onClose, assignment, manga, users, onSave, pre
                     </Typography>
                     {option.role && (
                       <Typography variant="caption" color="text.secondary">
-                        {option.role}
+                        {ROLE_LABELS[option.role] || option.role}
                       </Typography>
                     )}
                   </Box>
@@ -1239,25 +1021,7 @@ const AssignmentDialog = ({ open, onClose, assignment, manga, users, onSave, pre
                         src={assignableUsers.find(u => (u.uid || u.id) === formData.assignedTo)?.profileImage ||
                              assignableUsers.find(u => (u.uid || u.id) === formData.assignedTo)?.photoURL ||
                              assignableUsers.find(u => (u.uid || u.id) === formData.assignedTo)?.avatar}
-                        sx={{
-                          width: 24,
-                          height: 24,
-                          fontSize: '0.65rem',
-                          mr: 1,
-                          ...(assignableUsers.find(u => (u.uid || u.id) === formData.assignedTo)?.profileImage ||
-                              assignableUsers.find(u => (u.uid || u.id) === formData.assignedTo)?.photoURL ||
-                              assignableUsers.find(u => (u.uid || u.id) === formData.assignedTo)?.avatar) && {
-                            bgcolor: 'transparent',
-                            border: `1px solid #6a9eff60`,
-                          },
-                          ...(!(assignableUsers.find(u => (u.uid || u.id) === formData.assignedTo)?.profileImage ||
-                               assignableUsers.find(u => (u.uid || u.id) === formData.assignedTo)?.photoURL ||
-                               assignableUsers.find(u => (u.uid || u.id) === formData.assignedTo)?.avatar)) && {
-                            bgcolor: '#6a9eff',
-                            color: 'white',
-                            fontWeight: 700,
-                          }
-                        }}
+                        sx={{ width: 24, height: 24, fontSize: '0.625rem', fontWeight: 700, mr: 1 }}
                       >
                         {!(assignableUsers.find(u => (u.uid || u.id) === formData.assignedTo)?.profileImage ||
                            assignableUsers.find(u => (u.uid || u.id) === formData.assignedTo)?.photoURL ||
@@ -1339,483 +1103,6 @@ const AssignmentDialog = ({ open, onClose, assignment, manga, users, onSave, pre
   );
 };
 
-// Componente para mostrar un capítulo agrupado con todas sus tareas (del staff dashboard)
-const ChapterCard = ({ chapterGroup, userRole, onMarkComplete, onMarkUploaded }) => {
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'pending':
-      case 'pendiente':
-        return 'warning';
-      case 'in_progress':
-      case 'en_progreso':
-        return 'info';
-      case 'completed':
-      case 'completado':
-        return 'success';
-      case 'uploaded':
-        return 'primary';
-      default:
-        return 'default';
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'pending':
-      case 'pendiente':
-        return 'Pendiente';
-      case 'in_progress':
-      case 'en_progreso':
-        return 'En Progreso';
-      case 'completed':
-      case 'completado':
-        return 'Completado';
-      case 'uploaded':
-        return 'Subido';
-      default:
-        return 'Desconocido';
-    }
-  };
-
-  const canMarkComplete = (assignment) => {
-    return assignment.status === 'pending' || assignment.status === 'pendiente' || assignment.status === 'in_progress' || assignment.status === 'en_progreso';
-  };
-
-  const canMarkUploaded = (assignment) => {
-    return (userRole === ROLES.UPLOADER || userRole === ROLES.ADMIN) && (assignment.status === 'completed' || assignment.status === 'completado');
-  };
-
-  // Determinar si alguna tarea está atrasada
-  const hasOverdueTask = chapterGroup.assignments.some(assignment => 
-    assignment.dueDate && new Date(assignment.dueDate) < new Date() &&
-    (assignment.status === 'pending' || assignment.status === 'pendiente' || assignment.status === 'in_progress' || assignment.status === 'en_progreso')
-  );
-
-  // Calcular progreso general del capítulo
-  // Incluir tanto tareas completadas como aprobadas en el cálculo de progreso
-  const completedTasks = chapterGroup.assignments.filter(a => 
-    a.status === 'completed' || 
-    a.status === 'completado' || 
-    a.status === 'aprobado'
-  ).length;
-  const totalTasks = chapterGroup.assignments.length;
-  const chapterProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-  const isChapterCompleted = completedTasks === totalTasks;
-  
-  // Determinar si el capítulo está en progreso (algunas tareas completadas, otras pendientes)
-  const isChapterInProgress = totalTasks > 1 && completedTasks > 0 && completedTasks < totalTasks;
-
-  return (
-    <>
-      <Card 
-        sx={{ 
-          mb: 2,
-          border: hasOverdueTask ? '2px solid #ef4444' : 
-                  isChapterCompleted ? '2px solid #10b981' : 
-                  isChapterInProgress ? '2px solid #f59e0b' : 
-                  '1px solid rgba(255, 255, 255, 0.1)',
-          position: 'relative',
-          backgroundColor: hasOverdueTask ? 'inherit' :
-                          isChapterCompleted ? 'rgba(16, 185, 129, 0.05)' : 
-                          isChapterInProgress ? 'rgba(245, 158, 11, 0.05)' : 
-                          'inherit',
-          '&::before': hasOverdueTask ? {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '4px',
-            background: '#ef4444',
-          } : isChapterCompleted ? {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '4px',
-            background: '#10b981',
-          } : isChapterInProgress ? {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '4px',
-            background: '#f59e0b',
-          } : {},
-        }}
-      >
-        <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-            <Box sx={{ flex: 1 }}>
-              {/* Header del capítulo */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <BookIcon sx={{ color: 'primary.main' }} />
-                <Typography variant="h6" fontWeight={600}>
-                  {chapterGroup.mangaTitle}
-                </Typography>
-                <Chip
-                  label={`Cap. ${chapterGroup.chapter}`}
-                  size="small"
-                  sx={{
-                    background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
-                    color: 'white',
-                    fontWeight: 500,
-                  }}
-                />
-                {isChapterCompleted && (
-                  <Chip
-                    label="Completado"
-                    size="small"
-                    sx={{
-                      backgroundColor: '#10b981',
-                      color: 'white',
-                      fontWeight: 500,
-                    }}
-                  />
-                )}
-                {isChapterInProgress && (
-                  <Chip
-                    label="En Progreso"
-                    size="small"
-                    sx={{
-                      backgroundColor: '#f59e0b',
-                      color: 'white',
-                      fontWeight: 500,
-                    }}
-                  />
-                )}
-              </Box>
-              
-              {/* Lista de tareas */}
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="body2" color="textSecondary" sx={{ mb: 1, fontWeight: 500 }}>
-                  Tareas asignadas ({chapterGroup.assignments.length}):
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                  {chapterGroup.assignments.map((assignment, index) => {
-                    const taskTypeConfig = ASSIGNMENT_TYPES[assignment.type] || ASSIGNMENT_TYPES.traduccion;
-                    return (
-                      <Chip
-                        key={index}
-                        label={taskTypeConfig.label}
-                        size="small"
-                        color={getStatusColor(assignment.status)}
-                        sx={{
-                          fontWeight: 500,
-                          cursor: 'pointer',
-                        }}
-                        onClick={() => {
-                          setSelectedTask(assignment);
-                          setDetailsOpen(true);
-                        }}
-                      />
-                    );
-                  })}
-                </Box>
-              </Box>
-
-              {/* Fecha límite más próxima */}
-              {(() => {
-                const nextDueDate = chapterGroup.assignments
-                  .filter(a => a.dueDate && (a.status === 'pending' || a.status === 'pendiente' || a.status === 'in_progress' || a.status === 'en_progreso'))
-                  .map(a => new Date(a.dueDate))
-                  .sort((a, b) => a - b)[0];
-                
-                if (nextDueDate) {
-                  const isOverdue = nextDueDate < new Date();
-                  return (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                      {isOverdue ? <WarningIcon sx={{ color: '#ef4444', fontSize: '1rem' }} /> : <ScheduleIcon sx={{ fontSize: '1rem', color: 'textSecondary' }} />}
-                      <Typography 
-                        variant="body2" 
-                        color={isOverdue ? 'error' : 'textSecondary'}
-                        sx={{ fontWeight: isOverdue ? 600 : 400 }}
-                      >
-                        Próxima fecha límite: {nextDueDate.toLocaleDateString('es-ES')}
-                        {isOverdue && ' (Atrasada)'}
-                      </Typography>
-                    </Box>
-                  );
-                }
-                return null;
-              })()}
-
-              {/* Progreso del capítulo */}
-              <Box sx={{ mb: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography variant="body2" color="textSecondary">
-                    Progreso del capítulo
-                  </Typography>
-                  <Typography variant="body2" fontWeight={600}>
-                    {completedTasks}/{totalTasks} tareas ({Math.round(chapterProgress)}%)
-                  </Typography>
-                </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={chapterProgress}
-                  sx={{
-                    height: 6,
-                    borderRadius: 3,
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                    '& .MuiLinearProgress-bar': {
-                      background: isChapterCompleted ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #6a9eff, #a78bfa)',
-                      borderRadius: 3,
-                    },
-                  }}
-                />
-              </Box>
-            </Box>
-
-            {/* Acciones */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, ml: 2 }}>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => {
-                  setSelectedTask(null);
-                  setDetailsOpen(true);
-                }}
-              >
-                Ver Capítulo
-              </Button>
-
-              {chapterGroup.driveLink && (
-                <Button
-                  size="small"
-                  startIcon={<DownloadIcon />}
-                  href={chapterGroup.driveLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{ textTransform: 'none' }}
-                >
-                  Descargar
-                </Button>
-              )}
-
-              {/* Botones de acción rápida para tareas pendientes */}
-              {chapterGroup.assignments.filter(a => canMarkComplete(a)).length > 0 && (
-                <Button
-                  size="small"
-                  variant="contained"
-                  startIcon={<CheckCircleIcon />}
-                  onClick={() => {
-                    // Marcar todas las tareas pendientes como completadas
-                    const pendingTasks = chapterGroup.assignments.filter(a => canMarkComplete(a));
-                    pendingTasks.forEach(task => onMarkComplete(task.id));
-                  }}
-                  sx={{
-                    background: 'linear-gradient(135deg, #10b981, #059669)',
-                    '&:hover': {
-                      background: 'linear-gradient(135deg, #059669, #047857)',
-                    },
-                  }}
-                >
-                  Completar Todo
-                </Button>
-              )}
-
-              {chapterGroup.assignments.filter(a => canMarkUploaded(a)).length > 0 && (
-                <Button
-                  size="small"
-                  variant="contained"
-                  startIcon={<UploadIcon />}
-                  onClick={() => {
-                    // Marcar todas las tareas completadas como subidas
-                    const completedTasks = chapterGroup.assignments.filter(a => canMarkUploaded(a));
-                    completedTasks.forEach(task => onMarkUploaded(task.id));
-                  }}
-                  sx={{
-                    background: 'linear-gradient(135deg, #a78bfa, #7c3aed)',
-                    '&:hover': {
-                      background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
-                    },
-                  }}
-                >
-                  Marcar Subido
-                </Button>
-              )}
-            </Box>
-          </Box>
-        </CardContent>
-      </Card>
-
-      {/* Dialog con detalles del capítulo o tarea específica */}
-      <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>
-          {selectedTask ? 'Detalles de la Tarea' : 'Detalles del Capítulo'}
-        </DialogTitle>
-        <DialogContent>
-          {selectedTask ? (
-            // Detalles de una tarea específica
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <Typography variant="h6" gutterBottom>
-                  {selectedTask.mangaTitle || selectedTask.manga} - Capítulo {selectedTask.chapter}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="body2" color="textSecondary">
-                  <strong>Tarea:</strong> {ASSIGNMENT_TYPES[selectedTask.type]?.label || selectedTask.taskType || selectedTask.type}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="body2" color="textSecondary">
-                  <strong>Estado:</strong> {getStatusLabel(selectedTask.status)}
-                </Typography>
-              </Grid>
-              {selectedTask.assignedDate && (
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="textSecondary">
-                    <strong>Asignado:</strong> {new Date(selectedTask.assignedDate).toLocaleDateString('es-ES')}
-                  </Typography>
-                </Grid>
-              )}
-              {selectedTask.dueDate && (
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="textSecondary">
-                    <strong>Fecha límite:</strong> {new Date(selectedTask.dueDate).toLocaleDateString('es-ES')}
-                  </Typography>
-                </Grid>
-              )}
-              {(selectedTask.description || selectedTask.notes) && (
-                <Grid item xs={12}>
-                  <Typography variant="body2" color="textSecondary">
-                    <strong>Descripción:</strong>
-                  </Typography>
-                  <Typography variant="body2" sx={{ mt: 1 }}>
-                    {selectedTask.description || selectedTask.notes}
-                  </Typography>
-                </Grid>
-              )}
-              <Grid item xs={12}>
-                <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                  {canMarkComplete(selectedTask) && (
-                    <Button
-                      variant="contained"
-                      startIcon={<CheckCircleIcon />}
-                      onClick={() => {
-                        onMarkComplete(selectedTask.id);
-                        setDetailsOpen(false);
-                      }}
-                      sx={{
-                        background: 'linear-gradient(135deg, #10b981, #059669)',
-                        '&:hover': {
-                          background: 'linear-gradient(135deg, #059669, #047857)',
-                        },
-                      }}
-                    >
-                      Marcar Completado
-                    </Button>
-                  )}
-                  {canMarkUploaded(selectedTask) && (
-                    <Button
-                      variant="contained"
-                      startIcon={<UploadIcon />}
-                      onClick={() => {
-                        onMarkUploaded(selectedTask.id);
-                        setDetailsOpen(false);
-                      }}
-                      sx={{
-                        background: 'linear-gradient(135deg, #a78bfa, #7c3aed)',
-                        '&:hover': {
-                          background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
-                        },
-                      }}
-                    >
-                      Marcar Subido
-                    </Button>
-                  )}
-                </Box>
-              </Grid>
-            </Grid>
-          ) : (
-            // Detalles del capítulo completo
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <Typography variant="h6" gutterBottom>
-                  {chapterGroup.mangaTitle} - Capítulo {chapterGroup.chapter}
-                </Typography>
-              </Grid>
-              <Grid item xs={12}>
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  <strong>Progreso general:</strong> {completedTasks}/{totalTasks} tareas completadas ({Math.round(chapterProgress)}%)
-                </Typography>
-              </Grid>
-              <Grid item xs={12}>
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  <strong>Tareas asignadas:</strong>
-                </Typography>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Tarea</TableCell>
-                      <TableCell>Estado</TableCell>
-                      <TableCell>Fecha límite</TableCell>
-                      <TableCell>Acciones</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {chapterGroup.assignments.map((assignment, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{ASSIGNMENT_TYPES[assignment.type]?.label || assignment.type}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={getStatusLabel(assignment.status)}
-                            color={getStatusColor(assignment.status)}
-                            size="small"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          {assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString('es-ES') : '-'}
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', gap: 1 }}>
-                            {canMarkComplete(assignment) && (
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                onClick={() => {
-                                  onMarkComplete(assignment.id);
-                                }}
-                              >
-                                Completar
-                              </Button>
-                            )}
-                            {canMarkUploaded(assignment) && (
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                onClick={() => {
-                                  onMarkUploaded(assignment.id);
-                                }}
-                              >
-                                Subir
-                              </Button>
-                            )}
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </Grid>
-            </Grid>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDetailsOpen(false)}>Cerrar</Button>
-        </DialogActions>
-      </Dialog>
-    </>
-  );
-};
-
-// Componente principal
 const SeriesManagement = () => {
   const { userProfile, hasRole } = useAuth();
   const [tabValue, setTabValue] = useState(0);
@@ -2817,10 +2104,10 @@ const SeriesManagement = () => {
   const getRoleIcon = (role) => {
     switch (role) {
       case ROLES.UPLOADER:
-        return <CloudUploadIcon sx={{ color: '#a78bfa' }} />;
+        return <CloudUploadIcon sx={{ color: colors.onSurfaceVariant }} />;
       case ROLES.EDITOR:
       case ROLES.TRADUCTOR:
-        return <WorkIcon sx={{ color: '#6a9eff' }} />;
+        return <WorkIcon sx={{ color: colors.onSurfaceVariant }} />;
       default:
         return <AccountCircleIcon />;
     }
@@ -2891,428 +2178,251 @@ const SeriesManagement = () => {
 
   if (loading) {
     return (
-      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-        <Box className="sm-loading-spinner" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-          <CircularProgress size={48} sx={{ color: '#6a9eff' }} />
+      <Box>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+          <CircularProgress size={40} aria-label="Cargando series" />
         </Box>
-      </Container>
+      </Box>
     );
   }
 
+  // Recuentos del control de estado: series que pasan la búsqueda, por estado.
+  const searchMatched = mangas.filter(
+    (manga) =>
+      manga.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (manga.author && manga.author.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+  const SERIES_FILTERS = [
+    { value: 'all', label: 'Todas' },
+    { value: 'active', label: 'Activas' },
+    { value: 'paused', label: 'Pausadas' },
+    { value: 'completed', label: 'Completadas' },
+    { value: 'cancelled', label: 'Canceladas' },
+  ].map((f) => ({
+    ...f,
+    count: f.value === 'all' ? searchMatched.length : searchMatched.filter((m) => m.status === f.value).length,
+  }));
+  const canSeeDrive = ['admin', 'jefe_editor', 'jefe_traductor'].includes(userProfile?.role);
+  const completedAssignments = assignments.filter((a) => a.status === 'completado').length;
+
   return (
-    <Container maxWidth="xl" className="sm-container" sx={{ mt: 4, mb: 4, minHeight: '100vh' }}>
+    <Box>
+      <PageHeader
+        title="Series"
+        subtitle={`${mangas.length} ${mangas.length === 1 ? 'serie' : 'series'} · ${assignments.length} asignaciones · ${completedAssignments} completadas`}
+      />
 
-      {/* ── Header ── */}
-      <Box
-        className="sm-header"
-        sx={{
-          mb: 5,
-          p: { xs: 3, md: 4 },
-          borderRadius: '16px',
-          background: 'rgba(20, 21, 27, 0.72)',
-          backdropFilter: 'blur(24px)',
-          border: '1px solid rgba(255,255,255,0.07)',
-        }}
+      <Panel
+        title="Catálogo"
+        count={filteredMangas.length}
+        action={
+          <TextField
+            size="small"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por título o autor"
+            inputProps={{ 'aria-label': 'Buscar series' }}
+            InputProps={{ startAdornment: <SearchIcon sx={{ color: colors.outline, mr: 1, fontSize: 20 }} /> }}
+            sx={{ width: { xs: '100%', sm: 280 } }}
+          />
+        }
+        sx={{ '& > div:first-of-type': { flexWrap: 'wrap' } }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
-          <Box
-            className="sm-header-icon"
-            sx={{
-              width: 52,
-              height: 52,
-              borderRadius: '14px',
-              background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <MenuBookIcon sx={{ fontSize: 26, color: 'white' }} />
-          </Box>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography
-              variant="h4"
-              component="h1"
-              sx={{
-                fontWeight: 700,
-                color: '#dfe5fa',
-                fontSize: { xs: '1.5rem', md: '2rem' },
-                letterSpacing: '-0.02em',
-                lineHeight: 1.2,
-              }}
-            >
-              Gestión por Series
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#a4abbf', mt: 0.5, fontWeight: 400 }}>
-              Vista organizada por series mostrando todas las asignaciones
-            </Typography>
-          </Box>
-        </Box>
-
-        {/* Stat pills */}
-        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 3 }}>
-          <Box className="sm-stat-pill" sx={{
-            px: 2, py: 1, borderRadius: '10px',
-            background: 'rgba(16, 185, 129, 0.1)',
-            border: '1px solid rgba(16, 185, 129, 0.18)',
-            display: 'flex', alignItems: 'center', gap: 1,
-          }}>
-            <MenuBookIcon sx={{ color: '#10b981', fontSize: 18 }} />
-            <Typography variant="body2" sx={{ color: '#10b981', fontWeight: 600 }}>
-              {filteredMangas.length}
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'rgba(16,185,129,0.7)', fontWeight: 500 }}>
-              series
-            </Typography>
-          </Box>
-
-          <Box className="sm-stat-pill" sx={{
-            px: 2, py: 1, borderRadius: '10px',
-            background: 'rgba(106, 158, 255, 0.1)',
-            border: '1px solid rgba(106, 158, 255, 0.18)',
-            display: 'flex', alignItems: 'center', gap: 1,
-          }}>
-            <AssignmentIcon sx={{ color: '#6a9eff', fontSize: 18 }} />
-            <Typography variant="body2" sx={{ color: '#6a9eff', fontWeight: 600 }}>
-              {assignments.length}
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'rgba(106,158,255,0.7)', fontWeight: 500 }}>
-              asignaciones
-            </Typography>
-          </Box>
-
-          <Box className="sm-stat-pill" sx={{
-            px: 2, py: 1, borderRadius: '10px',
-            background: 'rgba(245, 158, 11, 0.1)',
-            border: '1px solid rgba(245, 158, 11, 0.18)',
-            display: 'flex', alignItems: 'center', gap: 1,
-          }}>
-            <CheckCircleIcon sx={{ color: '#f59e0b', fontSize: 18 }} />
-            <Typography variant="body2" sx={{ color: '#f59e0b', fontWeight: 600 }}>
-              {assignments.filter(a => a.status === 'completado').length}
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'rgba(245,158,11,0.7)', fontWeight: 500 }}>
-              completadas
-            </Typography>
-          </Box>
-        </Box>
-      </Box>
-
-      {/* ── Controls ── */}
-      <Box sx={{ mb: 4, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-        <TextField
-          size="small"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Buscar por título o autor..."
-          className="sm-search-field"
-          InputProps={{
-            startAdornment: <SearchIcon sx={{ color: '#a4abbf', mr: 1, fontSize: 20 }} />,
-          }}
-          sx={{
-            flex: { xs: '1 1 100%', sm: '1 1 280px' },
-            maxWidth: { sm: 360 },
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '10px',
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.07)',
-              height: 42,
-              fontSize: '0.875rem',
-              transition: 'border-color 200ms ease, box-shadow 200ms ease',
-              '& fieldset': { border: 'none' },
-              '&:hover': { borderColor: 'rgba(106,158,255,0.2)' },
-              '&.Mui-focused': {
-                borderColor: 'rgba(106,158,255,0.5)',
-                boxShadow: '0 0 0 3px rgba(106,158,255,0.08)',
-              },
-            },
-            '& .MuiOutlinedInput-input': { color: '#dfe5fa' },
-          }}
-        />
-
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          <Select
+        <Box sx={{ overflowX: 'auto', mb: 1.5, mx: -0.5, px: 0.5 }}>
+          <ToggleButtonGroup
+            exclusive
+            size="small"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            displayEmpty
-            sx={{
-              borderRadius: '10px',
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.07)',
-              height: 42,
-              fontSize: '0.875rem',
-              color: '#dfe5fa',
-              transition: 'border-color 200ms ease',
-              '& fieldset': { border: 'none' },
-              '&:hover': { borderColor: 'rgba(106,158,255,0.2)' },
-              '& .MuiSelect-icon': { color: '#a4abbf' },
-            }}
-            MenuProps={{
-              PaperProps: {
-                sx: {
-                  background: 'rgba(20,21,27,0.96)',
-                  backdropFilter: 'blur(24px)',
-                  border: '1px solid rgba(255,255,255,0.07)',
-                  borderRadius: '10px',
-                  mt: 0.5,
-                  '& .MuiMenuItem-root': {
-                    fontSize: '0.875rem',
-                    borderRadius: '6px',
-                    mx: 0.5,
-                    '&:hover': { background: 'rgba(106,158,255,0.1)' },
-                    '&.Mui-selected': { background: 'rgba(106,158,255,0.15)' },
-                  },
-                },
-              },
-            }}
-          >
-            <MenuItem value="all">
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <FilterIcon sx={{ fontSize: 16, color: '#a4abbf' }} />
-                Todos
-              </Box>
-            </MenuItem>
-            <MenuItem value="active">
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box className="sm-status-dot sm-status-dot--active" />
-                Activo
-              </Box>
-            </MenuItem>
-            <MenuItem value="completed">
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box className="sm-status-dot sm-status-dot--completed" />
-                Completado
-              </Box>
-            </MenuItem>
-            <MenuItem value="paused">
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box className="sm-status-dot sm-status-dot--progress" />
-                Pausado
-              </Box>
-            </MenuItem>
-            <MenuItem value="cancelled">
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', boxShadow: '0 0 8px rgba(239,68,85,0.4)' }} />
-                Cancelado
-              </Box>
-            </MenuItem>
-          </Select>
-        </FormControl>
-      </Box>
-
-      {/* ── Content ── */}
-      {filteredMangas.length === 0 ? (
-          <Box sx={{
-            p: 6, textAlign: 'center',
-            borderRadius: '16px',
-            background: 'rgba(20,21,27,0.72)',
-            backdropFilter: 'blur(24px)',
-            border: '1px solid rgba(255,255,255,0.07)',
-          }}>
-            <MenuBookIcon sx={{ fontSize: 48, color: '#a4abbf', mb: 2 }} />
-            <Typography variant="h6" sx={{ color: '#a4abbf', fontWeight: 500 }}>
-              {searchTerm || statusFilter !== 'all' ? 
-                'No se encontraron series que coincidan con los filtros' : 
-                'No hay series disponibles'
+            onChange={(e, value) => {
+              if (value !== null) {
+                triggerHaptic('light');
+                setStatusFilter(value);
               }
-            </Typography>
-            {!searchTerm && statusFilter === 'all' && (
-              <Typography variant="body2" sx={{ color: '#a4abbf', mt: 1, opacity: 0.7 }}>
-                Las series aparecerán aquí cuando sean creadas desde el panel de administración
-              </Typography>
-            )}
-          </Box>
+            }}
+            aria-label="Estado de la serie"
+          >
+            {SERIES_FILTERS.map((f) => (
+              <ToggleButton key={f.value} value={f.value} sx={{ px: 1.25, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
+                {f.label}
+                <Box component="span" sx={{ ml: 0.75, color: colors.outline, fontVariantNumeric: 'tabular-nums' }}>
+                  {f.count}
+                </Box>
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Box>
+
+        {filteredMangas.length === 0 ? (
+          <EmptyState
+            icon={MenuBookIcon}
+            title={searchTerm || statusFilter !== 'all' ? 'Ninguna serie con estos filtros' : 'Todavía no hay series'}
+          >
+            {searchTerm || statusFilter !== 'all'
+              ? 'Prueba con otro estado o borra la búsqueda.'
+              : 'Las series se crean desde Administración. Aparecerán aquí con sus capítulos y asignaciones.'}
+          </EmptyState>
         ) : (
-          filteredMangas.map((manga) => {
-            const isExpanded = expandedSeries[manga.id];
-            const stats = getAssignmentStats(manga);
-            const statusConfig = MANGA_STATUS[manga.status] || MANGA_STATUS.active;
-
-            return (
-              <Card
-                key={manga.id}
-                className="series-card"
-                sx={{
-                  mb: 2,
-                  background: 'rgba(20, 21, 27, 0.72)',
-                  backdropFilter: 'blur(24px)',
-                  border: '1px solid rgba(255,255,255,0.07)',
-                  borderRadius: '14px',
-                  overflow: 'hidden',
-                  width: '100%',
-                }}
-              >
-                <CardContent sx={{ p: 0 }}>
-                  {/* Manga Header */}
-                  <Box 
-                    sx={{ 
-                      p: { xs: 2, md: 2.5 },
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 2.5,
-                      transition: 'background-color 200ms ease',
-                      '&:hover': { backgroundColor: 'rgba(106,158,255,0.03)' },
-                    }}
-                    onClick={() => handleToggleExpand(manga.id)}
-                  >
-                    {/* Cover */}
-                    {manga.coverImage ? (
-                      <Box
-                        component="img"
-                        src={manga.coverImage}
-                        alt={manga.title}
-                        className="sm-cover"
-                        sx={{
-                          width: { xs: 56, md: 68 },
-                          height: { xs: 80, md: 96 },
-                          objectFit: 'cover',
-                          borderRadius: '8px',
-                          flexShrink: 0,
-                        }}
-                      />
-                    ) : (
-                      <Box
-                        className="sm-cover"
-                        sx={{
-                          width: { xs: 56, md: 68 },
-                          height: { xs: 80, md: 96 },
-                          borderRadius: '8px',
-                          background: 'rgba(106,158,255,0.12)',
-                          border: '1px solid rgba(106,158,255,0.15)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}
-                      >
-                        <BookIcon sx={{ fontSize: 28, color: '#6a9eff' }} />
-                      </Box>
-                    )}
-
-                    {/* Info */}
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
-                        <Typography
-                          variant="subtitle1"
+          <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none', mx: -1 }}>
+            {filteredMangas.map((manga) => {
+              const isExpanded = Boolean(expandedSeries[manga.id]);
+              const stats = getAssignmentStats(manga);
+              const statusConfig = MANGA_STATUS[manga.status] || MANGA_STATUS.active;
+              const panelId = `serie-${manga.id}`;
+              return (
+                <Box
+                  component="li"
+                  key={manga.id}
+                  sx={{ '&:not(:last-of-type)': { borderBottom: `1px solid ${rowDivider}` } }}
+                >
+                  <Box sx={{ position: 'relative' }}>
+                    <ButtonBase
+                      onClick={() => {
+                        triggerHaptic('light');
+                        handleToggleExpand(manga.id);
+                      }}
+                      aria-expanded={isExpanded}
+                      aria-controls={panelId}
+                      sx={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2,
+                        px: 1,
+                        py: 1.5,
+                        pr: { xs: 6, sm: canSeeDrive && manga.driveLink ? 12 : 6 },
+                        borderRadius: `${radius.md}px`,
+                        textAlign: 'left',
+                        transition: 'background-color 150ms ease-out',
+                        '&:hover': { backgroundColor: colors.surfaceContainer },
+                        '&.Mui-focusVisible': { ...focusOutline, outlineOffset: -2 },
+                      }}
+                    >
+                      {manga.coverImage ? (
+                        <Box
+                          component="img"
+                          src={manga.coverImage}
+                          alt=""
+                          loading="lazy"
+                          sx={{ width: 44, height: 62, objectFit: 'cover', borderRadius: `${radius.DEFAULT}px`, flexShrink: 0, backgroundColor: colors.surfaceHigh }}
+                        />
+                      ) : (
+                        <Box
+                          aria-hidden="true"
                           sx={{
-                            fontWeight: 600,
-                            color: '#dfe5fa',
-                            fontSize: { xs: '0.95rem', md: '1.05rem' },
-                            lineHeight: 1.3,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            maxWidth: { xs: 180, sm: 'none' },
+                            width: 44,
+                            height: 62,
+                            borderRadius: `${radius.DEFAULT}px`,
+                            backgroundColor: colors.surfaceHigh,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
                           }}
                         >
-                          {manga.title}
-                        </Typography>
-                        <Chip
-                          label={statusConfig.label}
-                          size="small"
-                          className="sm-chip"
-                          sx={{
-                            height: 22,
-                            fontSize: '0.7rem',
-                            fontWeight: 500,
-                            bgcolor: `${statusConfig.color}15`,
-                            color: statusConfig.color,
-                            border: `1px solid ${statusConfig.color}25`,
-                          }}
-                        />
-                        {manga.isJoint && (
-                          <Chip
-                            label={`Joint · ${manga.jointPartner || 'Otro grupo'}`}
-                            size="small"
-                            className="sm-chip"
+                          <BookIcon sx={{ fontSize: 20, color: colors.outline }} />
+                        </Box>
+                      )}
+
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                          <Typography noWrap component="h3" sx={{ fontSize: '0.9375rem', fontWeight: 600, color: colors.onSurface, minWidth: 0 }}>
+                            {manga.title}
+                          </Typography>
+                          <Box
+                            component="span"
                             sx={{
-                              height: 22,
-                              fontSize: '0.7rem',
-                              fontWeight: 500,
-                              bgcolor: 'rgba(147,51,234,0.1)',
-                              color: '#a78bfa',
-                              border: '1px solid rgba(147,51,234,0.2)',
+                              flexShrink: 0,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              height: 20,
+                              px: 0.75,
+                              borderRadius: `${radius.md}px`,
+                              fontSize: '0.6875rem',
+                              fontWeight: 600,
+                              color: statusConfig.color,
+                              backgroundColor: withAlpha(statusConfig.color, 0.1),
                             }}
-                          />
+                          >
+                            {statusConfig.label}
+                          </Box>
+                          {manga.isJoint && (
+                            <Box
+                              component="span"
+                              sx={{
+                                flexShrink: 0,
+                                display: { xs: 'none', sm: 'inline-flex' },
+                                alignItems: 'center',
+                                height: 20,
+                                px: 0.75,
+                                borderRadius: `${radius.md}px`,
+                                fontSize: '0.6875rem',
+                                fontWeight: 600,
+                                color: colors.onSurfaceVariant,
+                                backgroundColor: colors.surfaceHigh,
+                              }}
+                            >
+                              Joint · {manga.jointPartner || 'otro grupo'}
+                            </Box>
+                          )}
+                        </Box>
+                        {manga.author && (
+                          <Typography noWrap sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant, mt: 0.25 }}>
+                            {manga.author}
+                          </Typography>
                         )}
-                        {(userProfile?.role === 'admin' || userProfile?.role === 'jefe_editor' || userProfile?.role === 'jefe_traductor') && manga.driveLink && (
-                          <Button
-                            size="small"
-                            className="sm-btn"
-                            startIcon={<LinkIcon sx={{ fontSize: '14px !important' }} />}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1, flexWrap: 'wrap' }}>
+                          <Typography sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant, fontVariantNumeric: 'tabular-nums' }}>
+                            {stats.totalChapters} {stats.totalChapters === 1 ? 'capítulo' : 'capítulos'} · {stats.totalAssignments} asignaciones
+                          </Typography>
+                          {stats.total > 0 && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: '1 1 160px', maxWidth: 260 }}>
+                              <Box sx={{ flex: 1 }}>
+                                <MeterBar value={stats.completed} max={stats.total} color={colors.primary} />
+                              </Box>
+                              <Typography sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant, fontVariantNumeric: 'tabular-nums' }}>
+                                {stats.completed}/{stats.total}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      </Box>
+                    </ButtonBase>
+
+                    {/* Acciones de la fila, fuera del botón para no anidar botones */}
+                    <Box sx={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 0.25 }}>
+                      {canSeeDrive && manga.driveLink && (
+                        <Tooltip title="Abrir carpeta de Drive">
+                          <IconButton
+                            component="a"
                             href={manga.driveLink}
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            sx={{
-                              minWidth: 'auto',
-                              px: 1,
-                              py: 0.25,
-                              fontSize: '0.7rem',
-                              height: 22,
-                              backgroundColor: 'rgba(106,158,255,0.08)',
-                              color: '#6a9eff',
-                              border: '1px solid rgba(106,158,255,0.15)',
-                              borderRadius: '6px',
-                              textTransform: 'none',
-                              fontWeight: 500,
-                              '&:hover': { backgroundColor: 'rgba(106,158,255,0.15)' },
-                            }}
+                            aria-label={`Abrir carpeta de Drive de ${manga.title}`}
+                            sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
                           >
-                            Drive
-                          </Button>
-                        )}
-                      </Box>
-
-                      {manga.author && (
-                        <Typography variant="caption" sx={{ color: '#a4abbf', display: 'block', mb: 1 }}>
-                          {manga.author}
-                        </Typography>
+                            <LinkIcon sx={{ fontSize: 18 }} />
+                          </IconButton>
+                        </Tooltip>
                       )}
-
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                        <Typography variant="caption" sx={{ color: '#a4abbf' }}>
-                          <Box component="span" sx={{ color: '#6a9eff', fontWeight: 600 }}>{stats.totalChapters}</Box> caps
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: '#a4abbf' }}>
-                          <Box component="span" sx={{ color: '#6a9eff', fontWeight: 600 }}>{stats.totalAssignments}</Box> asignaciones
-                        </Typography>
-                        {stats.total > 0 && (
-                          <Typography variant="caption" sx={{ color: '#a4abbf' }}>
-                            <Box component="span" sx={{ color: '#10b981', fontWeight: 600 }}>{stats.completed}</Box>/{stats.total} completados
-                          </Typography>
-                        )}
-                      </Box>
-
-                      {stats.total > 0 && (
-                        <Box className="sm-progress-track" sx={{ mt: 1.5 }}>
-                          <Box
-                            className="sm-progress-fill"
-                            sx={{ width: `${stats.progress}%` }}
-                          />
-                        </Box>
-                      )}
+                      <IconButton
+                        onClick={() => handleToggleExpand(manga.id)}
+                        aria-label={isExpanded ? 'Ocultar capítulos' : 'Ver capítulos'}
+                        aria-expanded={isExpanded}
+                        aria-controls={panelId}
+                      >
+                        <ExpandMoreIcon className={`sm-expand-icon ${isExpanded ? 'sm-expand-icon--open' : ''}`} sx={{ fontSize: 20 }} />
+                      </IconButton>
                     </Box>
-
-                    <IconButton size="small" sx={{ color: '#a4abbf', ml: 1 }}>
-                      <ExpandMoreIcon
-                        className={`sm-expand-icon ${isExpanded ? 'sm-expand-icon--open' : ''}`}
-                      />
-                    </IconButton>
                   </Box>
 
-                  {/* Assignments Table */}
-                  <Collapse in={isExpanded} timeout={300} unmountOnExit easing={{
-                    enter: 'cubic-bezier(0.23, 1, 0.32, 1)',
-                    exit: 'cubic-bezier(0.23, 1, 0.32, 1)',
-                  }}>
-                    <Box sx={{
-                      px: { xs: 2, md: 2.5 },
-                      pb: 2.5,
-                      borderTop: '1px solid rgba(255,255,255,0.05)',
-                    }}>
+                  {/* Capítulos y asignaciones de la serie */}
+                  <Collapse
+                    in={isExpanded}
+                    timeout={250}
+                    unmountOnExit
+                    easing={{ enter: 'cubic-bezier(0.16, 1, 0.3, 1)', exit: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
+                  >
+                    <Box id={panelId} sx={{ px: 1, pb: 2, pt: 0.5 }}>
                       <AssignmentsTable
                         manga={manga}
                         assignments={assignments}
@@ -3329,11 +2439,12 @@ const SeriesManagement = () => {
                       />
                     </Box>
                   </Collapse>
-                </CardContent>
-              </Card>
-            );
-          })
+                </Box>
+              );
+            })}
+          </Box>
         )}
+      </Panel>
 
       {/* Chapter Dialog */}
       <ChapterDialog
@@ -3370,16 +2481,8 @@ const SeriesManagement = () => {
         onClose={() => setUnavailableTextDialog({ open: false, manga: null, chapter: null, taskType: null, currentText: '' })}
         maxWidth="sm" 
         fullWidth
-        PaperProps={{
-          sx: {
-            background: 'rgba(20,21,27,0.96)',
-            backdropFilter: 'blur(24px)',
-            border: '1px solid rgba(255,255,255,0.07)',
-            borderRadius: '14px',
-          }
-        }}
       >
-        <DialogTitle sx={{ color: '#dfe5fa', fontWeight: 600, fontSize: '1.1rem' }}>
+        <DialogTitle>
           Editar texto personalizado
         </DialogTitle>
         <DialogContent>
@@ -3405,8 +2508,7 @@ const SeriesManagement = () => {
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button 
             onClick={() => setUnavailableTextDialog({ open: false, manga: null, chapter: null, taskType: null, currentText: '' })}
-            className="sm-btn"
-            sx={{ color: '#a4abbf', textTransform: 'none', fontWeight: 500 }}
+            sx={{ color: colors.onSurfaceVariant }}
           >
             Cancelar
           </Button>
@@ -3415,15 +2517,7 @@ const SeriesManagement = () => {
               handleSaveUnavailableText(unavailableTextDialog.currentText);
               setUnavailableTextDialog({ open: false, manga: null, chapter: null, taskType: null, currentText: '' });
             }}
-            className="sm-btn"
             variant="contained"
-            sx={{
-              textTransform: 'none',
-              fontWeight: 600,
-              borderRadius: '8px',
-              backgroundColor: '#6a9eff',
-              '&:hover': { backgroundColor: '#5b8de6' },
-            }}
           >
             Guardar
           </Button>
@@ -3452,7 +2546,7 @@ const SeriesManagement = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </Container>
+    </Box>
   );
 };
 
