@@ -53,7 +53,7 @@ const SystemFooter = ({ sx = {}, showCopyright = true, size = 'medium' }) => {
           <Typography
             variant="caption"
             sx={{
-              color: '#7d8190',
+              color: '#a4abbf',
               fontSize: currentSize.copyright.fontSize,
               textAlign: 'center',
               fontWeight: 400,

@@ -361,7 +361,7 @@ const Dashboard = () => {
             </Avatar>
             <Box sx={{ minWidth: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-                <Typography variant="h5" sx={{ fontWeight: 700, color: '#e2e4e9', lineHeight: 1.2 }}>
+                <Typography variant="h5" sx={{ fontWeight: 700, color: '#dfe5fa', lineHeight: 1.2 }}>
                   {userProfile?.name || 'Usuario'}
                 </Typography>
                 <Chip
@@ -376,7 +376,7 @@ const Dashboard = () => {
                   }}
                 />
               </Box>
-              <Typography variant="body2" sx={{ color: '#7d8190', mt: 0.5 }}>
+              <Typography variant="body2" sx={{ color: '#a4abbf', mt: 0.5 }}>
                 Miembro desde: {userProfile?.createdAt?.toDate?.()?.toLocaleDateString('es-ES') || 'N/A'}
               </Typography>
             </Box>
@@ -463,12 +463,12 @@ const Dashboard = () => {
                         dataKey="day"
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 11, fill: '#7d8190' }}
+                        tick={{ fontSize: 11, fill: '#a4abbf' }}
                       />
                       <YAxis
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 11, fill: '#7d8190' }}
+                        tick={{ fontSize: 11, fill: '#a4abbf' }}
                         allowDecimals={false}
                       />
                       <Tooltip
@@ -476,10 +476,10 @@ const Dashboard = () => {
                           backgroundColor: '#1a1b21',
                           border: '1px solid rgba(255,255,255,0.08)',
                           borderRadius: '8px',
-                          color: '#e2e4e9',
+                          color: '#dfe5fa',
                           fontSize: '0.8125rem',
                         }}
-                        labelStyle={{ color: '#7d8190' }}
+                        labelStyle={{ color: '#a4abbf' }}
                       />
                       <Bar dataKey="asignadas" fill="#6a9eff" name="Asignadas" radius={[3, 3, 0, 0]} />
                       <Bar dataKey="completadas" fill="#34a853" name="Completadas" radius={[3, 3, 0, 0]} />
@@ -487,7 +487,7 @@ const Dashboard = () => {
                   </ResponsiveContainer>
                 ) : (
                   <Box sx={{ textAlign: 'center', py: 6, opacity: 0.5 }}>
-                    <TrendingUp sx={{ fontSize: '2.5rem', mb: 1, color: '#7d8190' }} />
+                    <TrendingUp sx={{ fontSize: '2.5rem', mb: 1, color: '#a4abbf' }} />
                     <Typography variant="body2" color="textSecondary">
                       No hay actividad reciente
                     </Typography>
@@ -525,7 +525,7 @@ const Dashboard = () => {
                             backgroundColor: '#1a1b21',
                             border: '1px solid rgba(255,255,255,0.08)',
                             borderRadius: '8px',
-                            color: '#e2e4e9',
+                            color: '#dfe5fa',
                             fontSize: '0.8125rem',
                           }}
                         />
@@ -535,7 +535,7 @@ const Dashboard = () => {
                       {typeDistribution.map((item, index) => (
                         <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                           <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: item.color, flexShrink: 0 }} />
-                          <Typography variant="body2" sx={{ color: '#7d8190', fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
+                          <Typography variant="body2" sx={{ color: '#a4abbf', fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
                             {item.value} {item.name}
                           </Typography>
                         </Box>
@@ -544,7 +544,7 @@ const Dashboard = () => {
                   </Box>
                 ) : (
                   <Box sx={{ textAlign: 'center', py: 6, opacity: 0.5 }}>
-                    <Assignment sx={{ fontSize: '2rem', mb: 1, color: '#7d8190' }} />
+                    <Assignment sx={{ fontSize: '2rem', mb: 1, color: '#a4abbf' }} />
                     <Typography variant="body2" color="textSecondary">Sin datos</Typography>
                   </Box>
                 )}
@@ -572,13 +572,13 @@ const Dashboard = () => {
                 borderBottom: '1px solid rgba(255,255,255,0.06)',
               }}
             >
-              <Typography variant="caption" sx={{ color: '#7d8190', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <Typography variant="caption" sx={{ color: '#a4abbf', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Título
               </Typography>
-              <Typography variant="caption" sx={{ color: '#7d8190', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <Typography variant="caption" sx={{ color: '#a4abbf', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Tipo
               </Typography>
-              <Typography variant="caption" sx={{ color: '#7d8190', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>
+              <Typography variant="caption" sx={{ color: '#a4abbf', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>
                 Acciones
               </Typography>
             </Box>
@@ -601,10 +601,10 @@ const Dashboard = () => {
                   '&:last-child': { borderBottom: 'none' },
                 }}
               >
-                <Typography variant="body2" sx={{ fontWeight: 500, color: '#e2e4e9', fontSize: '0.875rem' }}>
+                <Typography variant="body2" sx={{ fontWeight: 500, color: '#dfe5fa', fontSize: '0.875rem' }}>
                   {assignment.mangaTitle} - Cap. {assignment.chapter}
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#7d8190', fontSize: '0.8125rem' }}>
+                <Typography variant="body2" sx={{ color: '#a4abbf', fontSize: '0.8125rem' }}>
                   {getTypeLabel(assignment.type)}
                 </Typography>
                 <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', sm: 'flex-end' } }}>
@@ -666,7 +666,7 @@ const Dashboard = () => {
                     }}
                   />
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500, color: '#e2e4e9', fontSize: '0.875rem' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, color: '#dfe5fa', fontSize: '0.875rem' }}>
                       {assignment.mangaTitle} - Cap. {assignment.chapter}
                     </Typography>
                   </Box>

@@ -316,7 +316,7 @@ const Profile = () => {
             position: 'relative',
             background: formData.bannerImage || userProfile.bannerImage 
               ? `url(${formData.bannerImage || userProfile.bannerImage}) center/cover` 
-              : '#1e1f25'
+              : '#1b263b'
           }}
         >
           {/* Overlay para mejor legibilidad */}

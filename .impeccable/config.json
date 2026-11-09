@@ -1,0 +1,23 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "plus jakarta sans",
+        "createdAt": "2026-11-09T22:17:49.131Z",
+        "reason": "user asked to adopt RanobeClub's design, whose DESIGN.md sets Plus Jakarta Sans as the single family"
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "src/index.css"
+        ],
+        "createdAt": "2026-11-09T22:17:50.630Z",
+        "reason": "Claude: .custom-loader is a circular spinner; the colored border-top is the spinning arc, not a card accent"
+      }
+    ]
+  }
+}

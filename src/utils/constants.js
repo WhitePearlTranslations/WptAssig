@@ -8,6 +8,10 @@ import {
   ThumbUp as ThumbUpIcon,
   Upload as UploadIcon,
 } from '@mui/icons-material';
+import { colors, taskColors, withAlpha } from '../theme/tokens';
+
+// Tono de una insignia de estado: texto en el tono, fondo del mismo tono al 10 %.
+const tone = (color) => ({ color, bgColor: withAlpha(color, 0.1) });
 
 // Estados de asignación
 export const ASSIGNMENT_STATUS = {
@@ -21,54 +25,48 @@ export const ASSIGNMENT_STATUS = {
   UPLOADED: 'uploaded'
 };
 
-// Configuración de estados (colores, iconos, etc.)
+// Configuración de estados (colores, iconos, etc.). Tonos según DESIGN.md:
+// humo = nadie trabaja, niebla = en marcha, ámbar = espera a un jefe,
+// lavanda = listo para el siguiente paso, verde = subido, rojo = retrasado.
 export const STATUS_CONFIG = {
   [ASSIGNMENT_STATUS.SIN_ASIGNAR]: {
-    label: 'Sin Asignar',
-    color: '#6b7280',
-    bgColor: 'rgba(107, 114, 128, 0.1)',
+    label: 'Sin asignar',
+    ...tone(colors.outline),
     icon: <AssignmentIcon />
   },
   [ASSIGNMENT_STATUS.PENDIENTE]: {
     label: 'Pendiente',
-    color: '#6b7280',
-    bgColor: 'rgba(107, 114, 128, 0.1)',
+    ...tone(colors.onSurfaceVariant),
     icon: <AssignmentIcon />
   },
   [ASSIGNMENT_STATUS.EN_PROGRESO]: {
-    label: 'En Progreso',
-    color: '#3b82f6',
-    bgColor: 'rgba(59, 130, 246, 0.1)',
+    label: 'En progreso',
+    ...tone(colors.onSurface),
     icon: <ScheduleIcon />
   },
   [ASSIGNMENT_STATUS.PENDIENTE_APROBACION]: {
-    label: 'Esperando Aprobación',
-    color: '#f59e0b',
-    bgColor: 'rgba(245, 158, 11, 0.1)',
+    label: 'Esperando aprobación',
+    ...tone(colors.attention),
     icon: <HourglassTopIcon />
   },
   [ASSIGNMENT_STATUS.APROBADO]: {
     label: 'Aprobado',
-    color: '#10b981',
-    bgColor: 'rgba(16, 185, 129, 0.1)',
+    ...tone(colors.primary),
     icon: <ThumbUpIcon />
   },
   [ASSIGNMENT_STATUS.COMPLETADO]: {
     label: 'Completado',
-    color: '#10b981',
-    bgColor: 'rgba(16, 185, 129, 0.1)',
+    ...tone(colors.primary),
     icon: <CheckCircleIcon />
   },
   [ASSIGNMENT_STATUS.RETRASADO]: {
     label: 'Retrasado',
-    color: '#ef4444',
-    bgColor: 'rgba(239, 68, 68, 0.1)',
+    ...tone(colors.error),
     icon: <WarningIcon />
   },
   [ASSIGNMENT_STATUS.UPLOADED]: {
     label: 'Subido',
-    color: '#a78bfa',
-    bgColor: 'rgba(167, 139, 250, 0.1)',
+    ...tone(colors.goodNews),
     icon: <UploadIcon />
   }
 };
@@ -93,18 +91,18 @@ export const TASK_TYPES = {
 
 // Configuración de roles para asignaciones
 export const ROLE_CONFIG = {
-  traductor: { label: 'Traductor', color: '#6a9eff' },
-  proofreading: { label: 'Proofreading', color: '#a78bfa' },
-  type: { label: 'Type', color: '#f59e0b' },
-  cleanRedrawer: { label: 'Clean y Redrawer', color: '#10b981' }
+  traductor: { label: 'Traductor', color: taskColors.traduccion },
+  proofreading: { label: 'Proofreading', color: taskColors.proofreading },
+  type: { label: 'Type', color: taskColors.type },
+  cleanRedrawer: { label: 'Clean y Redrawer', color: taskColors.cleanRedrawer }
 };
 
 // Configuración para tipo de asignaciones
 export const ASSIGNMENT_TYPES = {
-  traduccion: { label: 'Traducción', color: '#6a9eff', short: 'T' },
-  proofreading: { label: 'Proofreading', color: '#a78bfa', short: 'P' },
-  cleanRedrawer: { label: 'Clean/Redrawer', color: '#10b981', short: 'C' },
-  type: { label: 'Typesetting', color: '#f59e0b', short: 'Ty' }
+  traduccion: { label: 'Traducción', color: taskColors.traduccion, short: 'T' },
+  proofreading: { label: 'Proofreading', color: taskColors.proofreading, short: 'P' },
+  cleanRedrawer: { label: 'Clean/Redrawer', color: taskColors.cleanRedrawer, short: 'C' },
+  type: { label: 'Typesetting', color: taskColors.type, short: 'Ty' }
 };
 
 // Función para verificar si un usuario es un jefe o no

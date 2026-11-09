@@ -181,13 +181,13 @@ const Login = () => {
                 </Box>
                 <Typography
                   variant="h6"
-                  sx={{ color: '#e2e4e9', textAlign: 'center', fontWeight: 600, mb: 0.5 }}
+                  sx={{ color: '#dfe5fa', textAlign: 'center', fontWeight: 600, mb: 0.5 }}
                 >
                   Sistema de Asignaciones
                 </Typography>
                 <Typography
                   variant="body2"
-                  sx={{ color: '#7d8190', textAlign: 'center' }}
+                  sx={{ color: '#a4abbf', textAlign: 'center' }}
                 >
                   Inicia sesión para acceder al panel de control
                 </Typography>
@@ -209,7 +209,7 @@ const Login = () => {
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <Email sx={{ color: '#7d8190' }} />
+                        <Email sx={{ color: '#a4abbf' }} />
                       </InputAdornment>
                     ),
                     sx: {
@@ -241,7 +241,7 @@ const Login = () => {
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <Lock sx={{ color: '#7d8190' }} />
+                        <Lock sx={{ color: '#a4abbf' }} />
                       </InputAdornment>
                     ),
                     endAdornment: (
@@ -250,8 +250,8 @@ const Login = () => {
                           onClick={handleTogglePassword}
                           edge="end"
                           sx={{
-                            color: '#7d8190',
-                            '&:hover': { color: '#e2e4e9' },
+                            color: '#a4abbf',
+                            '&:hover': { color: '#dfe5fa' },
                           }}
                         >
                           {showPassword ? <VisibilityOff /> : <Visibility />}
@@ -333,7 +333,7 @@ const Login = () => {
               {/* Footer */}
               <Typography
                 variant="body2"
-                sx={{ color: '#7d8190', textAlign: 'center', mt: 2 }}
+                sx={{ color: '#a4abbf', textAlign: 'center', mt: 2 }}
               >
                 ¿No tienes cuenta?{' '}
                 <Box

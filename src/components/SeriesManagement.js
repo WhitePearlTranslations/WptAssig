@@ -379,12 +379,12 @@ const AssignmentsTable = ({ manga, assignments, users, onAssignmentClick, onCrea
       <Table size="small">
         <TableHead>
           <TableRow sx={{ '& th': { borderBottom: '1px solid rgba(255,255,255,0.06)', py: 1.5 } }}>
-            <TableCell sx={{ fontWeight: 600, color: '#7d8190', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cap.</TableCell>
-            <TableCell sx={{ fontWeight: 600, color: '#7d8190', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Traducción</TableCell>
-            <TableCell sx={{ fontWeight: 600, color: '#7d8190', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Proofreading</TableCell>
-            <TableCell sx={{ fontWeight: 600, color: '#7d8190', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Clean/Redraw</TableCell>
-            <TableCell sx={{ fontWeight: 600, color: '#7d8190', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Typesetting</TableCell>
-            <TableCell sx={{ fontWeight: 600, color: '#7d8190', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Acciones</TableCell>
+            <TableCell sx={{ fontWeight: 600, color: '#a4abbf', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cap.</TableCell>
+            <TableCell sx={{ fontWeight: 600, color: '#a4abbf', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Traducción</TableCell>
+            <TableCell sx={{ fontWeight: 600, color: '#a4abbf', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Proofreading</TableCell>
+            <TableCell sx={{ fontWeight: 600, color: '#a4abbf', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Clean/Redraw</TableCell>
+            <TableCell sx={{ fontWeight: 600, color: '#a4abbf', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Typesetting</TableCell>
+            <TableCell sx={{ fontWeight: 600, color: '#a4abbf', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Acciones</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -2936,7 +2936,7 @@ const SeriesManagement = () => {
               component="h1"
               sx={{
                 fontWeight: 700,
-                color: '#e2e4e9',
+                color: '#dfe5fa',
                 fontSize: { xs: '1.5rem', md: '2rem' },
                 letterSpacing: '-0.02em',
                 lineHeight: 1.2,
@@ -2944,7 +2944,7 @@ const SeriesManagement = () => {
             >
               Gestión por Series
             </Typography>
-            <Typography variant="body2" sx={{ color: '#7d8190', mt: 0.5, fontWeight: 400 }}>
+            <Typography variant="body2" sx={{ color: '#a4abbf', mt: 0.5, fontWeight: 400 }}>
               Vista organizada por series mostrando todas las asignaciones
             </Typography>
           </Box>
@@ -3008,7 +3008,7 @@ const SeriesManagement = () => {
           placeholder="Buscar por título o autor..."
           className="sm-search-field"
           InputProps={{
-            startAdornment: <SearchIcon sx={{ color: '#7d8190', mr: 1, fontSize: 20 }} />,
+            startAdornment: <SearchIcon sx={{ color: '#a4abbf', mr: 1, fontSize: 20 }} />,
           }}
           sx={{
             flex: { xs: '1 1 100%', sm: '1 1 280px' },
@@ -3027,7 +3027,7 @@ const SeriesManagement = () => {
                 boxShadow: '0 0 0 3px rgba(106,158,255,0.08)',
               },
             },
-            '& .MuiOutlinedInput-input': { color: '#e2e4e9' },
+            '& .MuiOutlinedInput-input': { color: '#dfe5fa' },
           }}
         />
 
@@ -3042,11 +3042,11 @@ const SeriesManagement = () => {
               border: '1px solid rgba(255,255,255,0.07)',
               height: 42,
               fontSize: '0.875rem',
-              color: '#e2e4e9',
+              color: '#dfe5fa',
               transition: 'border-color 200ms ease',
               '& fieldset': { border: 'none' },
               '&:hover': { borderColor: 'rgba(106,158,255,0.2)' },
-              '& .MuiSelect-icon': { color: '#7d8190' },
+              '& .MuiSelect-icon': { color: '#a4abbf' },
             }}
             MenuProps={{
               PaperProps: {
@@ -3069,7 +3069,7 @@ const SeriesManagement = () => {
           >
             <MenuItem value="all">
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <FilterIcon sx={{ fontSize: 16, color: '#7d8190' }} />
+                <FilterIcon sx={{ fontSize: 16, color: '#a4abbf' }} />
                 Todos
               </Box>
             </MenuItem>
@@ -3110,15 +3110,15 @@ const SeriesManagement = () => {
             backdropFilter: 'blur(24px)',
             border: '1px solid rgba(255,255,255,0.07)',
           }}>
-            <MenuBookIcon sx={{ fontSize: 48, color: '#7d8190', mb: 2 }} />
-            <Typography variant="h6" sx={{ color: '#7d8190', fontWeight: 500 }}>
+            <MenuBookIcon sx={{ fontSize: 48, color: '#a4abbf', mb: 2 }} />
+            <Typography variant="h6" sx={{ color: '#a4abbf', fontWeight: 500 }}>
               {searchTerm || statusFilter !== 'all' ? 
                 'No se encontraron series que coincidan con los filtros' : 
                 'No hay series disponibles'
               }
             </Typography>
             {!searchTerm && statusFilter === 'all' && (
-              <Typography variant="body2" sx={{ color: '#7d8190', mt: 1, opacity: 0.7 }}>
+              <Typography variant="body2" sx={{ color: '#a4abbf', mt: 1, opacity: 0.7 }}>
                 Las series aparecerán aquí cuando sean creadas desde el panel de administración
               </Typography>
             )}
@@ -3198,7 +3198,7 @@ const SeriesManagement = () => {
                           variant="subtitle1"
                           sx={{
                             fontWeight: 600,
-                            color: '#e2e4e9',
+                            color: '#dfe5fa',
                             fontSize: { xs: '0.95rem', md: '1.05rem' },
                             lineHeight: 1.3,
                             overflow: 'hidden',
@@ -3267,20 +3267,20 @@ const SeriesManagement = () => {
                       </Box>
 
                       {manga.author && (
-                        <Typography variant="caption" sx={{ color: '#7d8190', display: 'block', mb: 1 }}>
+                        <Typography variant="caption" sx={{ color: '#a4abbf', display: 'block', mb: 1 }}>
                           {manga.author}
                         </Typography>
                       )}
 
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                        <Typography variant="caption" sx={{ color: '#7d8190' }}>
+                        <Typography variant="caption" sx={{ color: '#a4abbf' }}>
                           <Box component="span" sx={{ color: '#6a9eff', fontWeight: 600 }}>{stats.totalChapters}</Box> caps
                         </Typography>
-                        <Typography variant="caption" sx={{ color: '#7d8190' }}>
+                        <Typography variant="caption" sx={{ color: '#a4abbf' }}>
                           <Box component="span" sx={{ color: '#6a9eff', fontWeight: 600 }}>{stats.totalAssignments}</Box> asignaciones
                         </Typography>
                         {stats.total > 0 && (
-                          <Typography variant="caption" sx={{ color: '#7d8190' }}>
+                          <Typography variant="caption" sx={{ color: '#a4abbf' }}>
                             <Box component="span" sx={{ color: '#10b981', fontWeight: 600 }}>{stats.completed}</Box>/{stats.total} completados
                           </Typography>
                         )}
@@ -3296,7 +3296,7 @@ const SeriesManagement = () => {
                       )}
                     </Box>
 
-                    <IconButton size="small" sx={{ color: '#7d8190', ml: 1 }}>
+                    <IconButton size="small" sx={{ color: '#a4abbf', ml: 1 }}>
                       <ExpandMoreIcon
                         className={`sm-expand-icon ${isExpanded ? 'sm-expand-icon--open' : ''}`}
                       />
@@ -3379,7 +3379,7 @@ const SeriesManagement = () => {
           }
         }}
       >
-        <DialogTitle sx={{ color: '#e2e4e9', fontWeight: 600, fontSize: '1.1rem' }}>
+        <DialogTitle sx={{ color: '#dfe5fa', fontWeight: 600, fontSize: '1.1rem' }}>
           Editar texto personalizado
         </DialogTitle>
         <DialogContent>
@@ -3406,7 +3406,7 @@ const SeriesManagement = () => {
           <Button 
             onClick={() => setUnavailableTextDialog({ open: false, manga: null, chapter: null, taskType: null, currentText: '' })}
             className="sm-btn"
-            sx={{ color: '#7d8190', textTransform: 'none', fontWeight: 500 }}
+            sx={{ color: '#a4abbf', textTransform: 'none', fontWeight: 500 }}
           >
             Cancelar
           </Button>

@@ -1121,7 +1121,7 @@ const Assignments = () => {
             variant="h3" 
             sx={{ 
               fontWeight: 700,
-              color: '#e2e4e9',
+              color: '#dfe5fa',
               letterSpacing: '-0.01em',
               mb: 1
             }}
@@ -1227,7 +1227,7 @@ const Assignments = () => {
       {/* Filtros */}
       <Card sx={{ 
         mb: 4,
-        background: '#17181d',
+        background: '#0b1323',
         border: '1px solid rgba(255, 255, 255, 0.1)'
       }}>
         <CardContent>
@@ -1487,7 +1487,7 @@ const Assignments = () => {
               <Card 
                 sx={{ 
                   height: '100%',
-                  background: '#17181d',
+                  background: '#0b1323',
                   border: isOverdue ? '2px solid #ef4444' : 
                           groupStatus === 'completado' ? '2px solid #10b981' :
                           groupStatus === 'en_progreso' ? '2px solid #f59e0b' :
@@ -1758,7 +1758,7 @@ const Assignments = () => {
         <Card sx={{ 
           textAlign: 'center', 
           py: 8,
-          background: '#17181d',
+          background: '#0b1323',
           border: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
           <Assignment sx={{ fontSize: '4rem', color: 'text.secondary', mb: 2 }} />
