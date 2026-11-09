@@ -2570,7 +2570,7 @@ const SystemConfiguration = () => {
         />
         <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Typography variant="caption" color="textSecondary">
-            🌐 <strong>Detección automática:</strong> localhost (desarrollo), wptassig.dpdns.org (producción), Firebase Hosting, Vercel, Netlify
+            🌐 <strong>Detección automática:</strong> localhost (desarrollo), wptassig.kyudenzone.com (producción), Firebase Hosting, Vercel, Netlify
           </Typography>
           {configurations.general?.baseUrl !== window.location.origin && (
             <Button

@@ -523,9 +523,9 @@ function getDefaultBaseUrl() {
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     // Entorno de desarrollo local
     return currentOrigin;
-  } else if (hostname.includes('wptassig.dpdns.org')) {
+  } else if (hostname.includes('wptassig.kyudenzone.com')) {
     // Entorno de producción con dominio personalizado
-    return 'https://wptassig.dpdns.org';
+    return 'https://wptassig.kyudenzone.com';
   } else if (hostname.includes('whitepearltranslations.web.app') || hostname.includes('whitepearltranslations.firebaseapp.com')) {
     // Entorno de Firebase Hosting
     return currentOrigin;

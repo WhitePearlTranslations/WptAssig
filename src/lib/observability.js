@@ -39,7 +39,7 @@ export function initObservability() {
           instrumentationOptions: {
             // Propagar contexto de tracing
             propagateTraceHeaderCorsUrls: [
-              /https:\/\/wptassig\.dpdns\.org/,
+              /https:\/\/wptassig\.kyudenzone\.com/,
               /https:\/\/.*\.firebaseio\.com/,
               /https:\/\/.*\.googleapis\.com/,
             ],
