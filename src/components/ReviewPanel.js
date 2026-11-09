@@ -1,21 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Container,
   Typography,
-  Card,
-  CardContent,
   Grid,
   Button,
-  Chip,
   Avatar,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   IconButton,
   Dialog,
   DialogTitle,
@@ -23,43 +12,30 @@ import {
   DialogActions,
   TextField,
   Alert,
-  LinearProgress,
-  Badge,
   Tooltip,
   Stack,
   Divider,
   CircularProgress,
-  FormControl,
-  InputLabel,
-  Select,
   MenuItem,
-  InputAdornment,
-  AlertTitle
+  ToggleButton,
+  ToggleButtonGroup
 } from '@mui/material';
 import {
-  CheckCircle as ApproveIcon,
-  Cancel as RejectIcon,
   Visibility as ViewIcon,
   HourglassTop as PendingIcon,
-  Person as PersonIcon,
-  Book as BookIcon,
   Schedule as TimeIcon,
-  Assignment as TaskIcon,
   ThumbUp as ThumbUpIcon,
   ThumbDown as ThumbDownIcon,
-  Comment as CommentIcon,
-  Link as LinkIcon,
-  CalendarToday as CalendarIcon,
-  FilterList as FilterIcon,
   Search as SearchIcon,
-  Refresh as RefreshIcon,
-  Timeline as TimelineIcon,
-  TrendingUp as TrendingUpIcon,
   Close as CloseIcon,
-  OpenInNew as OpenInNewIcon
+  OpenInNew as OpenInNewIcon,
+  LockOutlined
 } from '@mui/icons-material';
 import { useAuth, ROLES } from '../contexts/AuthContextSimple';
-import { ASSIGNMENT_STATUS, STATUS_CONFIG, TASK_TYPES, isChiefRole } from '../utils/constants';
+import { ASSIGNMENT_STATUS, TASK_TYPES, ROLE_LABELS } from '../utils/constants';
+import { PageHeader, Panel, EmptyState, TaskTypeTag } from './ui';
+import { triggerHaptic } from '../hooks/useWebHaptics';
+import { colors, radius, rowDivider } from '../theme/tokens';
 import realtimeService from '../services/realtimeService';
 import { toast } from 'react-hot-toast';
 import { format, formatDistanceToNow, isValid } from 'date-fns';
@@ -288,454 +264,281 @@ const ReviewPanel = () => {
   // Verificación de acceso
   if (!userProfile) {
     return (
-      <Container maxWidth="md" sx={{ mt: 8 }}>
-        <Alert severity="info">
-          <Typography>Cargando información del usuario...</Typography>
-        </Alert>
-      </Container>
+      <Box sx={{ py: 8, textAlign: 'center' }}>
+        <Typography sx={{ color: colors.onSurfaceVariant }}>Cargando información del usuario…</Typography>
+      </Box>
     );
   }
 
   if (!canAccess) {
     return (
-      <Container maxWidth="md" sx={{ mt: 8 }}>
-        <Alert severity="error">
-          <AlertTitle>Acceso Restringido</AlertTitle>
-          <Typography>
-            Esta página solo está disponible para Administradores, Jefes de Traducción y Jefes de Edición.
-          </Typography>
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            Tu rol actual: <strong>{userProfile.role}</strong>
-          </Typography>
-        </Alert>
-      </Container>
+      <Box sx={{ maxWidth: 480, mx: 'auto', mt: 6 }}>
+        <Panel>
+          <EmptyState icon={LockOutlined} title="No tienes acceso a Revisiones">
+            Esta página es para administradores y jefes de traducción o de edición. Tu rol actual es {ROLE_LABELS[userProfile.role] || userProfile.role}.
+          </EmptyState>
+        </Panel>
+      </Box>
     );
   }
 
-  const filteredAssignments = getFilteredAssignments();
+  const submittedAt = (a) => a.pendingApprovalSince || a.completedDate;
+  // Primero quien lleva más tiempo esperando.
+  const filteredAssignments = getFilteredAssignments()
+    .slice()
+    .sort((a, b) => new Date(submittedAt(a) || 0) - new Date(submittedAt(b) || 0));
+
+  const hasExtraFilters = Boolean(filters.user || filters.manga || filters.search);
+  const typeCounts = Object.keys(TASK_TYPES).reduce((acc, key) => {
+    acc[key] = assignments.filter((a) => a.type === key).length;
+    return acc;
+  }, {});
+
+  const userById = (userId) => users.find((u) => (u.uid || u.id) === userId);
+  const avatarOf = (userId) => {
+    const u = userById(userId);
+    return u?.profileImage || u?.photoURL || u?.avatar || undefined;
+  };
+
+  const GRID = 'minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 1fr) 140px 240px';
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-      {/* Header */}
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        mb: 4,
-        background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(239, 68, 68, 0.1) 100%)',
-        p: 3,
-        borderRadius: 3,
-        border: '1px solid rgba(245, 158, 11, 0.2)'
-      }}>
-        <Box>
-          <Typography 
-            variant="h3" 
-            sx={{ 
-              fontWeight: 700,
-              background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              mb: 1
-            }}
-          >
-            Panel de Revisión
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Solicitudes de aprobación pendientes de revisión
-          </Typography>
-          {loading && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-              <CircularProgress size={16} sx={{ color: 'primary.main' }} />
-              <Typography variant="body2" color="primary.main">
-                Cargando solicitudes...
-              </Typography>
-            </Box>
-          )}
-        </Box>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <Tooltip title={loading ? "Cargando..." : "Actualizar solicitudes"}>
-            <span>
-              <IconButton
-                onClick={() => window.location.reload()}
-                disabled={loading}
-                sx={{
-                  backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                  color: '#f59e0b',
-                  '&:hover': {
-                    backgroundColor: 'rgba(245, 158, 11, 0.2)',
-                    transform: 'scale(1.05)'
-                  },
-                  '&:disabled': {
-                    backgroundColor: 'rgba(107, 114, 128, 0.1)',
-                    color: '#6b7280'
-                  },
-                  transition: 'all 0.3s ease'
-                }}
-              >
-                <RefreshIcon />
-              </IconButton>
-            </span>
-          </Tooltip>
-        </Box>
-      </Box>
-
-      {/* Stats Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ 
-            textAlign: 'center',
-            background: 'rgba(245, 158, 11, 0.1)',
-            border: '1px solid rgba(245, 158, 11, 0.2)'
-          }}>
-            <CardContent sx={{ py: 2 }}>
-              <Badge badgeContent={stats.total} color="warning" max={999}>
-                <PendingIcon sx={{ fontSize: '2rem', color: '#f59e0b', mb: 1 }} />
-              </Badge>
-              <Typography variant="h4" fontWeight={700} color="warning.main">
-                {stats.total}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Total Pendientes
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ 
-            textAlign: 'center',
-            background: 'rgba(106, 158, 255, 0.1)',
-            border: '1px solid rgba(106, 158, 255, 0.2)'
-          }}>
-            <CardContent sx={{ py: 2 }}>
-              <Typography variant="h4" fontWeight={700} color="primary">
-                {stats.translation}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Traducción
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ 
-            textAlign: 'center',
-            background: 'rgba(167, 139, 250, 0.1)',
-            border: '1px solid rgba(167, 139, 250, 0.2)'
-          }}>
-            <CardContent sx={{ py: 2 }}>
-              <Typography variant="h4" fontWeight={700} sx={{ color: '#a78bfa' }}>
-                {stats.editing}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Edición
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ 
-            textAlign: 'center',
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.2)'
-          }}>
-            <CardContent sx={{ py: 2 }}>
-              <Typography variant="h4" fontWeight={700} color="error">
-                {stats.overdue}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Vencidas
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+    <Box>
+      <PageHeader
+        title="Revisiones"
+        subtitle={
+          loading
+            ? 'Cargando solicitudes…'
+            : stats.total === 0
+              ? 'Nada esperando revisión'
+              : [
+                  `${stats.total} ${stats.total === 1 ? 'entrega espera' : 'entregas esperan'} tu revisión`,
+                  stats.overdue > 0 ? `${stats.overdue} fuera de plazo` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+        }
+      />
 
       {/* Filtros */}
-      <Card sx={{ 
-        mb: 4,
-        background: 'rgba(15, 15, 25, 0.8)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)'
-      }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-            <FilterIcon sx={{ color: 'primary.main' }} />
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Filtros
-            </Typography>
-            <Box sx={{ flexGrow: 1 }} />
-            {(filters.taskType || filters.user || filters.manga || filters.search) && (
-              <Button
-                size="small"
-                onClick={() => setFilters({ status: 'pendiente_aprobacion', taskType: '', user: '', manga: '', search: '' })}
-                sx={{ color: 'text.secondary' }}
-              >
-                Limpiar filtros
-              </Button>
-            )}
-          </Box>
-          
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Buscar..."
-                value={filters.search}
-                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon sx={{ color: 'text.secondary' }} />
-                    </InputAdornment>
-                  )
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Tipo de Tarea</InputLabel>
-                <Select
-                  value={filters.taskType}
-                  label="Tipo de Tarea"
-                  onChange={(e) => setFilters(prev => ({ ...prev, taskType: e.target.value }))}
-                >
-                  <MenuItem value="">Todas las tareas</MenuItem>
-                  {Object.entries(TASK_TYPES).map(([key, label]) => (
-                    <MenuItem key={key} value={key}>{label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Usuario</InputLabel>
-                <Select
-                  value={filters.user}
-                  label="Usuario"
-                  onChange={(e) => setFilters(prev => ({ ...prev, user: e.target.value }))}
-                >
-                  <MenuItem value="">Todos los usuarios</MenuItem>
-                  {getUniqueUsers().map((user) => (
-                    <MenuItem key={user.uid || user.id} value={user.uid || user.id}>
-                      {user.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Manga</InputLabel>
-                <Select
-                  value={filters.manga}
-                  label="Manga"
-                  onChange={(e) => setFilters(prev => ({ ...prev, manga: e.target.value }))}
-                >
-                  <MenuItem value="">Todos los mangas</MenuItem>
-                  {getMangas().map((manga) => (
-                    <MenuItem key={manga} value={manga}>{manga}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
+      <Panel sx={{ mb: 2, p: { xs: 1.5, sm: 1.5 } }} aria-label="Filtros">
+        <Box
+          sx={{
+            display: 'grid',
+            gap: 1,
+            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'minmax(0, 1.6fr) repeat(2, minmax(0, 1fr)) auto' },
+            alignItems: 'center',
+          }}
+        >
+          <TextField
+            size="small"
+            placeholder="Buscar serie, capítulo o persona"
+            value={filters.search}
+            onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+            inputProps={{ 'aria-label': 'Buscar' }}
+            InputProps={{ startAdornment: <SearchIcon sx={{ color: colors.outline, mr: 1, fontSize: 20 }} /> }}
+          />
+          <TextField
+            select
+            size="small"
+            value={filters.user}
+            onChange={(e) => setFilters((prev) => ({ ...prev, user: e.target.value }))}
+            SelectProps={{ displayEmpty: true }}
+            inputProps={{ 'aria-label': 'Persona' }}
+          >
+            <MenuItem value="">Todas las personas</MenuItem>
+            {getUniqueUsers().map((user) => (
+              <MenuItem key={user.uid || user.id} value={user.uid || user.id}>
+                {user.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            value={filters.manga}
+            onChange={(e) => setFilters((prev) => ({ ...prev, manga: e.target.value }))}
+            SelectProps={{ displayEmpty: true }}
+            inputProps={{ 'aria-label': 'Serie' }}
+          >
+            <MenuItem value="">Todas las series</MenuItem>
+            {getMangas().map((manga) => (
+              <MenuItem key={manga} value={manga}>
+                {manga}
+              </MenuItem>
+            ))}
+          </TextField>
+          {hasExtraFilters ? (
+            <Button
+              size="small"
+              onClick={() => setFilters((prev) => ({ ...prev, user: '', manga: '', search: '' }))}
+              sx={{ color: colors.onSurfaceVariant, justifySelf: 'start' }}
+            >
+              Limpiar
+            </Button>
+          ) : (
+            <Box sx={{ display: { xs: 'none', lg: 'block' }, width: 72 }} />
+          )}
+        </Box>
+      </Panel>
 
-      {/* Lista de Solicitudes */}
-      {loading ? (
-        <Card sx={{ textAlign: 'center', py: 8 }}>
-          <CircularProgress size={60} sx={{ mb: 2 }} />
-          <Typography variant="h6">
-            Cargando solicitudes de revisión...
-          </Typography>
-        </Card>
-      ) : filteredAssignments.length === 0 ? (
-        <Card sx={{ textAlign: 'center', py: 8 }}>
-          <PendingIcon sx={{ fontSize: '4rem', color: 'text.secondary', mb: 2 }} />
-          <Typography variant="h6" color="text.secondary">
-            No hay solicitudes de revisión pendientes
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            {stats.total === 0 
-              ? 'Todas las asignaciones están al día' 
-              : 'No hay solicitudes que coincidan con los filtros aplicados'
-            }
-          </Typography>
-        </Card>
-      ) : (
-        <TableContainer component={Paper} sx={{ 
-          background: 'rgba(15, 15, 25, 0.8)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
-        }}>
-          <Table>
-            <TableHead>
-              <TableRow sx={{ '& th': { borderBottom: '1px solid rgba(255, 255, 255, 0.1)' } }}>
-                <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>Asignación</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>Trabajador</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>Tipo</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>Estado</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>Enviado</TableCell>
-                <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>Acciones</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredAssignments.map((assignment) => (
-                <TableRow 
+      {/* Cola */}
+      <Panel
+        title="En cola"
+        count={filteredAssignments.length}
+        action={
+          <ToggleButtonGroup
+            exclusive
+            size="small"
+            value={filters.taskType}
+            onChange={(e, value) => {
+              if (value !== null) {
+                triggerHaptic('light');
+                setFilters((prev) => ({ ...prev, taskType: value }));
+              }
+            }}
+            aria-label="Tipo de tarea"
+            sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+          >
+            <ToggleButton value="" sx={{ px: 1.25, fontSize: '0.8125rem' }}>
+              Todas
+              <Box component="span" sx={{ ml: 0.75, color: colors.outline, fontVariantNumeric: 'tabular-nums' }}>{stats.total}</Box>
+            </ToggleButton>
+            {Object.entries(TASK_TYPES).map(([key, label]) => (
+              <ToggleButton key={key} value={key} sx={{ px: 1.25, fontSize: '0.8125rem' }}>
+                {label}
+                <Box component="span" sx={{ ml: 0.75, color: colors.outline, fontVariantNumeric: 'tabular-nums' }}>{typeCounts[key]}</Box>
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        }
+      >
+        {loading ? (
+          <Box sx={{ py: 6, textAlign: 'center' }}>
+            <CircularProgress size={32} aria-label="Cargando solicitudes" />
+          </Box>
+        ) : filteredAssignments.length === 0 ? (
+          <EmptyState icon={PendingIcon} title={stats.total === 0 ? 'Todo revisado' : 'Nada con estos filtros'}>
+            {stats.total === 0
+              ? 'Cuando alguien envíe un capítulo terminado para aprobar, aparecerá aquí.'
+              : 'Prueba con otro tipo de tarea o limpia los filtros.'}
+          </EmptyState>
+        ) : (
+          <Box role="table" aria-label="Entregas por revisar" sx={{ mx: -1 }}>
+            <Box
+              role="row"
+              sx={{
+                display: { xs: 'none', lg: 'grid' },
+                gridTemplateColumns: GRID,
+                gap: 2,
+                px: 1,
+                pb: 1,
+                borderBottom: `1px solid ${rowDivider}`,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: colors.onSurfaceVariant,
+              }}
+            >
+              <span role="columnheader">Capítulo</span>
+              <span role="columnheader">Persona</span>
+              <span role="columnheader">Tarea</span>
+              <span role="columnheader">Enviado</span>
+              <span role="columnheader" style={{ textAlign: 'right' }}>Acciones</span>
+            </Box>
+            {filteredAssignments.map((assignment) => {
+              const name = getUserName(assignment.assignedTo);
+              const avatar = avatarOf(assignment.assignedTo);
+              const late = assignment.dueDate && new Date(assignment.dueDate) < new Date();
+              const sent = submittedAt(assignment);
+              return (
+                <Box
                   key={assignment.id}
-                  sx={{ 
-                    '&:hover': { 
-                      backgroundColor: 'rgba(106, 158, 255, 0.05)',
-                      transform: 'translateX(2px)',
-                      transition: 'all 0.2s ease'
-                    },
-                    '& td': { borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }
+                  role="row"
+                  sx={{
+                    display: { xs: 'flex', lg: 'grid' },
+                    flexDirection: 'column',
+                    gridTemplateColumns: GRID,
+                    alignItems: { lg: 'center' },
+                    gap: { xs: 1, lg: 2 },
+                    px: 1,
+                    py: 1.5,
+                    borderRadius: `${radius.md}px`,
+                    transition: 'background-color 150ms ease-out',
+                    '&:hover': { backgroundColor: colors.surfaceContainer },
+                    '&:not(:last-of-type)': { borderBottom: `1px solid ${rowDivider}` },
                   }}
                 >
-                  <TableCell>
-                    <Box>
-                      <Typography variant="subtitle2" fontWeight={600}>
-                        {assignment.mangaTitle || 'Manga desconocido'}
+                  <Box role="cell" sx={{ minWidth: 0 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, minWidth: 0 }}>
+                      <Typography noWrap component="span" sx={{ fontSize: '0.875rem', fontWeight: 500, color: colors.onSurface, minWidth: 0 }}>
+                        {assignment.mangaTitle || 'Serie desconocida'}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Capítulo {assignment.chapter}
-                      </Typography>
-                      {assignment.driveLink && (
-                        <Tooltip title="Ver archivos en Drive">
-                          <IconButton
-                            size="small"
-                            href={assignment.driveLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            sx={{ mt: 0.5, color: 'primary.main' }}
-                          >
-                            <LinkIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-                        <PersonIcon fontSize="small" />
-                      </Avatar>
-                      <Box>
-                        <Typography variant="body2" fontWeight={500}>
-                          {getUserName(assignment.assignedTo)}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {assignment.assignedToName !== getUserName(assignment.assignedTo) ? assignment.assignedToName : ''}
-                        </Typography>
+                      <Box component="span" sx={{ flexShrink: 0, fontSize: '0.875rem', color: colors.onSurfaceVariant, fontVariantNumeric: 'tabular-nums' }}>
+                        Cap. {assignment.chapter}
                       </Box>
                     </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={TASK_TYPES[assignment.type] || assignment.type}
-                      size="small"
-                      sx={{
-                        backgroundColor: assignment.type === 'traduccion' ? 'rgba(106, 158, 255, 0.1)' :
-                                        assignment.type === 'proofreading' ? 'rgba(167, 139, 250, 0.1)' :
-                                        assignment.type === 'cleanRedrawer' ? 'rgba(16, 185, 129, 0.1)' :
-                                        'rgba(245, 158, 11, 0.1)',
-                        color: assignment.type === 'traduccion' ? '#6a9eff' :
-                               assignment.type === 'proofreading' ? '#a78bfa' :
-                               assignment.type === 'cleanRedrawer' ? '#10b981' :
-                               '#f59e0b',
-                        fontWeight: 500
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      icon={<PendingIcon />}
-                      label="Esperando Aprobación"
-                      size="small"
-                      sx={{
-                        backgroundColor: STATUS_CONFIG[ASSIGNMENT_STATUS.PENDIENTE_APROBACION].bgColor,
-                        color: STATUS_CONFIG[ASSIGNMENT_STATUS.PENDIENTE_APROBACION].color,
-                        fontWeight: 500
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Box>
-                      <Typography variant="body2">
-                        {getTimeAgo(assignment.pendingApprovalSince || assignment.completedDate)}
+                    {late && (
+                      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.25, fontSize: '0.75rem', color: colors.onSurfaceVariant }}>
+                        <TimeIcon aria-hidden="true" sx={{ fontSize: 14, color: colors.error }} />
+                        Fuera de plazo
+                      </Box>
+                    )}
+                  </Box>
+                  <Box role="cell" sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                    <Avatar src={avatar} alt="" sx={{ width: 26, height: 26, fontSize: '0.6875rem', fontWeight: 700 }}>
+                      {!avatar && name.substring(0, 2).toUpperCase()}
+                    </Avatar>
+                    <Typography noWrap sx={{ fontSize: '0.8125rem', color: colors.onSurface }}>
+                      {name}
+                    </Typography>
+                  </Box>
+                  <Box role="cell" sx={{ fontSize: '0.8125rem' }}>
+                    <TaskTypeTag type={assignment.type} />
+                  </Box>
+                  <Box role="cell">
+                    <Tooltip title={sent && isValid(new Date(sent)) ? format(new Date(sent), 'dd/MM/yyyy HH:mm', { locale: es }) : ''}>
+                      <Typography component="span" sx={{ fontSize: '0.8125rem', color: colors.onSurfaceVariant }}>
+                        {getTimeAgo(sent)}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {assignment.pendingApprovalSince ? 
-                          format(new Date(assignment.pendingApprovalSince), 'dd/MM/yyyy HH:mm', { locale: es }) :
-                          'Fecha no disponible'
-                        }
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Stack direction="row" spacing={1}>
-                      {/* Vista previa de archivos */}
-                      {assignment.driveLink && (
-                        <Tooltip title="Vista previa de archivos">
-                          <IconButton
-                            onClick={() => handlePreviewFiles(assignment)}
-                            sx={{
-                              color: '#6a9eff',
-                              backgroundColor: 'rgba(106, 158, 255, 0.1)',
-                              '&:hover': {
-                                backgroundColor: 'rgba(106, 158, 255, 0.2)',
-                                transform: 'scale(1.1)'
-                              },
-                              transition: 'all 0.2s ease'
-                            }}
-                          >
-                            <ViewIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                      <Tooltip title="Aprobar asignación">
-                        <IconButton
-                          onClick={() => handleApprove(assignment)}
-                          sx={{
-                            color: '#10b981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            '&:hover': {
-                              backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                              transform: 'scale(1.1)'
-                            },
-                            transition: 'all 0.2s ease'
-                          }}
-                        >
-                          <ThumbUpIcon fontSize="small" />
+                    </Tooltip>
+                  </Box>
+                  <Box role="cell" sx={{ display: 'flex', gap: 0.75, justifyContent: { lg: 'flex-end' }, flexWrap: 'wrap' }}>
+                    {assignment.driveLink && (
+                      <Tooltip title="Ver archivos">
+                        <IconButton onClick={() => handlePreviewFiles(assignment)} aria-label="Ver archivos" size="small">
+                          <ViewIcon sx={{ fontSize: 18 }} />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Rechazar y devolver">
-                        <IconButton
-                          onClick={() => handleReject(assignment)}
-                          sx={{
-                            color: '#ef4444',
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            '&:hover': {
-                              backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                              transform: 'scale(1.1)'
-                            },
-                            transition: 'all 0.2s ease'
-                          }}
-                        >
-                          <ThumbDownIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+                    )}
+                    <Button
+                      size="small"
+                      startIcon={<ThumbDownIcon sx={{ fontSize: 16 }} />}
+                      onClick={() => {
+                        triggerHaptic('light');
+                        handleReject(assignment);
+                      }}
+                      sx={{ color: colors.onSurfaceVariant }}
+                    >
+                      Rechazar
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<ThumbUpIcon sx={{ fontSize: 16, color: colors.goodNews }} />}
+                      onClick={() => {
+                        triggerHaptic('light');
+                        handleApprove(assignment);
+                      }}
+                    >
+                      Aprobar
+                    </Button>
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        )}
+      </Panel>
 
       {/* Dialog de Revisión */}
       <Dialog
@@ -753,11 +556,11 @@ const ReviewPanel = () => {
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             {reviewDialog.action === 'approve' ? (
-              <ThumbUpIcon sx={{ color: '#10b981' }} />
+              <ThumbUpIcon sx={{ color: colors.goodNews }} />
             ) : (
-              <ThumbDownIcon sx={{ color: '#ef4444' }} />
+              <ThumbDownIcon sx={{ color: colors.error }} />
             )}
-            {reviewDialog.action === 'approve' ? 'Aprobar Asignación' : 'Rechazar Asignación'}
+            {reviewDialog.action === 'approve' ? 'Aprobar entrega' : 'Devolver para corregir'}
           </Box>
         </DialogTitle>
         <DialogContent>
@@ -827,17 +630,13 @@ const ReviewPanel = () => {
                 
                 {reviewDialog.action === 'approve' && (
                   <Alert severity="success" sx={{ mt: 2 }}>
-                    <AlertTitle>Aprobar Asignación</AlertTitle>
-                    Esta acción marcará la asignación como <strong>APROBADA</strong>. 
-                    El trabajador será notificado de la aprobación.
+                    La tarea quedará <strong>aprobada</strong> y la persona verá tu comentario.
                   </Alert>
                 )}
                 
                 {reviewDialog.action === 'reject' && (
                   <Alert severity="warning" sx={{ mt: 2 }}>
-                    <AlertTitle>Rechazar Asignación</AlertTitle>
-                    Esta acción devolverá la asignación al estado <strong>PENDIENTE</strong>. 
-                    El trabajador deberá corregir los puntos mencionados y enviar nuevamente.
+                    La tarea vuelve a <strong>pendiente</strong>: la persona verá el motivo, corregirá y la enviará de nuevo.
                   </Alert>
                 )}
               </Grid>
@@ -855,16 +654,11 @@ const ReviewPanel = () => {
             variant="contained"
             onClick={handleReviewSubmit}
             disabled={processing || (reviewDialog.action === 'reject' && !reviewComment.trim())}
-            sx={{
-              backgroundColor: reviewDialog.action === 'approve' ? '#10b981' : '#ef4444',
-              '&:hover': {
-                backgroundColor: reviewDialog.action === 'approve' ? '#059669' : '#dc2626'
-              }
-            }}
-            startIcon={processing ? <CircularProgress size={20} /> : null}
+            color={reviewDialog.action === 'approve' ? 'primary' : 'error'}
+            startIcon={processing ? <CircularProgress size={18} color="inherit" /> : null}
           >
             {processing ? 'Procesando...' : 
-             reviewDialog.action === 'approve' ? 'Aprobar' : 'Rechazar'
+             reviewDialog.action === 'approve' ? 'Aprobar' : 'Devolver'
             }
           </Button>
         </DialogActions>
@@ -921,7 +715,6 @@ const ReviewPanel = () => {
                   handleClosePreview();
                   handleApprove(filePreview.assignment);
                 }}
-                sx={{ color: '#10b981', borderColor: '#10b981' }}
               >
                 Aprobar
               </Button>
@@ -932,7 +725,6 @@ const ReviewPanel = () => {
                   handleClosePreview();
                   handleReject(filePreview.assignment);
                 }}
-                sx={{ color: '#ef4444', borderColor: '#ef4444' }}
               >
                 Rechazar
               </Button>
@@ -950,7 +742,7 @@ const ReviewPanel = () => {
           <Button onClick={handleClosePreview}>Cerrar</Button>
         </DialogActions>
       </Dialog>
-    </Container>
+    </Box>
   );
 };
 
