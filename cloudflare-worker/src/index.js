@@ -15,7 +15,7 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3001',
   'https://wptasignacion.firebaseapp.com', // Tu dominio de Firebase Hosting
   'https://wptasignacion.web.app', // Dominio alternativo de Firebase
-  'https://wptassig.dpdns.org', // Tu dominio personalizado de producción
+  'https://wptassig.kyudenzone.com', // Dominio personalizado de producción
   // Para desarrollo, permitir null para herramientas como curl/PowerShell
 ];
 
