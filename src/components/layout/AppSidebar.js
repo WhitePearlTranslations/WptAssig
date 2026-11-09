@@ -75,9 +75,9 @@ function useNavPermissions() {
  * primer bloque, junto al panel, porque es lo que tiene trabajo esperando.
  */
 function useNavGroups() {
-  const { userProfile, hasRole } = useAuth();
+  const { userProfile, hasRole, isSuperAdmin } = useAuth();
   const perms = useNavPermissions();
-  const isAdmin = hasRole(ROLES.ADMIN);
+  const isAdmin = hasRole(ROLES.ADMIN) || isSuperAdmin();
 
   return [
     {

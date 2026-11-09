@@ -1,24 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Box, Typography, ButtonBase, Grid } from '@mui/material';
 import {
-  Container,
-  Grid,
-  Paper,
-  Typography,
-  Box,
-  Chip,
-  Avatar,
-  Button,
-  Alert
-} from '@mui/material';
-import {
-  Assignment,
-  Edit,
-  Translate,
-  AdminPanelSettings,
-  TrendingUp,
-  Work,
-  HourglassTop,
-  RateReview,
+  ErrorOutlineRounded,
+  ScheduleRounded,
+  RateReviewOutlined,
+  CheckCircleOutlineRounded,
+  ChevronRightRounded,
+  AssignmentOutlined,
 } from '@mui/icons-material';
 import {
   XAxis,
@@ -28,668 +16,424 @@ import {
   ResponsiveContainer,
   BarChart as RechartsBarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
 } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 import { realtimeService } from '../services/realtimeService';
 import { useAuth, ROLES } from '../contexts/AuthContextSimple';
-import { useNavigate } from 'react-router-dom';
 import { usePendingReviews } from '../hooks/usePendingReviews';
+import { triggerHaptic } from '../hooks/useWebHaptics';
 import SystemFooter from '../components/SystemFooter';
+import { PageHeader, Panel, StatusBadge, TaskTypeTag, MeterBar, EmptyState } from '../components/ui';
+import { ASSIGNMENT_TYPES } from '../utils/constants';
+import { colors, radius, divider, rowDivider, focusOutline } from '../theme/tokens';
+
+const ROLE_NAMES = {
+  admin: 'Administrador',
+  jefe_editor: 'Jefe de edición',
+  jefe_traductor: 'Jefe de traducción',
+  editor: 'Editor',
+  traductor: 'Traductor',
+  uploader: 'Uploader',
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const isPending = (s) => s === 'pending' || s === 'pendiente';
+const isInProgress = (s) => s === 'in_progress' || s === 'en_progreso';
+const isCompleted = (s) => s === 'completed' || s === 'completado';
+
+const daysUntil = (dueDate) => Math.ceil((new Date(dueDate) - new Date()) / DAY_MS);
+
+const deadlineText = (days) => {
+  if (days < 0) return `Venció hace ${Math.abs(days)} ${Math.abs(days) === 1 ? 'día' : 'días'}`;
+  if (days === 0) return 'Vence hoy';
+  if (days === 1) return 'Vence mañana';
+  return `Vence en ${days} días`;
+};
+
+const greeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return 'Buenos días';
+  if (h < 20) return 'Buenas tardes';
+  return 'Buenas noches';
+};
+
+const toDateStr = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string') return value.split('T')[0];
+  return value.toDate?.()?.toISOString().split('T')[0] ?? null;
+};
+
+// Últimos 7 días: asignadas y completadas por día.
+const generateActivityData = (assignments) => {
+  const now = new Date();
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+    days.push({
+      day: `${date.toLocaleDateString('es-ES', { weekday: 'short' })} ${date.getDate()}`,
+      completadas: assignments.filter(
+        (a) => isCompleted(a.status) && toDateStr(a.completedDate || a.updatedAt) === dateStr
+      ).length,
+      asignadas: assignments.filter((a) => toDateStr(a.assignedDate || a.createdAt) === dateStr).length,
+    });
+  }
+  return days;
+};
+
+const generateTypeDistribution = (assignments) =>
+  Object.entries(ASSIGNMENT_TYPES)
+    .map(([type, cfg]) => ({
+      type,
+      label: cfg.label,
+      color: cfg.color,
+      value: assignments.filter((a) => a.type === type).length,
+    }))
+    .filter((t) => t.value > 0)
+    .sort((a, b) => b.value - a.value);
+
+/** Una fila de la franja de pendientes: icono teñido, cifra, frase y flecha. */
+function PendingItem({ icon: Icon, tone, count, label, detail, onClick }) {
+  return (
+    <ButtonBase
+      onClick={() => {
+        triggerHaptic('light');
+        onClick();
+      }}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.5,
+        flex: '1 1 240px',
+        minHeight: 56,
+        px: 1.5,
+        py: 1,
+        borderRadius: `${radius.lg}px`,
+        backgroundColor: colors.surfaceContainer,
+        textAlign: 'left',
+        transition: 'background-color 150ms ease-out, transform 150ms cubic-bezier(0.16, 1, 0.3, 1)',
+        '&:hover': { backgroundColor: colors.surfaceHigh },
+        '&:active': { transform: 'scale(0.98)' },
+        '&.Mui-focusVisible': focusOutline,
+      }}
+    >
+      <Icon sx={{ fontSize: 20, color: tone, flexShrink: 0 }} aria-hidden="true" />
+      <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: colors.onSurface }}>
+        {count}
+      </Typography>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography sx={{ fontSize: '0.875rem', color: colors.onSurface, lineHeight: 1.35 }}>{label}</Typography>
+        {detail && (
+          <Typography sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant, lineHeight: 1.35 }}>{detail}</Typography>
+        )}
+      </Box>
+      <ChevronRightRounded sx={{ fontSize: 18, color: colors.outline }} aria-hidden="true" />
+    </ButtonBase>
+  );
+}
+
+/** Fila de una asignación activa. Toda la fila lleva a «Mis trabajos». */
+function AssignmentRow({ assignment, onOpen }) {
+  const days = assignment.dueDate ? daysUntil(assignment.dueDate) : null;
+  const overdue = days !== null && days < 0;
+  const soon = days !== null && days >= 0 && days <= 2;
+  return (
+    <Box component="li" sx={{ listStyle: 'none', '&:not(:last-of-type)': { borderBottom: `1px solid ${rowDivider}` } }}>
+      <ButtonBase
+        onClick={onOpen}
+        sx={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          px: 1,
+          py: 1.25,
+          borderRadius: `${radius.md}px`,
+          textAlign: 'left',
+          transition: 'background-color 150ms ease-out',
+          '&:hover': { backgroundColor: colors.surfaceContainer },
+          '&.Mui-focusVisible': { ...focusOutline, outlineOffset: -2 },
+        }}
+      >
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          {/* Se recorta el título de la serie, nunca el número de capítulo. */}
+          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, fontSize: '0.875rem', minWidth: 0 }}>
+            <Typography noWrap component="span" sx={{ fontSize: 'inherit', fontWeight: 500, color: colors.onSurface, minWidth: 0 }}>
+              {assignment.mangaTitle}
+            </Typography>
+            <Box
+              component="span"
+              sx={{ flexShrink: 0, color: colors.onSurfaceVariant, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}
+            >
+              Cap. {assignment.chapter}
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25, fontSize: '0.75rem', flexWrap: 'wrap' }}>
+            <TaskTypeTag type={assignment.type} />
+            {days !== null && (
+              <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, color: colors.onSurfaceVariant }}>
+                <Box component="span" aria-hidden="true">·</Box>
+                {(overdue || soon) && (
+                  <ScheduleRounded
+                    aria-hidden="true"
+                    sx={{ fontSize: 14, color: overdue ? colors.error : colors.attention }}
+                  />
+                )}
+                {deadlineText(days)}
+              </Box>
+            )}
+          </Box>
+        </Box>
+        <StatusBadge status={assignment.status} />
+      </ButtonBase>
+    </Box>
+  );
+}
+
+const chartTooltipStyle = {
+  backgroundColor: colors.surfaceHighest,
+  border: 'none',
+  borderRadius: radius.DEFAULT,
+  color: colors.onSurface,
+  fontSize: '0.75rem',
+  boxShadow: '0 12px 32px rgba(0, 0, 0, 0.35)',
+};
 
 const Dashboard = () => {
-  const { userProfile, isSuperAdmin, hasRole, userPermissions, refreshPermissions } = useAuth();
+  const { userProfile, hasRole } = useAuth();
   const navigate = useNavigate();
-  const [myActiveAssignments, setMyActiveAssignments] = useState([]);
-  const [myStats, setMyStats] = useState({
-    total: 0,
-    pending: 0,
-    inProgress: 0,
-    completed: 0,
-    overdue: 0
-  });
-  const [upcomingDeadlines, setUpcomingDeadlines] = useState([]);
-  const [activityData, setActivityData] = useState([]);
-  const [typeDistribution, setTypeDistribution] = useState([]);
-  
-  // Hook para revisiones pendientes (solo para jefes)
+  const [myAssignments, setMyAssignments] = useState([]);
+
   const pendingReviews = usePendingReviews();
   const isChief = hasRole(ROLES.ADMIN) || hasRole(ROLES.JEFE_EDITOR) || hasRole(ROLES.JEFE_TRADUCTOR);
 
-
   useEffect(() => {
-    let unsubscribeMyAssignments = null;
-    
-    // Initialize async subscriptions
-    const initSubscriptions = async () => {
-      if (userProfile?.uid) {
-        try {
-          unsubscribeMyAssignments = await realtimeService.subscribeToAssignments((assignments) => {
-            const myAssignments = assignments.filter(assignment => 
-              assignment.assignedTo === userProfile.uid
-            );
-            
-            const myActiveAssignments = myAssignments.filter(assignment => 
-              assignment.status !== 'completado' && assignment.status !== 'uploaded'
-            );
-            
-            setMyActiveAssignments(myActiveAssignments);
-            
-            // Calcular estadísticas personales
-            const total = myAssignments.length;
-            const pending = myAssignments.filter(a => a.status === 'pending' || a.status === 'pendiente').length;
-            const inProgress = myAssignments.filter(a => a.status === 'in_progress' || a.status === 'en_progreso').length;
-            const completed = myAssignments.filter(a => a.status === 'completed' || a.status === 'completado').length;
-            const overdue = myAssignments.filter(a => 
-              a.dueDate && new Date(a.dueDate) < new Date() && 
-              (a.status === 'pending' || a.status === 'pendiente' || a.status === 'in_progress' || a.status === 'en_progreso')
-            ).length;
-            
-            setMyStats({ total, pending, inProgress, completed, overdue });
-            
-            // Fechas límite próximas (próximos 7 días)
-            const now = new Date();
-            const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-            
-            const upcoming = myActiveAssignments
-              .filter(a => a.dueDate && new Date(a.dueDate) <= nextWeek)
-              .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-              .slice(0, 5);
-              
-            setUpcomingDeadlines(upcoming);
-            
-            // Generar datos de actividad (últimos 7 días)
-            const activityChart = generateActivityData(myAssignments);
-            setActivityData(activityChart);
-            
-            // Generar distribución por tipo de trabajo
-            const typeChart = generateTypeDistribution(myAssignments);
-            setTypeDistribution(typeChart);
-          });
-        } catch (error) {
-          // Error setting up subscriptions - silently handle
-        }
+    let unsubscribe = null;
+    const init = async () => {
+      if (!userProfile?.uid) return;
+      try {
+        unsubscribe = await realtimeService.subscribeToAssignments((assignments) => {
+          setMyAssignments(assignments.filter((a) => a.assignedTo === userProfile.uid));
+        });
+      } catch (error) {
+        // Sin conexión con la base de datos: el panel se queda vacío.
       }
     };
-
-    initSubscriptions();
-
+    init();
     return () => {
-      if (typeof unsubscribeMyAssignments === 'function') {
-        unsubscribeMyAssignments();
-      }
+      if (typeof unsubscribe === 'function') unsubscribe();
     };
   }, [userProfile]);
 
-  const getTypeIcon = (type) => {
-    switch (type) {
-      case 'traduccion':
-        return <Translate />;
-      case 'proofreading':
-        return <RateReview />;
-      case 'cleanRedrawer':
-        return <Edit />;
-      case 'type':
-        return <HourglassTop />;
-      default:
-        return <Edit />;
-    }
-  };
-
-  const getTypeLabel = (type) => {
-    switch (type) {
-      case 'traduccion':
-        return 'Traducción';
-      case 'proofreading':
-        return 'Proofreading';
-      case 'cleanRedrawer':
-        return 'Clean/Redraw';
-      case 'type':
-        return 'Typesetting';
-      default:
-        return 'Edición';
-    }
-  };
-
-  const getRoleDisplayName = (role) => {
-    const roleNames = {
-      admin: 'Administrador',
-      jefe_editor: 'Jefe Editor',
-      jefe_traductor: 'Jefe Traductor',
-      editor: 'Editor',
-      traductor: 'Traductor',
-      uploader: 'Uploader'
-    };
-    return roleNames[role] || role;
-  };
-
-  const getDaysUntilDeadline = (dueDate) => {
-    const now = new Date();
-    const deadline = new Date(dueDate);
-    const diffTime = deadline - now;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-
-  const getDeadlineColor = (daysUntil) => {
-    if (daysUntil < 0) return '#ef4444'; // Vencido - rojo
-    if (daysUntil <= 1) return '#f59e0b'; // Urgente - naranja
-    if (daysUntil <= 3) return '#eab308'; // Próximo - amarillo
-    return '#6b7280'; // Normal - gris
-  };
-
-  // Generar datos de actividad para el gráfico
-  const generateActivityData = (assignments) => {
-    const now = new Date();
-    const days = [];
-    
-    // Generar últimos 7 días
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      
-      const dayName = date.toLocaleDateString('es-ES', { weekday: 'short' });
-      const dayNum = date.getDate();
-      
-      // Contar asignaciones completadas en este día
-      const completedToday = assignments.filter(a => {
-        const completedDate = a.completedDate || a.updatedAt;
-        if (!completedDate) return false;
-        
-        const assignmentDate = typeof completedDate === 'string' 
-          ? completedDate.split('T')[0]
-          : completedDate.toDate?.()?.toISOString().split('T')[0];
-        
-        return assignmentDate === dateStr && (a.status === 'completed' || a.status === 'completado');
-      }).length;
-      
-      // Contar asignaciones creadas/asignadas en este día
-      const assignedToday = assignments.filter(a => {
-        const assignedDate = a.assignedDate || a.createdAt;
-        if (!assignedDate) return false;
-        
-        const assignmentDate = typeof assignedDate === 'string' 
-          ? assignedDate.split('T')[0]
-          : assignedDate.toDate?.()?.toISOString().split('T')[0];
-        
-        return assignmentDate === dateStr;
-      }).length;
-      
-      days.push({
-        day: `${dayName} ${dayNum}`,
-        completadas: completedToday,
-        asignadas: assignedToday,
-        fecha: dateStr
+  const data = useMemo(() => {
+    const active = myAssignments
+      .filter((a) => a.status !== 'completado' && a.status !== 'uploaded')
+      .sort((a, b) => {
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return new Date(a.dueDate) - new Date(b.dueDate);
       });
-    }
-    
-    return days;
-  };
-
-  // Generar distribución por tipo de trabajo
-  const generateTypeDistribution = (assignments) => {
-    const types = {
-      traduccion: { count: 0, color: '#6a9eff', label: 'Traducción' },
-      proofreading: { count: 0, color: '#a78bfa', label: 'Proofreading' },
-      cleanRedrawer: { count: 0, color: '#10b981', label: 'Clean/Redraw' },
-      type: { count: 0, color: '#f59e0b', label: 'Typesetting' }
+    const open = (a) => isPending(a.status) || isInProgress(a.status);
+    const overdue = myAssignments.filter((a) => a.dueDate && daysUntil(a.dueDate) < 0 && open(a)).length;
+    const dueSoon = active.filter((a) => {
+      if (!a.dueDate) return false;
+      const d = daysUntil(a.dueDate);
+      return d >= 0 && d <= 2;
+    }).length;
+    return {
+      active,
+      overdue,
+      dueSoon,
+      stats: {
+        total: myAssignments.length,
+        pending: myAssignments.filter((a) => isPending(a.status)).length,
+        inProgress: myAssignments.filter((a) => isInProgress(a.status)).length,
+        completed: myAssignments.filter((a) => isCompleted(a.status)).length,
+      },
+      activity: generateActivityData(myAssignments),
+      types: generateTypeDistribution(myAssignments),
     };
-    
-    assignments.forEach(assignment => {
-      if (types[assignment.type]) {
-        types[assignment.type].count++;
-      }
-    });
-    
-    return Object.entries(types)
-      .filter(([_, data]) => data.count > 0)
-      .map(([type, data]) => ({
-        name: data.label,
-        value: data.count,
-        color: data.color
-      }));
-  };
+  }, [myAssignments]);
 
+  const reviewsCount = isChief ? pendingReviews.count : 0;
+  const reviewsOverdue = pendingReviews.detailedStats?.overdue ?? 0;
+  const hasPending = data.overdue > 0 || data.dueSoon > 0 || reviewsCount > 0;
+  const goToWorks = () => navigate('/myworks');
+  const firstName = (userProfile?.name || '').split(' ')[0];
 
-  // Motivational quotes pool
-  const quotes = [
-    'Mark your mission to motivationate to proofers now to hand your mindlist!',
-    'Cada capítulo traducido acerca una historia al mundo.',
-    'El trabajo en equipo hace el sueño realidad.',
-    'La constancia supera al talento.',
-  ];
-  const dailyQuote = quotes[new Date().getDay() % quotes.length];
+  const subtitle = [
+    firstName ? `${greeting()}, ${firstName}` : greeting(),
+    ROLE_NAMES[userProfile?.role],
+    `${data.active.length} ${data.active.length === 1 ? 'capítulo activo' : 'capítulos activos'}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const maxType = Math.max(0, ...data.types.map((t) => t.value));
 
   return (
-    <>
-      <Container maxWidth="lg" sx={{ mt: { xs: 2, md: 3 }, mb: 4, px: { xs: 2, sm: 3 } }}>
+    <Box>
+      <PageHeader title="Panel" subtitle={subtitle} />
 
-        {/* ── Admin button (superadmin only) ── */}
-        {isSuperAdmin() && (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<AdminPanelSettings />}
-              onClick={() => navigate('/admin')}
-              sx={{
-                backgroundColor: '#e84855',
-                color: 'white',
-                fontWeight: 600,
-                borderRadius: 2,
-                textTransform: 'none',
-                boxShadow: 'none',
-                '&:hover': { backgroundColor: '#c73a47' },
-              }}
-            >
-              Panel de Admin
-            </Button>
-          </Box>
-        )}
-
-        {/* ── Pending reviews alert (chiefs only) ── */}
-        {isChief && pendingReviews.count > 0 && (
-          <Alert
-            severity="warning"
-            sx={{
-              mb: 3,
-              background: 'rgba(245, 158, 11, 0.08)',
-              border: '1px solid rgba(245, 158, 11, 0.25)',
-              borderRadius: 2,
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <HourglassTop sx={{ color: '#f59e0b' }} />
-                <Typography variant="body1" sx={{ color: '#f59e0b', fontWeight: 600 }}>
-                  Tienes {pendingReviews.count} revisión{pendingReviews.count > 1 ? 'es' : ''} pendiente{pendingReviews.count > 1 ? 's' : ''}
-                </Typography>
-              </Box>
-              <Button
-                variant="contained"
-                startIcon={<RateReview />}
+      {/* Franja de pendientes: solo aparece lo que tiene trabajo */}
+      <Panel
+        aria-label="Lo que espera"
+        sx={{ mb: 2, p: { xs: 1.5, sm: 1.5 } }}
+        contentSx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}
+      >
+        {hasPending ? (
+          <>
+            {data.overdue > 0 && (
+              <PendingItem
+                icon={ErrorOutlineRounded}
+                tone={colors.error}
+                count={data.overdue}
+                label={data.overdue === 1 ? 'capítulo retrasado' : 'capítulos retrasados'}
+                detail="Ya pasó su fecha límite"
+                onClick={goToWorks}
+              />
+            )}
+            {data.dueSoon > 0 && (
+              <PendingItem
+                icon={ScheduleRounded}
+                tone={colors.attention}
+                count={data.dueSoon}
+                label={data.dueSoon === 1 ? 'vence en 48 horas' : 'vencen en 48 horas'}
+                onClick={goToWorks}
+              />
+            )}
+            {reviewsCount > 0 && (
+              <PendingItem
+                icon={RateReviewOutlined}
+                tone={colors.attention}
+                count={reviewsCount}
+                label={reviewsCount === 1 ? 'entrega espera tu revisión' : 'entregas esperan tu revisión'}
+                detail={
+                  reviewsOverdue > 0
+                    ? `${reviewsOverdue} ${reviewsOverdue === 1 ? 'lleva' : 'llevan'} más tiempo del previsto`
+                    : pendingReviews.roleDescription
+                }
                 onClick={() => navigate('/reviews')}
-                size="small"
-                sx={{
-                  backgroundColor: '#f5a623',
-                  color: 'white',
-                  fontWeight: 600,
-                  boxShadow: 'none',
-                  '&:hover': { backgroundColor: '#d9911e' },
-                }}
-              >
-                Ir a Revisar
-              </Button>
-            </Box>
-            <Typography variant="body2" sx={{ mt: 1, color: 'rgba(255,255,255,0.5)' }}>
-              Asignaciones de <strong>{pendingReviews.roleDescription}</strong> esperando tu aprobación
-              {pendingReviews.detailedStats && pendingReviews.detailedStats.overdue > 0 && (
-                <span style={{ color: '#ef4444', fontWeight: 600, marginLeft: '8px' }}>
-                  • {pendingReviews.detailedStats.overdue} vencida{pendingReviews.detailedStats.overdue > 1 ? 's' : ''}
-                </span>
-              )}
+              />
+            )}
+          </>
+        ) : (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, py: 0.75 }}>
+            <CheckCircleOutlineRounded sx={{ fontSize: 18, color: colors.goodNews }} aria-hidden="true" />
+            <Typography sx={{ fontSize: '0.875rem', color: colors.onSurface }}>
+              Todo al día: nada retrasado ni por revisar.
             </Typography>
-          </Alert>
-        )}
-
-        {/* ── User profile banner ── */}
-        <Paper
-          elevation={0}
-          sx={{
-            p: { xs: 2.5, sm: 3 },
-            mb: 3,
-            backgroundColor: 'rgba(23, 24, 29, 0.7)',
-            backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 2, sm: 3 } }}>
-            <Avatar
-              src={userProfile?.profileImage || userProfile?.photoURL || userProfile?.avatar}
-              sx={{
-                width: { xs: 56, sm: 72 },
-                height: { xs: 56, sm: 72 },
-                border: '2px solid rgba(106, 158, 255, 0.25)',
-                flexShrink: 0,
-              }}
-            >
-              {!(userProfile?.profileImage || userProfile?.photoURL || userProfile?.avatar) &&
-                userProfile?.name?.substring(0, 2).toUpperCase()
-              }
-            </Avatar>
-            <Box sx={{ minWidth: 0 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-                <Typography variant="h5" sx={{ fontWeight: 700, color: '#dfe5fa', lineHeight: 1.2 }}>
-                  {userProfile?.name || 'Usuario'}
-                </Typography>
-                <Chip
-                  label={getRoleDisplayName(userProfile?.role)}
-                  size="small"
-                  sx={{
-                    background: 'rgba(106, 158, 255, 0.12)',
-                    color: '#6a9eff',
-                    fontWeight: 600,
-                    fontSize: '0.75rem',
-                    height: 24,
-                  }}
-                />
-              </Box>
-              <Typography variant="body2" sx={{ color: '#a4abbf', mt: 0.5 }}>
-                Miembro desde: {userProfile?.createdAt?.toDate?.()?.toLocaleDateString('es-ES') || 'N/A'}
-              </Typography>
-            </Box>
           </Box>
-          <Typography
-            variant="body2"
-            sx={{ color: 'rgba(255,255,255,0.35)', mt: 2, fontStyle: 'italic', fontSize: '0.8125rem' }}
-          >
-            {dailyQuote}
-          </Typography>
-        </Paper>
-
-        {/* ── 4 stat cards ── */}
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          {[
-            { value: myStats.total, label: 'Total', color: '#6a9eff' },
-            { value: myStats.pending, label: 'Pendientes', color: '#f5a623' },
-            { value: myStats.completed, label: 'Completadas', color: '#34a853' },
-            { value: myStats.overdue, label: 'Atrasadas', color: '#e84855' },
-          ].map((stat) => (
-            <Grid item xs={6} sm={3} key={stat.label}>
-              <Paper
-                elevation={0}
-                sx={{
-                  textAlign: 'center',
-                  py: { xs: 2, sm: 2.5 },
-                  px: 1,
-                  border: `1px solid ${stat.color}25`,
-                  backgroundColor: `${stat.color}08`,
-                  transition: 'border-color 0.2s ease',
-                  '&:hover': { borderColor: `${stat.color}40` },
-                }}
-              >
-                <Typography
-                  variant="h3"
-                  sx={{
-                    fontWeight: 700,
-                    color: stat.color,
-                    fontSize: { xs: '2rem', sm: '2.5rem' },
-                    lineHeight: 1,
-                    mb: 0.5,
-                  }}
-                >
-                  {stat.value}
-                </Typography>
-                <Typography variant="body2" sx={{ color: stat.color, fontWeight: 500, opacity: 0.8, fontSize: '0.8125rem' }}>
-                  {stat.label}
-                </Typography>
-              </Paper>
-            </Grid>
-          ))}
-        </Grid>
-
-        {/* ── Info alerts ── */}
-        {upcomingDeadlines.length === 0 && myStats.total > 0 && (
-          <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-            <Typography variant="body2">
-              ¡Buen trabajo! No tienes fechas límite próximas. Mantén el ritmo.
-            </Typography>
-          </Alert>
         )}
-        {myStats.total === 0 && (
-          <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-            <Typography variant="body2">
-              No tienes asignaciones actualmente. Las nuevas tareas aparecerán aquí cuando te sean asignadas.
-            </Typography>
-          </Alert>
-        )}
+      </Panel>
 
-        {/* ── Charts row ── */}
-        {myStats.total > 0 && (
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            {/* Bar chart */}
-            <Grid item xs={12} md={7}>
-              <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, height: '100%' }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-                  Mi Actividad (Últimos 7 días)
-                </Typography>
-                {activityData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={240}>
-                    <RechartsBarChart data={activityData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                      <XAxis
-                        dataKey="day"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 11, fill: '#a4abbf' }}
-                      />
-                      <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 11, fill: '#a4abbf' }}
-                        allowDecimals={false}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: '#1a1b21',
-                          border: '1px solid rgba(255,255,255,0.08)',
-                          borderRadius: '8px',
-                          color: '#dfe5fa',
-                          fontSize: '0.8125rem',
-                        }}
-                        labelStyle={{ color: '#a4abbf' }}
-                      />
-                      <Bar dataKey="asignadas" fill="#6a9eff" name="Asignadas" radius={[3, 3, 0, 0]} />
-                      <Bar dataKey="completadas" fill="#34a853" name="Completadas" radius={[3, 3, 0, 0]} />
-                    </RechartsBarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <Box sx={{ textAlign: 'center', py: 6, opacity: 0.5 }}>
-                    <TrendingUp sx={{ fontSize: '2.5rem', mb: 1, color: '#a4abbf' }} />
-                    <Typography variant="body2" color="textSecondary">
-                      No hay actividad reciente
-                    </Typography>
-                  </Box>
-                )}
-              </Paper>
-            </Grid>
-
-            {/* Pie chart */}
-            <Grid item xs={12} md={5}>
-              <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, height: '100%' }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-                  Distribución por Tipo
-                </Typography>
-                {typeDistribution.length > 0 ? (
-                  <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', gap: 2 }}>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
-                        <Pie
-                          data={typeDistribution}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={50}
-                          outerRadius={85}
-                          paddingAngle={2}
-                          dataKey="value"
-                          stroke="none"
-                        >
-                          {typeDistribution.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: '#1a1b21',
-                            border: '1px solid rgba(255,255,255,0.08)',
-                            borderRadius: '8px',
-                            color: '#dfe5fa',
-                            fontSize: '0.8125rem',
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <Box sx={{ flexShrink: 0 }}>
-                      {typeDistribution.map((item, index) => (
-                        <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                          <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: item.color, flexShrink: 0 }} />
-                          <Typography variant="body2" sx={{ color: '#a4abbf', fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
-                            {item.value} {item.name}
-                          </Typography>
-                        </Box>
-                      ))}
-                    </Box>
-                  </Box>
-                ) : (
-                  <Box sx={{ textAlign: 'center', py: 6, opacity: 0.5 }}>
-                    <Assignment sx={{ fontSize: '2rem', mb: 1, color: '#a4abbf' }} />
-                    <Typography variant="body2" color="textSecondary">Sin datos</Typography>
-                  </Box>
-                )}
-              </Paper>
-            </Grid>
-          </Grid>
-        )}
-
-        {/* ── Active assignments table ── */}
-        {myActiveAssignments.length > 0 && (
-          <Paper elevation={0} sx={{ mb: 3, overflow: 'hidden' }}>
-            <Box sx={{ px: { xs: 2, sm: 3 }, pt: { xs: 2, sm: 2.5 }, pb: 1 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                Mis Asignaciones Activas
-              </Typography>
-            </Box>
-
-            {/* Table header – hidden on mobile */}
-            <Box
-              sx={{
-                display: { xs: 'none', sm: 'grid' },
-                gridTemplateColumns: '1fr 140px 100px',
-                px: 3,
-                py: 1,
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
-              }}
-            >
-              <Typography variant="caption" sx={{ color: '#a4abbf', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Título
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#a4abbf', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Tipo
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#a4abbf', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>
-                Acciones
-              </Typography>
-            </Box>
-
-            {/* Table rows */}
-            {myActiveAssignments.map((assignment) => (
-              <Box
-                key={assignment.id}
-                sx={{
-                  display: { xs: 'flex', sm: 'grid' },
-                  flexDirection: { xs: 'column', sm: 'unset' },
-                  gridTemplateColumns: { sm: '1fr 140px 100px' },
-                  alignItems: 'center',
-                  px: { xs: 2, sm: 3 },
-                  py: 1.5,
-                  gap: { xs: 0.5, sm: 0 },
-                  borderBottom: '1px solid rgba(255,255,255,0.04)',
-                  transition: 'background-color 0.15s ease',
-                  '&:hover': { backgroundColor: 'rgba(106, 158, 255, 0.04)' },
-                  '&:last-child': { borderBottom: 'none' },
-                }}
-              >
-                <Typography variant="body2" sx={{ fontWeight: 500, color: '#dfe5fa', fontSize: '0.875rem' }}>
-                  {assignment.mangaTitle} - Cap. {assignment.chapter}
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#a4abbf', fontSize: '0.8125rem' }}>
-                  {getTypeLabel(assignment.type)}
-                </Typography>
-                <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', sm: 'flex-end' } }}>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    onClick={() => navigate('/my-works')}
-                    sx={{
-                      minWidth: 0,
-                      px: 1.5,
-                      py: 0.5,
-                      fontSize: '0.75rem',
-                      borderRadius: '20px',
-                      backgroundColor: '#6a9eff',
-                      boxShadow: 'none',
-                      textTransform: 'none',
-                      '&:hover': { backgroundColor: '#5a8eef' },
-                    }}
-                  >
-                    Ver
-                  </Button>
-                </Box>
-              </Box>
-            ))}
-          </Paper>
-        )}
-
-        {/* ── Upcoming deadlines (compact) ── */}
-        {upcomingDeadlines.length > 0 && (
-          <Paper elevation={0} sx={{ mb: 3, overflow: 'hidden' }}>
-            <Box sx={{ px: { xs: 2, sm: 3 }, pt: { xs: 2, sm: 2.5 }, pb: 1 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                Fechas Límite Próximas
-              </Typography>
-            </Box>
-            {upcomingDeadlines.map((assignment) => {
-              const daysUntil = getDaysUntilDeadline(assignment.dueDate);
-              const deadlineColor = getDeadlineColor(daysUntil);
-              return (
-                <Box
-                  key={assignment.id}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5,
-                    px: { xs: 2, sm: 3 },
-                    py: 1.5,
-                    borderBottom: '1px solid rgba(255,255,255,0.04)',
-                    '&:last-child': { borderBottom: 'none' },
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      backgroundColor: deadlineColor,
-                      flexShrink: 0,
+      <Grid container spacing={2} alignItems="flex-start">
+        {/* Izquierda: el trabajo */}
+        <Grid item xs={12} md={8}>
+          <Panel title="Mis asignaciones activas" count={data.active.length}>
+            {data.active.length > 0 ? (
+              <Box component="ul" sx={{ m: 0, p: 0, mx: -1 }}>
+                {data.active.map((a) => (
+                  <AssignmentRow
+                    key={a.id}
+                    assignment={a}
+                    onOpen={() => {
+                      triggerHaptic('light');
+                      goToWorks();
                     }}
                   />
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500, color: '#dfe5fa', fontSize: '0.875rem' }}>
-                      {assignment.mangaTitle} - Cap. {assignment.chapter}
+                ))}
+              </Box>
+            ) : (
+              <EmptyState icon={AssignmentOutlined} title="No tienes capítulos asignados">
+                Cuando un jefe te asigne uno, aparecerá aquí ordenado por fecha límite.
+              </EmptyState>
+            )}
+          </Panel>
+        </Grid>
+
+        {/* Derecha: cómo va */}
+        <Grid item xs={12} md={4}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Panel title="Tu actividad">
+              <Box
+                component="dl"
+                sx={{ m: 0, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', rowGap: 1.5, columnGap: 2, mb: 2 }}
+              >
+                {[
+                  ['Total', data.stats.total],
+                  ['En progreso', data.stats.inProgress],
+                  ['Pendientes', data.stats.pending],
+                  ['Completadas', data.stats.completed],
+                ].map(([label, value]) => (
+                  <Box key={label}>
+                    <Typography component="dt" sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant }}>
+                      {label}
+                    </Typography>
+                    <Typography
+                      component="dd"
+                      sx={{ m: 0, fontSize: '1.25rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: colors.onSurface }}
+                    >
+                      {value}
                     </Typography>
                   </Box>
-                  <Typography variant="caption" sx={{ color: deadlineColor, fontWeight: 600, flexShrink: 0, fontSize: '0.75rem' }}>
-                    {daysUntil < 0
-                      ? `Vencido (${Math.abs(daysUntil)}d)`
-                      : daysUntil === 0
-                      ? 'Hoy'
-                      : daysUntil === 1
-                      ? 'Mañana'
-                      : `${daysUntil} días`
-                    }
-                  </Typography>
-                </Box>
-              );
-            })}
-          </Paper>
-        )}
+                ))}
+              </Box>
 
-        {/* ── Footer ── */}
-        <SystemFooter size="small" />
-      </Container>
-    </>
+              <Box sx={{ borderTop: `1px solid ${divider}`, pt: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1, fontSize: '0.75rem', color: colors.onSurfaceVariant }}>
+                  <Box component="span" sx={{ flex: 1 }}>Últimos 7 días</Box>
+                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                    <Box component="span" sx={{ width: 8, height: 8, borderRadius: '2px', backgroundColor: colors.outline }} />
+                    Asignadas
+                  </Box>
+                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                    <Box component="span" sx={{ width: 8, height: 8, borderRadius: '2px', backgroundColor: colors.primary }} />
+                    Completadas
+                  </Box>
+                </Box>
+                <ResponsiveContainer width="100%" height={150}>
+                  <RechartsBarChart data={data.activity} margin={{ top: 4, right: 0, left: -28, bottom: 0 }} barGap={2}>
+                    <CartesianGrid vertical={false} stroke={divider} />
+                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: colors.outline }} interval={0} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: colors.outline }} allowDecimals={false} />
+                    <Tooltip
+                      cursor={{ fill: colors.surfaceContainer }}
+                      contentStyle={chartTooltipStyle}
+                      labelStyle={{ color: colors.onSurfaceVariant }}
+                    />
+                    <Bar dataKey="asignadas" fill={colors.outline} name="Asignadas" radius={[3, 3, 0, 0]} maxBarSize={14} />
+                    <Bar dataKey="completadas" fill={colors.primary} name="Completadas" radius={[3, 3, 0, 0]} maxBarSize={14} />
+                  </RechartsBarChart>
+                </ResponsiveContainer>
+              </Box>
+            </Panel>
+
+            {data.types.length > 0 && (
+              <Panel title="Por tipo de tarea">
+                <Box component="ol" sx={{ m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {data.types.map((t) => (
+                    <Box component="li" key={t.type} sx={{ listStyle: 'none' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5, fontSize: '0.8125rem' }}>
+                        <TaskTypeTag type={t.type} />
+                        <Box component="span" sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: colors.onSurface }}>
+                          {t.value}
+                        </Box>
+                      </Box>
+                      <MeterBar value={t.value} max={maxType} color={t.color} />
+                    </Box>
+                  ))}
+                </Box>
+              </Panel>
+            )}
+          </Box>
+        </Grid>
+      </Grid>
+
+      <SystemFooter size="small" />
+    </Box>
   );
 };
 

@@ -81,6 +81,16 @@ export const ROLES = {
   UPLOADER: 'uploader',
 };
 
+// Nombre visible de cada rol (caja de frase)
+export const ROLE_LABELS = {
+  [ROLES.ADMIN]: 'Administrador',
+  [ROLES.JEFE_EDITOR]: 'Jefe de edición',
+  [ROLES.JEFE_TRADUCTOR]: 'Jefe de traducción',
+  [ROLES.EDITOR]: 'Editor',
+  [ROLES.TRADUCTOR]: 'Traductor',
+  [ROLES.UPLOADER]: 'Uploader',
+};
+
 // Tipos de trabajo
 export const TASK_TYPES = {
   traduccion: 'Traducción',
