@@ -34,7 +34,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background: var(--wpt-surface);
   color: var(--wpt-on-surface);
-  overflow-x: hidden;
+  /* clip y no hidden: hidden convierte a body en un contenedor de scroll y la
+     barra lateral (position: sticky) se iba con el contenido al bajar. */
+  overflow-x: clip;
 }
 
 code {
@@ -42,8 +44,10 @@ code {
     monospace;
 }
 
+/* min-height y no height: con una altura fija el layout quedaba encerrado en
+   la altura de la pantalla y el contenido largo se salía por debajo. */
 html, body, #root {
-  height: 100%;
+  min-height: 100%;
 }
 
 /* Barras de desplazamiento finas en el tono de la superficie (antes estaban

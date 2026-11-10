@@ -138,8 +138,9 @@ const srOnlyWhenCollapsed = (collapsed) =>
         flex: 1,
         '@media (min-width:1200px)': {
           position: 'absolute',
-          width: 1,
-          height: 1,
+          // En sx, 1 significa 100 %: hay que poner px
+          width: '1px',
+          height: '1px',
           overflow: 'hidden',
           clip: 'rect(0 0 0 0)',
           whiteSpace: 'nowrap',

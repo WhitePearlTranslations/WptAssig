@@ -1148,7 +1148,7 @@ const Assignments = () => {
         {overdue && <ScheduleRounded aria-hidden="true" sx={{ fontSize: 15, color: colors.error }} />}
         <span>{shortDate(group.dueDate)}</span>
         {overdue && (
-          <Box component="span" sx={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
+          <Box component="span" sx={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
             (retrasado)
           </Box>
         )}
@@ -1366,7 +1366,7 @@ const Assignments = () => {
               <span role="columnheader">Progreso</span>
               <span role="columnheader">Fecha límite</span>
               <span role="columnheader" style={{ textAlign: 'right' }}>
-                <Box component="span" sx={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
+                <Box component="span" sx={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
                   Acciones
                 </Box>
               </span>

@@ -1483,7 +1483,7 @@ const MyWorks = () => {
                 <Box component="span" aria-hidden="true">·</Box>
                 {overdue && <Schedule aria-hidden="true" sx={{ fontSize: 14, color: colors.error }} />}
                 {new Date(chapterGroup.earliestDueDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-                {overdue && <Box component="span" sx={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>(vencida)</Box>}
+                {overdue && <Box component="span" sx={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>(vencida)</Box>}
               </Box>
             )}
             {chapterGroup.driveLink && <LinkIcon aria-label="Tiene carpeta de Drive" sx={{ fontSize: 14, color: colors.outline }} />}
