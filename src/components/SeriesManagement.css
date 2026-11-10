@@ -1,283 +1,28 @@
-/* =============================================== */
-/* CUSTOM EASING CURVES (animations.dev)           */
-/* =============================================== */
-:root {
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-}
+/* Series: solo lo que no cubre el tema de MUI (DESIGN.md).
+   Antes había entradas escalonadas que ocultaban cada serie (opacity: 0) hasta
+   que terminaba su animación, cristal, degradados y brillos al pasar el ratón. */
 
-/* =============================================== */
-/* ENTRY ANIMATIONS                                */
-/* =============================================== */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes headerReveal {
-  from {
-    opacity: 0;
-    transform: translateY(-12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes progressFill {
-  from { width: 0; }
-}
-
-@keyframes subtlePulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-@keyframes shimmer {
-  0% { background-position: -200px 0; }
-  100% { background-position: calc(200px + 100%) 0; }
-}
-
-/* =============================================== */
-/* HEADER ANIMATION                                */
-/* =============================================== */
-.sm-header {
-  animation: headerReveal 500ms var(--ease-out) both;
-}
-
-.sm-header-icon {
-  transition: transform 250ms var(--ease-out);
-}
-
-.sm-header:hover .sm-header-icon {
-  transform: scale(1.06) rotate(-3deg);
-}
-
-/* =============================================== */
-/* SERIES CARD - STAGGERED ENTRY + INTERACTION     */
-/* =============================================== */
-.series-card {
-  opacity: 0;
-  transform: translateY(8px);
-  animation: fadeIn 400ms var(--ease-out) forwards;
-  transition: border-color 200ms ease, box-shadow 200ms ease;
-}
-
-.series-card:nth-child(1) { animation-delay: 0ms; }
-.series-card:nth-child(2) { animation-delay: 60ms; }
-.series-card:nth-child(3) { animation-delay: 120ms; }
-.series-card:nth-child(4) { animation-delay: 180ms; }
-.series-card:nth-child(5) { animation-delay: 240ms; }
-.series-card:nth-child(6) { animation-delay: 300ms; }
-.series-card:nth-child(7) { animation-delay: 360ms; }
-.series-card:nth-child(8) { animation-delay: 420ms; }
-.series-card:nth-child(9) { animation-delay: 480ms; }
-.series-card:nth-child(10) { animation-delay: 540ms; }
-
-@media (hover: hover) and (pointer: fine) {
-  .series-card:hover {
-    border-color: rgba(106, 158, 255, 0.25);
-    box-shadow: 0 8px 32px rgba(106, 158, 255, 0.08);
-  }
-}
-
-.series-card:active {
-  transform: scale(0.99);
-  transition: transform 100ms var(--ease-out);
-}
-
-/* =============================================== */
-/* COVER IMAGE                                     */
-/* =============================================== */
-.sm-cover {
-  transition: transform 250ms var(--ease-out), box-shadow 250ms ease;
-  will-change: transform;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .series-card:hover .sm-cover {
-    transform: scale(1.04);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  }
-}
-
-/* =============================================== */
-/* PROGRESS BAR                                    */
-/* =============================================== */
-.sm-progress-track {
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.08);
-  overflow: hidden;
-}
-
-.sm-progress-fill {
-  height: 100%;
-  border-radius: 2px;
-  background: linear-gradient(90deg, #6a9eff, #a78bfa);
-  transition: width 600ms var(--ease-out);
-  animation: progressFill 800ms var(--ease-out);
-}
-
-/* =============================================== */
-/* STAT PILL                                       */
-/* =============================================== */
-.sm-stat-pill {
-  animation: scaleIn 350ms var(--ease-out) both;
-  transition: transform 200ms var(--ease-out), box-shadow 200ms ease;
-}
-
-.sm-stat-pill:nth-child(1) { animation-delay: 100ms; }
-.sm-stat-pill:nth-child(2) { animation-delay: 160ms; }
-.sm-stat-pill:nth-child(3) { animation-delay: 220ms; }
-
-@media (hover: hover) and (pointer: fine) {
-  .sm-stat-pill:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(106, 158, 255, 0.15);
-  }
-}
-
-.sm-stat-pill:active {
-  transform: scale(0.97);
-  transition: transform 100ms var(--ease-out);
-}
-
-/* =============================================== */
-/* CHIP ANIMATIONS                                 */
-/* =============================================== */
-.sm-chip {
-  transition: transform 160ms var(--ease-out), box-shadow 160ms ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .sm-chip:hover {
-    transform: translateY(-1px);
-  }
-}
-
-.sm-chip:active {
-  transform: scale(0.95);
-  transition: transform 80ms var(--ease-out);
-}
-
-/* =============================================== */
-/* BUTTONS — PRESS FEEL                            */
-/* =============================================== */
-.sm-btn {
-  transition: transform 160ms var(--ease-out), 
-              background-color 200ms ease, 
-              box-shadow 200ms ease,
-              border-color 200ms ease;
-}
-
-.sm-btn:active {
-  transform: scale(0.97);
-  transition: transform 80ms var(--ease-out);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .sm-btn:hover {
-    box-shadow: 0 4px 16px rgba(106, 158, 255, 0.2);
-  }
-}
-
-/* =============================================== */
-/* EXPAND / COLLAPSE                               */
-/* =============================================== */
+/* Flecha de desplegar/plegar una serie */
 .sm-expand-icon {
-  transition: transform 300ms var(--ease-in-out);
+  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sm-expand-icon--open {
   transform: rotate(180deg);
 }
 
-/* =============================================== */
-/* SEARCH FIELD FOCUS                              */
-/* =============================================== */
-.sm-search-field {
-  transition: border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;
-}
-
-.sm-search-field:focus-within {
-  border-color: rgba(106, 158, 255, 0.5);
-  box-shadow: 0 0 0 3px rgba(106, 158, 255, 0.1);
-  background: rgba(255, 255, 255, 0.06);
-}
-
-/* =============================================== */
-/* TABLE ROW INTERACTIONS                          */
-/* =============================================== */
+/* Filas de la tabla capítulo × tarea */
 .sm-table-row {
-  transition: background-color 200ms ease;
+  transition: background-color 150ms ease-out;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .sm-table-row:hover {
-    background-color: rgba(106, 158, 255, 0.04);
+    background-color: var(--wpt-surface-container);
   }
 }
 
-/* =============================================== */
-/* LOADING STATES                                  */
-/* =============================================== */
-.sm-skeleton {
-  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
-  background-size: 200px 100%;
-  animation: shimmer 1.8s infinite;
-  border-radius: 8px;
-}
-
-.sm-loading-spinner {
-  animation: subtlePulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* =============================================== */
-/* GLASSMORPHISM                                   */
-/* =============================================== */
-.glass-card {
-  background: rgba(20, 21, 27, 0.72);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
-}
-
-/* =============================================== */
-/* STATUS INDICATORS                               */
-/* =============================================== */
+/* Indicador de estado (punto) */
 .sm-status-dot {
   width: 8px;
   height: 8px;
@@ -286,96 +31,23 @@
   flex-shrink: 0;
 }
 
-.sm-status-dot--active { background: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.4); }
-.sm-status-dot--progress { background: #f59e0b; box-shadow: 0 0 8px rgba(245, 158, 11, 0.4); }
-.sm-status-dot--completed { background: #6a9eff; box-shadow: 0 0 8px rgba(106, 158, 255, 0.4); }
+.sm-status-dot--active { background: var(--wpt-good-news); }
+.sm-status-dot--progress { background: var(--wpt-attention); }
+.sm-status-dot--completed { background: var(--wpt-primary); }
 
-/* =============================================== */
-/* RESPONSIVE DESIGN                               */
-/* =============================================== */
-@media (max-width: 767.98px) {
-  .sm-header {
-    animation-duration: 300ms;
-  }
-
-  .series-card {
-    animation-duration: 250ms;
-  }
-
-  .series-card:nth-child(n) {
-    animation-delay: 0ms;
-  }
-
-  .sm-stat-pill {
-    animation-duration: 200ms;
-  }
-
-  .sm-stat-pill:nth-child(n) {
-    animation-delay: 0ms;
-  }
-
-  .glass-card {
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
+/* Carga */
+.sm-skeleton {
+  background: var(--wpt-surface-high);
+  border-radius: 8px;
+  animation: sm-pulse 1.6s ease-in-out infinite;
 }
 
-/* Touch device optimizations */
-@media (hover: none) and (pointer: coarse) {
-  .series-card:hover {
-    border-color: inherit;
-    box-shadow: none;
-  }
-
-  .series-card:active {
-    transform: scale(0.98);
-    transition: transform 80ms var(--ease-out);
-  }
-
-  .sm-cover:hover {
-    transform: none;
-    box-shadow: none;
-  }
-
-  .sm-stat-pill:hover {
-    transform: none;
-    box-shadow: none;
-  }
-
-  .sm-btn:hover {
-    box-shadow: none;
-  }
+@keyframes sm-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
-/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .sm-header,
-  .series-card,
-  .sm-stat-pill,
-  .sm-chip {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
-
-  .sm-progress-fill {
-    animation: none;
-  }
-
-  .sm-expand-icon {
-    transition-duration: 0.01ms;
-  }
-
-  * {
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-  }
-}
-
-/* Safe area support */
-@supports (padding: max(0px)) {
-  .sm-container {
-    padding-left: max(16px, env(safe-area-inset-left));
-    padding-right: max(16px, env(safe-area-inset-right));
-  }
+  .sm-expand-icon { transition: none; }
+  .sm-skeleton { animation: none; }
 }

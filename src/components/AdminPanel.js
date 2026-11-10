@@ -1,99 +1,238 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Container,
   Typography,
-  Card,
-  CardContent,
   Grid,
   Button,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  DialogContentText,
   TextField,
-  Select,
   MenuItem,
-  FormControl,
-  InputLabel,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   IconButton,
-  Chip,
   Avatar,
   Tabs,
   Tab,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  ListItemSecondaryAction,
-  Divider,
   Alert,
-  DialogContentText,
   Switch,
   FormControlLabel,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
   Checkbox,
-  OutlinedInput,
-  Snackbar,
+  CircularProgress,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
-  Book as BookIcon,
-  People as PeopleIcon,
-  Settings as SettingsIcon,
-  AccountCircle as AccountCircleIcon,
-  Visibility as VisibilityIcon,
-  AdminPanelSettings as AdminIcon,
-  Work as WorkIcon,
-  Upload as UploadIcon,
-  SupervisorAccount as SupervisorIcon,
-  Create as CreateIcon,
-  ViewList as ViewListIcon,
-  ViewModule as ViewModuleIcon,
-  Security as SecurityIcon,
-  Shield as ShieldIcon,
+  DeleteOutline as DeleteIcon,
+  MenuBook as BookIcon,
+  PeopleOutline as PeopleIcon,
+  SettingsOutlined as SettingsIcon,
+  ShieldOutlined as ShieldIcon,
   Block as BlockIcon,
-  CheckCircle as CheckCircleIcon,
-  PersonOff as PersonOffIcon,
-  GroupWork as GroupWorkIcon,
-  PersonAdd as PersonAddIcon,
-  Close as CloseIcon,
   CheckCircleOutline as CheckCircleOutlineIcon,
-  ErrorOutline as ErrorOutlineIcon,
-  InfoOutlined as InfoOutlinedIcon,
-  AdminPanelSettings as AdminPanelSettingsIcon,
+  PersonAddAlt as PersonAddIcon,
+  PersonOutline as PersonOutlineIcon,
   Refresh as RefreshIcon,
+  OpenInNew as OpenInNewIcon,
+  SearchRounded as SearchIcon,
+  LockOutlined as LockOutlinedIcon,
+  ConstructionOutlined as ConstructionIcon,
+  FileDownloadOutlined as DownloadIcon,
+  FileUploadOutlined as UploadIcon,
 } from '@mui/icons-material';
 import { useAuth, ROLES } from '../contexts/AuthContextSimple';
+import { PageHeader, Panel, EmptyState } from './ui';
+import PressIconButton from './motion/PressIconButton';
+import { MANGA_STATUS, ROLE_LABELS } from '../utils/constants';
+import { triggerHaptic } from '../hooks/useWebHaptics';
+import notify from '../utils/notify';
+import { colors, taskColors, radius, rowDivider, withAlpha } from '../theme/tokens';
+
+// Avisos: van al aviso global (con vibración) en vez de a un Snackbar por sección.
+const showNotice = ({ open = true, message, severity }) => {
+  if (!open || !message) return;
+  if (severity === 'success') notify.success(message);
+  else if (severity === 'error') notify.error(message);
+  else notify.info(message);
+};
+
+// Estado de la cuenta: suspendido en ámbar (como en RanobeClub), inactivo y fantasma en humo.
+const USER_STATUS = {
+  active: { label: 'Activo', color: colors.goodNews },
+  inactive: { label: 'Inactivo', color: colors.outline },
+  suspended: { label: 'Suspendido', color: colors.attention },
+  ghost: { label: 'Fantasma', color: colors.outline },
+};
+
+// Roles que se pueden dar desde aquí (administrador solo si ya lo era).
+const ASSIGNABLE_ROLES = [ROLES.JEFE_EDITOR, ROLES.JEFE_TRADUCTOR, ROLES.UPLOADER, ROLES.EDITOR, ROLES.TRADUCTOR];
+
+// Tareas que puede llevar una serie (claves propias de las series).
+const SERIES_TASKS = [
+  { key: 'traduccion', label: 'Traducción', color: taskColors.traduccion },
+  { key: 'proofreading', label: 'Proofreading', color: taskColors.proofreading },
+  { key: 'limpieza', label: 'Limpieza', color: taskColors.cleanRedrawer },
+  { key: 'typesetting', label: 'Typesetting', color: taskColors.type },
+];
+
+const PERMISSION_GROUPS = [
+  {
+    title: 'Asignaciones',
+    items: [
+      ['canAssignChapters', 'Asignar capítulos', 'Crea capítulos y los asigna a otras personas'],
+      ['canEditAssignments', 'Editar asignaciones', 'Modifica asignaciones existentes'],
+      ['canDeleteAssignments', 'Eliminar asignaciones', 'Borra asignaciones; no se puede deshacer'],
+      ['canReassignTasks', 'Reasignar tareas', 'Pasa tareas de una persona a otra'],
+    ],
+  },
+  {
+    title: 'Visibilidad',
+    items: [
+      ['canViewAllProjects', 'Ver todos los proyectos', 'Ve proyectos de otros equipos y personas'],
+      ['canAccessReports', 'Ver reportes', 'Genera y consulta reportes del sistema'],
+      ['canViewUserStats', 'Ver estadísticas de personas', 'Ve estadísticas detalladas de otras personas'],
+    ],
+  },
+  {
+    title: 'Especiales',
+    items: [
+      ['canManageUploads', 'Gestionar subidas', 'Lleva el proceso de subida y publicación'],
+      ['canManageSeries', 'Gestionar series', 'Crea, edita y elimina series'],
+      ['canModerateReviews', 'Moderar revisiones', 'Aprueba o rechaza entregas de otras personas'],
+    ],
+  },
+  {
+    title: 'Administración',
+    adminOnly: true,
+    items: [
+      ['canViewSystemLogs', 'Ver registros del sistema', 'Consulta los registros y la actividad del sistema'],
+      ['canManageBackups', 'Gestionar copias de seguridad', 'Crea y restaura copias de seguridad'],
+    ],
+  },
+];
+
+const formatDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? String(value)
+    : date.toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+const initials = (name) => (name || '?').substring(0, 2).toUpperCase();
+
+// Etiqueta pequeña: neutra, o con tono (texto en el tono, fondo al 10 %).
+const Tag = ({ children, tone }) => (
+  <Box
+    component="span"
+    sx={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      height: 22,
+      px: 0.875,
+      borderRadius: `${radius.md}px`,
+      fontSize: '0.6875rem',
+      fontWeight: 600,
+      whiteSpace: 'nowrap',
+      flexShrink: 0,
+      color: tone || colors.onSurfaceVariant,
+      backgroundColor: tone ? withAlpha(tone, 0.1) : colors.surfaceHigh,
+    }}
+  >
+    {children}
+  </Box>
+);
+
+// Control segmentado con recuentos (mismo patrón que Series y Usuarios).
+const FilterControl = ({ value, onChange, options, label }) => (
+  <Box sx={{ overflowX: 'auto', mx: -0.5, px: 0.5 }}>
+    <ToggleButtonGroup
+      exclusive
+      size="small"
+      value={value}
+      onChange={(e, next) => {
+        if (next !== null) {
+          triggerHaptic('light');
+          onChange(next);
+        }
+      }}
+      aria-label={label}
+    >
+      {options.map((option) => (
+        <ToggleButton key={option.value} value={option.value} sx={{ px: 1.25, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
+          {option.label}
+          {option.count != null && (
+            <Box component="span" sx={{ ml: 0.75, color: colors.outline, fontVariantNumeric: 'tabular-nums' }}>
+              {option.count}
+            </Box>
+          )}
+        </ToggleButton>
+      ))}
+    </ToggleButtonGroup>
+  </Box>
+);
+
+const headRowSx = (grid) => ({
+  display: { xs: 'none', md: 'grid' },
+  gridTemplateColumns: grid,
+  gap: 2,
+  px: 1,
+  pb: 1,
+  borderBottom: `1px solid ${rowDivider}`,
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  color: colors.onSurfaceVariant,
+});
+
+const rowSx = (grid) => ({
+  display: { xs: 'flex', md: 'grid' },
+  flexWrap: 'wrap',
+  gridTemplateColumns: grid,
+  alignItems: 'center',
+  gap: { xs: 1, md: 2 },
+  px: 1,
+  py: 1.25,
+  borderRadius: `${radius.md}px`,
+  transition: 'background-color 150ms ease-out',
+  '&:hover': { backgroundColor: colors.surfaceContainer },
+  '&:not(:last-of-type)': { borderBottom: `1px solid ${rowDivider}` },
+});
+
+// Acción destructiva: neutra en reposo, roja solo al pasar.
+const dangerIconSx = {
+  color: colors.onSurfaceVariant,
+  '&:hover': { color: colors.error, backgroundColor: withAlpha(colors.error, 0.1) },
+};
+
+const mutedButtonSx = { color: colors.onSurfaceVariant };
+
+const loadingBlock = (label) => (
+  <Box sx={{ py: 6, textAlign: 'center' }}>
+    <CircularProgress size={28} aria-label={label} />
+  </Box>
+);
 
 // Componente reutilizable para diálogos de confirmación
-const ConfirmDialog = ({ open, onClose, onConfirm, title, message }) => {
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{title}</DialogTitle>
-      <DialogContent>
-        <DialogContentText>{message}</DialogContentText>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancelar</Button>
-        <Button onClick={onConfirm} variant="contained" color="error">
-          Confirmar
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-};
+const ConfirmDialog = ({ open, onClose, onConfirm, title, message, confirmLabel = 'Confirmar', destructive = true }) => (
+  <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+    <DialogTitle>{title}</DialogTitle>
+    <DialogContent>
+      <DialogContentText>{message}</DialogContentText>
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={onClose} sx={mutedButtonSx}>
+        Cancelar
+      </Button>
+      <Button onClick={onConfirm} variant="contained" color={destructive ? 'error' : 'primary'}>
+        {confirmLabel}
+      </Button>
+    </DialogActions>
+  </Dialog>
+);
 
 // Componente para la gestión de mangas
 const MangaManagement = () => {
@@ -104,7 +243,7 @@ const MangaManagement = () => {
   const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', onConfirm: null });
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+  const setSnackbar = showNotice;
   const [formData, setFormData] = useState({
     title: '',
     author: '',
@@ -127,7 +266,7 @@ const MangaManagement = () => {
     try {
       const { getAllMangas } = await import('../services/mangaManagement');
       const result = await getAllMangas();
-      
+
       if (result.success) {
         // Filtrar mangas eliminados
         const activeMangas = result.mangas.filter(manga => manga.status !== 'deleted');
@@ -136,7 +275,7 @@ const MangaManagement = () => {
         // Error cargando mangas
         setSnackbar({
           open: true,
-          message: 'Error cargando mangas: ' + result.error,
+          message: 'No se pudieron cargar las series: ' + result.error,
           severity: 'error'
         });
       }
@@ -155,7 +294,7 @@ const MangaManagement = () => {
     if (!formData.title || !formData.author) {
       setSnackbar({
         open: true,
-        message: 'Por favor completa al menos el título y autor del manga',
+        message: 'Falta el título o el autor de la serie',
         severity: 'warning'
       });
       return;
@@ -167,11 +306,11 @@ const MangaManagement = () => {
         // Actualizar manga existente
         const { updateManga } = await import('../services/mangaManagement');
         const result = await updateManga(editingManga.id, formData);
-        
+
         if (result.success) {
           setSnackbar({
             open: true,
-            message: 'Manga actualizado exitosamente',
+            message: 'Serie actualizada',
             severity: 'success'
           });
           handleCloseDialog();
@@ -187,11 +326,11 @@ const MangaManagement = () => {
         // Crear nuevo manga
         const { createManga } = await import('../services/mangaManagement');
         const result = await createManga(formData);
-        
+
         if (result.success) {
           setSnackbar({
             open: true,
-            message: 'Manga creado exitosamente',
+            message: 'Serie creada',
             severity: 'success'
           });
           handleCloseDialog();
@@ -234,17 +373,18 @@ const MangaManagement = () => {
   const handleDeleteManga = async (mangaId, mangaTitle) => {
     setConfirmDialog({
       open: true,
-      title: 'Confirmar Eliminación',
-      message: `¿Estás seguro de que quieres eliminar "${mangaTitle}"? Esta acción no se puede deshacer.`,
+      title: `¿Eliminar "${mangaTitle}"?`,
+      message: 'Se borra la serie del catálogo. No se puede deshacer.',
+      confirmLabel: 'Eliminar',
       onConfirm: async () => {
         try {
           const { deleteManga } = await import('../services/mangaManagement');
           const result = await deleteManga(mangaId);
-          
+
           if (result.success) {
             setSnackbar({
               open: true,
-              message: 'Manga eliminado exitosamente',
+              message: 'Serie eliminada',
               severity: 'success'
             });
             loadMangas(); // Recargar la lista
@@ -272,7 +412,7 @@ const MangaManagement = () => {
     try {
       const { updateMangaProgress } = await import('../services/mangaManagement');
       const result = await updateMangaProgress(mangaId, parseInt(newProgress));
-      
+
       if (result.success) {
         loadMangas(); // Recargar para mostrar cambios
       } else {
@@ -316,258 +456,199 @@ const MangaManagement = () => {
     return matchesSearch && matchesFilter;
   });
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active': return 'success';
-      case 'completed': return 'info';
-      case 'paused': return 'warning';
-      case 'cancelled': return 'error';
-      case 'hiatus': return 'secondary';
-      default: return 'default';
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'active': return 'Activo';
-      case 'completed': return 'Completado';
-      case 'paused': return 'Pausado';
-      case 'cancelled': return 'Cancelado';
-      case 'hiatus': return 'Hiato';
-      default: return status;
-    }
-  };
+  const term = searchTerm.toLowerCase();
+  const searchMatched = mangas.filter(
+    (manga) => (manga.title || '').toLowerCase().includes(term) || (manga.author || '').toLowerCase().includes(term)
+  );
+  const statusOptions = [
+    { value: 'all', label: 'Todas' },
+    { value: 'active', label: 'Activas' },
+    { value: 'paused', label: 'Pausadas' },
+    { value: 'hiatus', label: 'En hiato' },
+    { value: 'completed', label: 'Completadas' },
+    { value: 'cancelled', label: 'Canceladas' },
+  ].map((option) => ({
+    ...option,
+    count: option.value === 'all' ? searchMatched.length : searchMatched.filter((m) => m.status === option.value).length,
+  }));
+  const visibleMangas = filteredMangas.slice().sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es'));
+  const GRID = 'minmax(0, 2.6fr) 110px 90px 100px 80px';
 
   return (
     <Box>
-      {/* Header con controles */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" fontWeight={600}>
-          Gestión de Mangas ({filteredMangas.length} mangas)
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setDialogOpen(true)}
-          disabled={loading}
-          sx={{
-            background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
-            '&:hover': {
-              background: 'linear-gradient(135deg, #5b5bf1, #7c3aed)',
-            },
-          }}
-        >
-          Crear Manga
-        </Button>
-      </Box>
-
-      {/* Controles de búsqueda y filtros */}
-      <Card sx={{ mb: 3, p: 2 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={6}>
+      <Panel
+        title="Series"
+        count={visibleMangas.length}
+        action={
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
             <TextField
-              fullWidth
               size="small"
-              label="Buscar mangas"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por título o autor..."
+              placeholder="Buscar por título o autor"
+              inputProps={{ 'aria-label': 'Buscar series' }}
+              InputProps={{ startAdornment: <SearchIcon sx={{ color: colors.outline, mr: 1, fontSize: 20 }} /> }}
+              sx={{ flex: { xs: '1 1 100%', sm: '0 0 260px' } }}
             />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Filtrar por estado</InputLabel>
-              <Select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                label="Filtrar por estado"
-              >
-                <MenuItem value="all">Todos</MenuItem>
-                <MenuItem value="active">Activo</MenuItem>
-                <MenuItem value="completed">Completado</MenuItem>
-                <MenuItem value="paused">Pausado</MenuItem>
-                <MenuItem value="cancelled">Cancelado</MenuItem>
-                <MenuItem value="hiatus">Hiato</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={2}>
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={loadMangas}
-              disabled={loading}
-              size="small"
-            >
-              {loading ? 'Cargando...' : 'Actualizar'}
+            <Tooltip title="Volver a cargar">
+              <span>
+                <PressIconButton onClick={loadMangas} disabled={loading} aria-label="Volver a cargar las series">
+                  <RefreshIcon sx={{ fontSize: 20 }} />
+                </PressIconButton>
+              </span>
+            </Tooltip>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)} disabled={loading}>
+              Crear serie
             </Button>
-          </Grid>
-        </Grid>
-      </Card>
+          </Box>
+        }
+        sx={{ '& > div:first-of-type': { flexWrap: 'wrap' } }}
+      >
+        <Box sx={{ mb: 1.5 }}>
+          <FilterControl value={filterStatus} onChange={setFilterStatus} options={statusOptions} label="Estado de la serie" />
+        </Box>
 
-      {/* Tabla de mangas */}
-      <TableContainer component={Paper} sx={{ background: 'rgba(15, 15, 25, 0.8)', backdropFilter: 'blur(20px)' }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 600 }}>Manga</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>Estado</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>Progreso</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>Drive</TableCell>
-              <TableCell sx={{ fontWeight: 600 }}>Acciones</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                  <Typography color="textSecondary">Cargando mangas...</Typography>
-                </TableCell>
-              </TableRow>
-            ) : filteredMangas.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                  <Typography color="textSecondary">
-                    {searchTerm || filterStatus !== 'all' 
-                      ? 'No se encontraron mangas que coincidan con los filtros' 
-                      : 'No hay mangas creados aún'}
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredMangas.map((manga) => (
-                <TableRow key={manga.id} hover>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Avatar 
-                        sx={{ bgcolor: 'primary.main' }}
-                        src={manga.coverImage || undefined}
+        {loading && mangas.length === 0 ? (
+          loadingBlock('Cargando series')
+        ) : visibleMangas.length === 0 ? (
+          <EmptyState icon={BookIcon} title={searchTerm || filterStatus !== 'all' ? 'Ninguna serie con estos filtros' : 'Todavía no hay series'}>
+            {searchTerm || filterStatus !== 'all'
+              ? 'Prueba con otro estado o borra la búsqueda.'
+              : 'Crea la primera serie y aparecerá aquí y en Series.'}
+          </EmptyState>
+        ) : (
+          <Box role="table" aria-label="Series del catálogo" sx={{ mx: -1 }}>
+            <Box role="row" sx={headRowSx(GRID)}>
+              <span role="columnheader">Serie</span>
+              <span role="columnheader">Estado</span>
+              <span role="columnheader">Capítulos</span>
+              <span role="columnheader">Drive</span>
+              <span role="columnheader" style={{ textAlign: 'right' }}>Acciones</span>
+            </Box>
+            {visibleMangas.map((manga) => {
+              const status = MANGA_STATUS[manga.status] || { label: manga.status || 'Sin estado', color: colors.outline };
+              const created = formatDate(manga.createdAt);
+              const meta = [
+                manga.author,
+                manga.isJoint && manga.jointPartner ? `con ${manga.jointPartner}` : null,
+                created ? `creada ${created}` : null,
+              ].filter(Boolean);
+              return (
+                <Box key={manga.id} role="row" sx={rowSx(GRID)}>
+                  <Box role="cell" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0, flex: { xs: '1 1 100%', md: 'initial' } }}>
+                    {manga.coverImage ? (
+                      <Box
+                        component="img"
+                        src={manga.coverImage}
+                        alt=""
+                        loading="lazy"
+                        sx={{ width: 34, height: 48, objectFit: 'cover', borderRadius: `${radius.sm}px`, flexShrink: 0, backgroundColor: colors.surfaceHigh }}
+                      />
+                    ) : (
+                      <Box
+                        aria-hidden="true"
+                        sx={{
+                          width: 34,
+                          height: 48,
+                          borderRadius: `${radius.sm}px`,
+                          flexShrink: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: colors.surfaceHigh,
+                        }}
                       >
-                        {!manga.coverImage && <BookIcon />}
-                      </Avatar>
-                      <Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                          <Typography fontWeight={600}>{manga.title}</Typography>
-                          {manga.isJoint && (
-                            <Chip
-                              label="Joint"
-                              size="small"
-                              color="secondary"
-                              sx={{ 
-                                fontSize: '0.7rem', 
-                                height: 20,
-                                fontWeight: 500 
-                              }}
-                              icon={<GroupWorkIcon sx={{ fontSize: 12 }} />}
-                            />
-                          )}
-                        </Box>
-                        {manga.author && (
-                          <Typography variant="body2" color="textSecondary">
-                            Por: {manga.author}
-                          </Typography>
-                        )}
-                        {manga.isJoint && manga.jointPartner && (
-                          <Typography variant="caption" color="secondary.main" sx={{ fontWeight: 500 }}>
-                            Colaboración con: {manga.jointPartner}
-                          </Typography>
-                        )}
-                        <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
-                          Creado: {manga.createdAt}
-                        </Typography>
+                        <BookIcon sx={{ fontSize: 18, color: colors.outline }} />
                       </Box>
+                    )}
+                    <Box sx={{ minWidth: 0 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                        <Typography noWrap sx={{ fontSize: '0.875rem', fontWeight: 500, color: colors.onSurface, minWidth: 0 }}>
+                          {manga.title}
+                        </Typography>
+                        {manga.isJoint && <Tag>Joint</Tag>}
+                      </Box>
+                      {meta.length > 0 && (
+                        <Typography noWrap sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant, mt: 0.25 }}>
+                          {meta.join(' · ')}
+                        </Typography>
+                      )}
                     </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={getStatusLabel(manga.status)}
-                      color={getStatusColor(manga.status)}
-                      size="small"
-                      sx={{ fontWeight: 500 }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2" fontWeight={500} color="primary.main">
-                        {manga.publishedChapters || 0}
-                      </Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        capítulos creados
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
+                  </Box>
+                  <Box role="cell">
+                    <Tag tone={status.color}>{status.label}</Tag>
+                  </Box>
+                  <Box role="cell">
+                    <Typography component="span" sx={{ fontSize: '0.8125rem', color: colors.onSurfaceVariant, fontVariantNumeric: 'tabular-nums' }}>
+                      {manga.publishedChapters || 0}
+                      <Box component="span" sx={{ display: { md: 'none' } }}> capítulos</Box>
+                    </Typography>
+                  </Box>
+                  <Box role="cell">
                     {manga.driveLink ? (
                       <Button
                         size="small"
+                        component="a"
                         href={manga.driveLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        startIcon={<VisibilityIcon />}
-                        variant="outlined"
+                        endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
+                        aria-label={`Abrir la carpeta de Drive de ${manga.title}`}
+                        sx={{ ...mutedButtonSx, minHeight: 32, px: 1 }}
                       >
                         Drive
                       </Button>
                     ) : (
-                      <Typography variant="body2" color="textSecondary">
-                        No disponible
+                      <Typography component="span" sx={{ fontSize: '0.8125rem', color: colors.outline }}>
+                        Sin Drive
                       </Typography>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Tooltip title="Editar Manga">
-                        <IconButton 
-                          onClick={() => handleEditManga(manga)} 
-                          color="primary"
-                          size="small"
-                        >
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Eliminar Manga">
-                        <IconButton 
-                          onClick={() => handleDeleteManga(manga.id, manga.title)} 
-                          color="error"
-                          size="small"
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                  </Box>
+                  <Box role="cell" sx={{ display: 'flex', gap: 0.25, justifyContent: 'flex-end', ml: { xs: 'auto', md: 0 } }}>
+                    <Tooltip title="Editar">
+                      <IconButton size="small" onClick={() => handleEditManga(manga)} aria-label={`Editar ${manga.title}`}>
+                        <EditIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Eliminar">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDeleteManga(manga.id, manga.title)}
+                        aria-label={`Eliminar ${manga.title}`}
+                        sx={dangerIconSx}
+                      >
+                        <DeleteIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        )}
+      </Panel>
 
-      {/* Dialog para crear/editar manga */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-        <DialogTitle>
-          {editingManga ? 'Editar Manga' : 'Crear Nuevo Manga'}
-        </DialogTitle>
+      {/* Dialog para crear/editar serie */}
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth scroll="paper">
+        <DialogTitle>{editingManga ? 'Editar serie' : 'Crear serie'}</DialogTitle>
         <DialogContent>
-          <Grid container spacing={3} sx={{ mt: 1 }}>
+          <Grid container spacing={2} sx={{ pt: 1 }}>
             <Grid item xs={12} sm={8}>
               <TextField
                 fullWidth
-                label="Título del Manga *"
+                required
+                label="Título"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                error={!formData.title}
-                helperText={!formData.title ? 'Campo requerido' : ''}
               />
             </Grid>
             <Grid item xs={12} sm={4}>
               <TextField
                 fullWidth
-                label="Autor *"
+                required
+                label="Autor"
                 value={formData.author}
                 onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-                error={!formData.author}
-                helperText={!formData.author ? 'Campo requerido' : ''}
               />
             </Grid>
             <Grid item xs={12}>
@@ -575,193 +656,143 @@ const MangaManagement = () => {
                 fullWidth
                 label="Descripción"
                 multiline
-                rows={3}
+                minRows={3}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Describe brevemente de qué trata el manga..."
+                placeholder="De qué trata la serie, en dos o tres frases"
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Estado</InputLabel>
-                <Select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  label="Estado"
-                >
-                  <MenuItem value="active">Activo</MenuItem>
-                  <MenuItem value="paused">Pausado</MenuItem>
-                  <MenuItem value="hiatus">En Hiato</MenuItem>
-                  <MenuItem value="completed">Completado</MenuItem>
-                  <MenuItem value="cancelled">Cancelado</MenuItem>
-                </Select>
-              </FormControl>
+              <TextField
+                select
+                fullWidth
+                label="Estado"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                helperText="Los capítulos se añaden según se publican"
+              >
+                {['active', 'paused', 'hiatus', 'completed', 'cancelled'].map((key) => (
+                  <MenuItem key={key} value={key}>
+                    {MANGA_STATUS[key].label}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <Alert severity="info" sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-                <Typography variant="body2">
-                  📚 Los capítulos se agregarán dinámicamente conforme se vayan publicando
-                </Typography>
-              </Alert>
-            </Grid>
-            <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Link de Google Drive"
-                value={formData.driveLink}
-                onChange={(e) => setFormData({ ...formData, driveLink: e.target.value })}
-                placeholder="https://drive.google.com/drive/folders/..."
-                helperText="Carpeta donde se almacenan los archivos del manga"
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="URL de la imagen de portada (opcional)"
+                label="Portada (URL)"
                 value={formData.coverImage}
                 onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
-                placeholder="https://ejemplo.com/imagen.jpg"
-                helperText="URL directa de la imagen de portada del manga"
+                placeholder="https://…/portada.jpg"
+                helperText="Opcional. Enlace directo a la imagen"
               />
             </Grid>
-            
-            {/* Sección de configuración Joint */}
             <Grid item xs={12}>
-              <Divider sx={{ my: 2 }} />
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <GroupWorkIcon color="secondary" />
-                Configuración de Proyecto Conjunto
-              </Typography>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formData.isJoint}
-                    onChange={(e) => setFormData({ ...formData, isJoint: e.target.checked })}
-                    color="secondary"
-                  />
-                }
-                label={
-                  <Box>
-                    <Typography variant="body1" fontWeight={500}>Proyecto en Conjunto (Joint)</Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      Este manga se traduce en colaboración con otro scan
-                    </Typography>
-                  </Box>
-                }
+              <TextField
+                fullWidth
+                label="Carpeta de Google Drive"
+                value={formData.driveLink}
+                onChange={(e) => setFormData({ ...formData, driveLink: e.target.value })}
+                placeholder="https://drive.google.com/drive/folders/…"
+                helperText="Donde se guardan los archivos de la serie"
               />
             </Grid>
-            
-            {formData.isJoint && (
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Scan Colaborador"
-                  value={formData.jointPartner}
-                  onChange={(e) => setFormData({ ...formData, jointPartner: e.target.value })}
-                  placeholder="Nombre del scan colaborador"
-                  helperText="Nombre del scan con el que colaboramos"
-                  InputProps={{
-                    startAdornment: <GroupWorkIcon sx={{ color: 'text.secondary', mr: 1 }} />
-                  }}
+
+            {/* Proyecto conjunto */}
+            <Grid item xs={12}>
+              <Box sx={{ mt: 1, pt: 2, borderTop: `1px solid ${rowDivider}` }}>
+                <FormControlLabel
+                  sx={{ m: 0, width: '100%', justifyContent: 'space-between', gap: 2 }}
+                  labelPlacement="start"
+                  control={
+                    <Switch checked={formData.isJoint} onChange={(e) => setFormData({ ...formData, isJoint: e.target.checked })} />
+                  }
+                  label={
+                    <Box>
+                      <Typography sx={{ fontSize: '0.875rem', color: colors.onSurface }}>Proyecto conjunto (joint)</Typography>
+                      <Typography sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant }}>
+                        Se traduce junto a otro grupo
+                      </Typography>
+                    </Box>
+                  }
                 />
-              </Grid>
-            )}
-            
+              </Box>
+            </Grid>
+
             {formData.isJoint && (
-              <Grid item xs={12}>
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  <Typography variant="body2">
-                    <strong>💡 Configuración de Tareas:</strong> Para mangas en conjunto, puedes personalizar qué tareas necesita este proyecto. Por defecto, todos los mangas incluyen las 4 tareas básicas.
+              <>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Grupo con el que colaboramos"
+                    value={formData.jointPartner}
+                    onChange={(e) => setFormData({ ...formData, jointPartner: e.target.value })}
+                    placeholder="Nombre del grupo"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography id="series-tasks-label" sx={{ fontSize: '0.875rem', color: colors.onSurface }}>
+                    Tareas de este proyecto
                   </Typography>
-                </Alert>
-                
-                <Typography variant="body1" fontWeight={500} sx={{ mb: 2 }}>Tareas Disponibles para este Manga:</Typography>
-                
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {[
-                    { key: 'traduccion', label: 'Traducción', icon: '📝' },
-                    { key: 'proofreading', label: 'Proofreading', icon: '✏️' },
-                    { key: 'limpieza', label: 'Limpieza', icon: '🧹' },
-                    { key: 'typesetting', label: 'Typesetting', icon: '🎨' }
-                  ].map((task) => (
-                    <FormControlLabel
-                      key={task.key}
-                      control={
-                        <Checkbox
-                          checked={formData.availableTasks.includes(task.key)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
+                  <Typography sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant, mb: 0.5 }}>
+                    Marca solo las que hace este grupo. Por defecto, una serie lleva las cuatro.
+                  </Typography>
+                  <Box role="group" aria-labelledby="series-tasks-label" sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>
+                    {SERIES_TASKS.map((task) => (
+                      <FormControlLabel
+                        key={task.key}
+                        control={
+                          <Checkbox
+                            checked={formData.availableTasks.includes(task.key)}
+                            onChange={(e) =>
                               setFormData({
                                 ...formData,
-                                availableTasks: [...formData.availableTasks, task.key]
-                              });
-                            } else {
-                              setFormData({
-                                ...formData,
-                                availableTasks: formData.availableTasks.filter(t => t !== task.key)
-                              });
+                                availableTasks: e.target.checked
+                                  ? [...formData.availableTasks, task.key]
+                                  : formData.availableTasks.filter((t) => t !== task.key),
+                              })
                             }
-                          }}
-                          color="primary"
-                        />
-                      }
-                      label={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography sx={{ fontSize: '1.2em' }}>{task.icon}</Typography>
-                          <Typography variant="body2">{task.label}</Typography>
-                        </Box>
-                      }
-                    />
-                  ))}
-                </Box>
-                
-                {formData.availableTasks.length === 0 && (
-                  <Alert severity="warning" sx={{ mt: 2 }}>
-                    <Typography variant="body2">
-                      ⚠️ Debes seleccionar al menos una tarea para este manga.
+                          />
+                        }
+                        label={
+                          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, fontSize: '0.875rem' }}>
+                            <Box component="span" aria-hidden="true" sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: task.color }} />
+                            {task.label}
+                          </Box>
+                        }
+                      />
+                    ))}
+                  </Box>
+                  {formData.availableTasks.length === 0 && (
+                    <Typography role="alert" sx={{ fontSize: '0.75rem', color: colors.error, mt: 0.5 }}>
+                      Elige al menos una tarea.
                     </Typography>
-                  </Alert>
-                )}
-              </Grid>
+                  )}
+                </Grid>
+              </>
             )}
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancelar</Button>
-          <Button variant="contained" onClick={handleSaveManga}>
-            {editingManga ? 'Actualizar' : 'Crear'}
+          <Button onClick={handleCloseDialog} sx={mutedButtonSx}>
+            Cancelar
+          </Button>
+          <Button variant="contained" onClick={handleSaveManga} disabled={loading}>
+            {editingManga ? 'Guardar cambios' : 'Crear serie'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Dialog de confirmación */}
       <ConfirmDialog
         open={confirmDialog.open}
         onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}
         onConfirm={confirmDialog.onConfirm}
         title={confirmDialog.title}
         message={confirmDialog.message}
+        confirmLabel={confirmDialog.confirmLabel}
+        destructive={confirmDialog.destructive !== false}
       />
-      
-      {/* Snackbar para notificaciones */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert 
-          onClose={() => setSnackbar({ ...snackbar, open: false })} 
-          severity={snackbar.severity}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };
@@ -777,11 +808,10 @@ const StaffManagement = () => {
   const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', onConfirm: null });
   const [loading, setLoading] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
-  const [viewMode, setViewMode] = useState('table'); // 'grid' o 'table'
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+  const setSnackbar = showNotice;
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -845,34 +875,7 @@ const StaffManagement = () => {
     setLoading(false);
   };
 
-  const getRoleDisplayName = (role) => {
-    const roleNames = {
-      [ROLES.ADMIN]: 'Administrador',
-      [ROLES.JEFE_EDITOR]: 'Jefe Editor',
-      [ROLES.JEFE_TRADUCTOR]: 'Jefe Traductor',
-      [ROLES.UPLOADER]: 'Uploader',
-      [ROLES.EDITOR]: 'Editor',
-      [ROLES.TRADUCTOR]: 'Traductor'
-    };
-    return roleNames[role] || role;
-  };
-
-  const getRoleIcon = (role) => {
-    switch (role) {
-      case ROLES.ADMIN:
-        return <AdminIcon sx={{ color: '#ef4444' }} />;
-      case ROLES.JEFE_EDITOR:
-      case ROLES.JEFE_TRADUCTOR:
-        return <SupervisorIcon sx={{ color: '#f59e0b' }} />;
-      case ROLES.UPLOADER:
-        return <UploadIcon sx={{ color: '#a78bfa' }} />;
-      case ROLES.EDITOR:
-      case ROLES.TRADUCTOR:
-        return <WorkIcon sx={{ color: '#6a9eff' }} />;
-      default:
-        return <AccountCircleIcon />;
-    }
-  };
+  const getRoleDisplayName = (role) => ROLE_LABELS[role] || role;
 
   const handleSaveStaff = async () => {
     if (!formData.name || !formData.email || !formData.password) {
@@ -888,21 +891,21 @@ const StaffManagement = () => {
     try {
       const { createUserAccount } = await import('../services/userManagement');
       const result = await createUserAccount(formData);
-      
+
       if (result.success) {
         // Mostrar mensaje de éxito
         setSnackbar({
           open: true,
-          message: '✅ Usuario creado exitosamente. Se ha enviado un correo electrónico para configurar la contraseña.',
+          message: 'Cuenta creada. Le llegará un correo para configurar la contraseña.',
           severity: 'success'
         });
-        
+
         handleCloseDialog();
         loadUsers(); // Recargar la lista de usuarios
       } else {
         setSnackbar({
           open: true,
-          message: '❌ Error creando usuario: ' + result.error,
+          message: 'No se pudo crear la cuenta: ' + result.error,
           severity: 'error'
         });
       }
@@ -910,7 +913,7 @@ const StaffManagement = () => {
       // Error inesperado creando usuario
       setSnackbar({
         open: true,
-        message: '❌ Error inesperado: ' + error.message,
+        message: 'Error inesperado: ' + error.message,
         severity: 'error'
       });
     }
@@ -920,21 +923,22 @@ const StaffManagement = () => {
   const handleDeleteStaff = async (staffId) => {
     setConfirmDialog({
       open: true,
-      title: 'Confirmar Eliminación',
-      message: '¿Estás seguro de que quieres eliminar este usuario? Esta acción no se puede deshacer.',
+      title: '¿Eliminar a esta persona?',
+      message: 'Se borra su cuenta del sistema. No se puede deshacer.',
+      confirmLabel: 'Eliminar',
       onConfirm: async () => {
         try {
           const { deleteUser } = await import('../services/userManagement');
           const result = await deleteUser(staffId);
-          
+
           if (result.success) {
-            // Usuario eliminado exitosamente
+            setSnackbar({ message: 'Persona eliminada', severity: 'success' });
             loadUsers(); // Recargar la lista
           } else {
-            // Error eliminando usuario
+            setSnackbar({ message: 'No se pudo eliminar: ' + (result.error || 'error desconocido'), severity: 'error' });
           }
         } catch (error) {
-          // Error inesperado eliminando usuario
+          setSnackbar({ message: 'Error inesperado al eliminar: ' + error.message, severity: 'error' });
         }
         setConfirmDialog({ ...confirmDialog, open: false });
       }
@@ -962,7 +966,7 @@ const StaffManagement = () => {
       // Actualizar información básica del usuario
       const { updateUserProfile } = await import('../services/userManagement');
       const userId = editDialog.user.uid || editDialog.user.id;
-      
+
       const updateData = {
         name: editFormData.name,
         role: editFormData.role,
@@ -970,16 +974,16 @@ const StaffManagement = () => {
       };
 
       const result = await updateUserProfile(userId, updateData);
-      
+
       if (result.success) {
-        // Usuario actualizado exitosamente
+        setSnackbar({ message: 'Cambios guardados', severity: 'success' });
         setEditDialog({ open: false, user: null });
         loadUsers(); // Recargar la lista
       } else {
-        // Error actualizando usuario
+        setSnackbar({ message: 'No se pudieron guardar los cambios: ' + (result.error || 'error desconocido'), severity: 'error' });
       }
     } catch (error) {
-      // Error inesperado actualizando usuario
+      setSnackbar({ message: 'Error inesperado al guardar: ' + error.message, severity: 'error' });
     }
     setLoading(false);
   };
@@ -1015,16 +1019,16 @@ const StaffManagement = () => {
     try {
       const { createGhostUser } = await import('../services/userManagement');
       const result = await createGhostUser(ghostFormData);
-      
+
       if (result.success) {
-        // Usuario fantasma creado exitosamente
+        setSnackbar({ message: 'Usuario fantasma creado', severity: 'success' });
         handleCloseGhostDialog();
         loadUsers(); // Recargar la lista
       } else {
-        // Error creando usuario fantasma
+        setSnackbar({ message: 'No se pudo crear: ' + (result.error || 'error desconocido'), severity: 'error' });
       }
     } catch (error) {
-      // Error inesperado creando usuario fantasma
+      setSnackbar({ message: 'Error inesperado al crear: ' + error.message, severity: 'error' });
     }
     setLoading(false);
   };
@@ -1041,16 +1045,16 @@ const StaffManagement = () => {
 
   const handleOpenPermissions = async (user) => {
     setPermissionsDialog({ open: true, user });
-    
+
     try {
       // Cargar permisos efectivos del usuario
       const { getEffectiveUserPermissions, DEFAULT_PERMISSIONS } = await import('../services/permissionsService');
       const userId = user.uid || user.id;
       const userRole = user.role;
-      
+
       const effectivePermissions = await getEffectiveUserPermissions(userId, userRole);
       const defaultPermissions = DEFAULT_PERMISSIONS[userRole] || DEFAULT_PERMISSIONS.traductor;
-      
+
       // Establecer los permisos en el estado
       setPermissionsData({
         // Permisos de asignaciones
@@ -1058,21 +1062,21 @@ const StaffManagement = () => {
         canEditAssignments: effectivePermissions.canEditAssignments || false,
         canDeleteAssignments: effectivePermissions.canDeleteAssignments || false,
         canReassignTasks: effectivePermissions.canReassignTasks || false,
-        
+
         // Permisos de visualización
         canViewAllProjects: effectivePermissions.canViewAllProjects || false,
         canAccessReports: effectivePermissions.canAccessReports || false,
         canViewUserStats: effectivePermissions.canViewUserStats || false,
-        
+
         // Permisos especiales
         canManageUploads: effectivePermissions.canManageUploads || false,
         canManageSeries: effectivePermissions.canManageSeries || false,
         canModerateReviews: effectivePermissions.canModerateReviews || false,
-        
+
         // Permisos administrativos (solo para admins)
         canViewSystemLogs: effectivePermissions.canViewSystemLogs || false,
         canManageBackups: effectivePermissions.canManageBackups || false,
-        
+
         // Metadata
         _hasCustomPermissions: effectivePermissions._hasCustomPermissions,
         _defaultPermissions: defaultPermissions
@@ -1099,15 +1103,15 @@ const StaffManagement = () => {
 
   const handleSavePermissions = async () => {
     if (!permissionsDialog.user) return;
-    
+
     setLoading(true);
     try {
       const { updateUserPermissions } = await import('../services/permissionsService');
       const userId = permissionsDialog.user.uid || permissionsDialog.user.id;
       const currentUserId = currentUser.uid;
-      
+
       const result = await updateUserPermissions(userId, permissionsData, currentUserId);
-      
+
       if (result.success) {
         // Mostrar mensaje de éxito
         setSnackbar({
@@ -1115,7 +1119,7 @@ const StaffManagement = () => {
           message: `Permisos de ${permissionsDialog.user.name} actualizados correctamente`,
           severity: 'success'
         });
-        
+
         // Cerrar dialog y recargar datos
         setPermissionsDialog({ open: false, user: null });
         loadUsers(); // Recargar la lista de usuarios para mostrar cambios
@@ -1140,27 +1144,29 @@ const StaffManagement = () => {
 
   const handleResetPermissions = async () => {
     if (!permissionsDialog.user) return;
-    
+
     setConfirmDialog({
       open: true,
-      title: 'Resetear Permisos Personalizados',
-      message: `¿Estás seguro de que quieres eliminar los permisos personalizados de "${permissionsDialog.user.name}"? El usuario tendrá únicamente los permisos por defecto de su rol (${getRoleDisplayName(permissionsDialog.user.role)}).`,
+      title: '¿Volver a los permisos de su rol?',
+      message: `${permissionsDialog.user.name} perderá sus permisos propios y tendrá solo los de ${getRoleDisplayName(permissionsDialog.user.role)}.`,
+      confirmLabel: 'Volver a los de su rol',
+      destructive: false,
       onConfirm: async () => {
         setLoading(true);
         try {
           const { deleteUserPermissions } = await import('../services/permissionsService');
           const userId = permissionsDialog.user.uid || permissionsDialog.user.id;
           const currentUserId = currentUser.uid;
-          
+
           const result = await deleteUserPermissions(userId, currentUserId);
-          
+
           if (result.success) {
             setSnackbar({
               open: true,
               message: `Permisos personalizados de ${permissionsDialog.user.name} eliminados. Ahora tiene los permisos por defecto.`,
               severity: 'success'
             });
-            
+
             // Cerrar dialog y recargar datos
             setPermissionsDialog({ open: false, user: null });
             loadUsers();
@@ -1187,24 +1193,26 @@ const StaffManagement = () => {
 
   const handleToggleUserAccess = async (userId, currentStatus, userName) => {
     const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
-    const actionText = newStatus === 'suspended' ? 'suspender el acceso' : 'reactivar el acceso';
-    const confirmText = newStatus === 'suspended' ? 'suspender' : 'reactivar';
 
     setConfirmDialog({
       open: true,
-      title: `Confirmar ${newStatus === 'suspended' ? 'Suspensión' : 'Reactivación'}`,
-      message: `¿Estás seguro de que quieres ${actionText} de "${userName}"? ${newStatus === 'suspended' ? 'El usuario será desconectado automáticamente y no podrá iniciar sesión hasta que se reactive su cuenta.' : 'El usuario podrá iniciar sesión nuevamente y acceder al sistema.'}`,
+      title: newStatus === 'suspended' ? `¿Suspender a ${userName}?` : `¿Reactivar a ${userName}?`,
+      message: newStatus === 'suspended'
+        ? 'Se cerrará su sesión y no podrá entrar hasta que se reactive su cuenta.'
+        : 'Podrá volver a iniciar sesión y usar el sistema.',
+      confirmLabel: newStatus === 'suspended' ? 'Suspender' : 'Reactivar',
+      destructive: newStatus === 'suspended',
       onConfirm: async () => {
         setLoading(true);
         try {
           const { updateUserStatus } = await import('../services/userManagement');
           const result = await updateUserStatus(userId, newStatus);
-          
+
           if (result.success) {
             // Usuario suspendido/reactivado exitosamente
             setSnackbar({
               open: true,
-              message: `✅ ${result.message}. Los cambios se aplicarán automáticamente en todo el sistema.`,
+              message: `${result.message}. El cambio ya se aplica en todo el sistema.`,
               severity: 'success'
             });
             loadUsers(); // Recargar la lista
@@ -1212,7 +1220,7 @@ const StaffManagement = () => {
             // Error actualizando estado
             setSnackbar({
               open: true,
-              message: `❌ Error: ${result.error || 'No se pudo actualizar el estado del usuario'}`,
+              message: result.error || 'No se pudo cambiar el estado',
               severity: 'error'
             });
           }
@@ -1220,7 +1228,7 @@ const StaffManagement = () => {
           console.error('Error inesperado actualizando estado del usuario:', error);
           setSnackbar({
             open: true,
-            message: `❌ Error inesperado actualizando estado del usuario: ${error.message}`,
+            message: `Error inesperado al cambiar el estado: ${error.message}`,
             severity: 'error'
           });
         }
@@ -1230,1045 +1238,436 @@ const StaffManagement = () => {
     });
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active': return 'success';
-      case 'inactive': return 'default';
-      case 'suspended': return 'error';
-      case 'ghost': return 'secondary';
-      default: return 'default';
-    }
+  const isGhostMember = (member) => member.isGhost || member.status === 'ghost';
+  const statusOf = (member) => (isGhostMember(member) ? USER_STATUS.ghost : USER_STATUS[member.status]) || {
+    label: member.status || 'Sin estado',
+    color: colors.outline,
   };
 
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'active': return 'Activo';
-      case 'inactive': return 'Inactivo';
-      case 'suspended': return 'Suspendido';
-      case 'ghost': return 'Usuario Fantasma';
-      default: return status;
-    }
-  };
+  const term = searchTerm.trim().toLowerCase();
+  const searched = staff.filter(
+    (member) =>
+      (!term || (member.name || '').toLowerCase().includes(term) || (member.email || '').toLowerCase().includes(term)) &&
+      (roleFilter === 'all' || member.role === roleFilter)
+  );
+  const STAFF_FILTERS = [
+    { value: 'all', label: 'Todas', test: () => true },
+    { value: 'active', label: 'Activas', test: (m) => m.status === 'active' },
+    { value: 'inactive', label: 'Inactivas', test: (m) => m.status === 'inactive' },
+    { value: 'suspended', label: 'Suspendidas', test: (m) => m.status === 'suspended' },
+    { value: 'ghost', label: 'Fantasma', test: isGhostMember },
+  ];
+  const activeFilter = STAFF_FILTERS.find((f) => f.value === statusFilter) || STAFF_FILTERS[0];
+  const filteredStaff = searched
+    .filter(activeFilter.test)
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es'));
+  const hasFilters = Boolean(term) || roleFilter !== 'all' || statusFilter !== 'all';
+  const showAdminPermissions =
+    permissionsDialog.user?.role === 'admin' || currentUser?.uid === '7HIHfawVZtYBnUgIsvuspXY9DCw1';
+  const GRID = 'minmax(0, 2.2fr) minmax(0, 1fr) 100px 110px 120px 148px';
 
   return (
     <Box>
-      {/* Header con controles */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" fontWeight={600}>
-          Gestión del Staff ({staff.filter(member => {
-            const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                 member.email.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesRole = roleFilter === 'all' || member.role === roleFilter;
-            const matchesStatus = statusFilter === 'all' || member.status === statusFilter;
-            return matchesSearch && matchesRole && matchesStatus;
-          }).length} miembros)
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          {/* Toggle para cambiar vista */}
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(e, newMode) => newMode && setViewMode(newMode)}
-            aria-label="modo de vista"
-            size="small"
-          >
-            <ToggleButton value="table" aria-label="vista tabla">
-              <ViewListIcon />
-            </ToggleButton>
-            <ToggleButton value="grid" aria-label="vista grilla">
-              <ViewModuleIcon />
-            </ToggleButton>
-          </ToggleButtonGroup>
-          
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setDialogOpen(true)}
-            sx={{
-              background: 'linear-gradient(135deg, #a78bfa, #f472b6)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #db2777, #a78bfa)',
-              },
-            }}
-          >
-            Agregar Staff
-          </Button>
-          
-          <Button
-            variant="outlined"
-            startIcon={<PersonAddIcon />}
-            onClick={() => setGhostDialogOpen(true)}
-            sx={{
-              borderColor: '#6b7280',
-              color: '#6b7280',
-              '&:hover': {
-                borderColor: '#4b5563',
-                color: '#4b5563',
-                backgroundColor: 'rgba(107, 114, 128, 0.1)',
-              },
-            }}
-          >
-            Usuario Fantasma
-          </Button>
-        </Box>
-      </Box>
-
-      {/* Controles de búsqueda y filtros */}
-      <Card sx={{ mb: 3, p: 2 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Buscar staff"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por nombre o email..."
-              InputProps={{
-                startAdornment: <SecurityIcon sx={{ color: 'text.secondary', mr: 1 }} />
-              }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Filtrar por rol</InputLabel>
-              <Select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                label="Filtrar por rol"
-              >
-                <MenuItem value="all">Todos los roles</MenuItem>
-                <MenuItem value={ROLES.ADMIN}>Administrador</MenuItem>
-                <MenuItem value={ROLES.JEFE_EDITOR}>Jefe Editor</MenuItem>
-                <MenuItem value={ROLES.JEFE_TRADUCTOR}>Jefe Traductor</MenuItem>
-                <MenuItem value={ROLES.UPLOADER}>Uploader</MenuItem>
-                <MenuItem value={ROLES.EDITOR}>Editor</MenuItem>
-                <MenuItem value={ROLES.TRADUCTOR}>Traductor</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Filtrar por estado</InputLabel>
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                label="Filtrar por estado"
-              >
-                <MenuItem value="all">Todos los estados</MenuItem>
-                <MenuItem value="active">Activo</MenuItem>
-                <MenuItem value="inactive">Inactivo</MenuItem>
-                <MenuItem value="suspended">Suspendido</MenuItem>
-                <MenuItem value="ghost">Usuarios Fantasma</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={2}>
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={loadUsers}
-              disabled={loading}
-              size="small"
-            >
-              {loading ? 'Cargando...' : 'Actualizar'}
+      <Panel
+        title="Personal"
+        count={filteredStaff.length}
+        action={
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button variant="outlined" startIcon={<PersonAddIcon />} onClick={() => setGhostDialogOpen(true)}>
+              Usuario fantasma
             </Button>
-          </Grid>
-        </Grid>
-      </Card>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
+              Añadir persona
+            </Button>
+          </Box>
+        }
+        sx={{ '& > div:first-of-type': { flexWrap: 'wrap' } }}
+      >
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', mb: 1.5 }}>
+          <TextField
+            size="small"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por nombre o email"
+            inputProps={{ 'aria-label': 'Buscar personas' }}
+            InputProps={{ startAdornment: <SearchIcon sx={{ color: colors.outline, mr: 1, fontSize: 20 }} /> }}
+            sx={{ flex: { xs: '1 1 100%', sm: '0 1 280px' } }}
+          />
+          <TextField
+            select
+            size="small"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            inputProps={{ 'aria-label': 'Rol' }}
+            sx={{ flex: { xs: '1 1 auto', sm: '0 0 200px' } }}
+          >
+            <MenuItem value="all">Todos los roles</MenuItem>
+            {[ROLES.ADMIN, ...ASSIGNABLE_ROLES].map((role) => (
+              <MenuItem key={role} value={role}>
+                {ROLE_LABELS[role]}
+              </MenuItem>
+            ))}
+          </TextField>
+          <Tooltip title="Volver a cargar">
+            <span>
+              <PressIconButton onClick={loadUsers} disabled={loading} aria-label="Volver a cargar el personal">
+                <RefreshIcon sx={{ fontSize: 20 }} />
+              </PressIconButton>
+            </span>
+          </Tooltip>
+        </Box>
 
-      {/* Filtrar staff basado en criterios de búsqueda */}
-      {(() => {
-        const filteredStaff = staff.filter(member => {
-          const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                               member.email.toLowerCase().includes(searchTerm.toLowerCase());
-          const matchesRole = roleFilter === 'all' || member.role === roleFilter;
-          const matchesStatus = statusFilter === 'all' || member.status === statusFilter;
-          return matchesSearch && matchesRole && matchesStatus;
-        });
+        <Box sx={{ mb: 1.5 }}>
+          <FilterControl
+            value={statusFilter}
+            onChange={setStatusFilter}
+            label="Estado de la cuenta"
+            options={STAFF_FILTERS.map((f) => ({ ...f, count: searched.filter(f.test).length }))}
+          />
+        </Box>
 
-        return (
-          <Box>
-            {/* Vista de Tabla */}
-            {viewMode === 'table' ? (
-              <TableContainer component={Paper} sx={{ background: 'rgba(15, 15, 25, 0.8)', backdropFilter: 'blur(20px)' }}>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 600 }}>Usuario</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Cargo</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Estado</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Registro</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Última Actividad</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>Acciones</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {loading ? (
-                      <TableRow>
-                        <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
-                          <Typography color="textSecondary">Cargando miembros del staff...</Typography>
-                        </TableCell>
-                      </TableRow>
-                    ) : filteredStaff.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
-                          <Typography color="textSecondary">
-                            {searchTerm || roleFilter !== 'all' || statusFilter !== 'all' 
-                              ? 'No se encontraron miembros que coincidan con los filtros' 
-                              : 'No hay miembros del staff registrados'}
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredStaff.map((member) => (
-                        <TableRow key={member.uid || member.id} hover>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                              <Avatar 
-                                src={member.profileImage} 
-                                sx={{ 
-                                  bgcolor: 'primary.main',
-                                  width: 40,
-                                  height: 40
-                                }}
-                              >
-                                {!member.profileImage && getRoleIcon(member.role)}
-                              </Avatar>
-                              <Box>
-                                <Typography fontWeight={600}>{member.name}</Typography>
-                                <Typography variant="caption" color="textSecondary">
-                                  {member.email}
-                                </Typography>
-                              </Box>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={getRoleDisplayName(member.role)}
-                              size="small"
-                              color={member.role === ROLES.ADMIN ? 'error' : 
-                                     member.role === ROLES.JEFE_EDITOR || member.role === ROLES.JEFE_TRADUCTOR ? 'warning' :
-                                     member.role === ROLES.UPLOADER ? 'secondary' : 'primary'}
-                              sx={{ fontWeight: 500 }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={getStatusLabel(member.status)}
-                              size="small"
-                              color={getStatusColor(member.status)}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">
-                              {member.createdAt || 'No disponible'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">
-                              {member.lastActive || 'No disponible'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', gap: 1 }}>
-                              <Tooltip title="Configurar Permisos">
-                                <IconButton 
-                                  color="info" 
-                                  onClick={() => handleOpenPermissions(member)}
-                                  size="small"
-                                >
-                                  <SecurityIcon />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title={member.status === 'active' ? 'Suspender Acceso' : 'Reactivar Acceso'}>
-                                <IconButton 
-                                  color={member.status === 'active' ? 'warning' : 'success'}
-                                  onClick={() => handleToggleUserAccess(member.uid || member.id, member.status, member.name)}
-                                  size="small"
-                                >
-                                  {member.status === 'active' ? <BlockIcon /> : <CheckCircleIcon />}
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title="Editar Usuario">
-                                <IconButton 
-                                  color="primary" 
-                                  onClick={() => handleEditRole(member)}
-                                  size="small"
-                                >
-                                  <EditIcon />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title="Eliminar Usuario">
-                                <IconButton 
-                                  color="error" 
-                                  onClick={() => handleDeleteStaff(member.uid || member.id)}
-                                  size="small"
-                                >
-                                  <DeleteIcon />
-                                </IconButton>
-                              </Tooltip>
-                            </Box>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              /* Vista de Grid (original) */
-              <Grid container spacing={2}>
-                {loading ? (
-                  <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                      <Typography color="textSecondary">Cargando miembros del staff...</Typography>
-                    </Box>
-                  </Grid>
-                ) : filteredStaff.length === 0 ? (
-                  <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                      <Typography color="textSecondary">
-                        {searchTerm || roleFilter !== 'all' || statusFilter !== 'all' 
-                          ? 'No se encontraron miembros que coincidan con los filtros' 
-                          : 'No hay miembros del staff registrados'}
+        {loading && staff.length === 0 ? (
+          loadingBlock('Cargando el personal')
+        ) : filteredStaff.length === 0 ? (
+          <EmptyState icon={PersonOutlineIcon} title={hasFilters ? 'Nadie con estos filtros' : 'Todavía no hay personal'}>
+            {hasFilters ? 'Prueba con otro estado o rol, o borra la búsqueda.' : 'Añade la primera persona del equipo.'}
+          </EmptyState>
+        ) : (
+          <Box role="table" aria-label="Personal del equipo" sx={{ mx: -1 }}>
+            <Box role="row" sx={headRowSx(GRID)}>
+              <span role="columnheader">Persona</span>
+              <span role="columnheader">Rol</span>
+              <span role="columnheader">Estado</span>
+              <span role="columnheader">Alta</span>
+              <span role="columnheader">Última actividad</span>
+              <span role="columnheader" style={{ textAlign: 'right' }}>Acciones</span>
+            </Box>
+            {filteredStaff.map((member) => {
+              const memberId = member.uid || member.id;
+              const status = statusOf(member);
+              const isActive = member.status === 'active';
+              return (
+                <Box key={memberId} role="row" sx={rowSx(GRID)}>
+                  <Box role="cell" sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0, flex: { xs: '1 1 100%', md: 'initial' } }}>
+                    <Avatar
+                      src={member.profileImage || undefined}
+                      alt=""
+                      sx={{ width: 32, height: 32, fontSize: '0.75rem', fontWeight: 700, opacity: isGhostMember(member) ? 0.6 : 1 }}
+                    >
+                      {!member.profileImage && initials(member.name)}
+                    </Avatar>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography noWrap sx={{ fontSize: '0.875rem', fontWeight: 500, color: colors.onSurface }}>
+                        {member.name || 'Sin nombre'}
+                      </Typography>
+                      <Typography noWrap sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant }}>
+                        {member.email || 'Sin email'}
                       </Typography>
                     </Box>
-                  </Grid>
-                ) : (
-                  filteredStaff.map((member) => (
-                    <Grid item xs={12} sm={6} md={4} key={member.uid || member.id}>
-                      <Card sx={{ height: '100%' }}>
-                        <CardContent>
-                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                            <Avatar 
-                              src={member.profileImage}
-                              sx={{ 
-                                mr: 2, 
-                                bgcolor: 'primary.main',
-                                width: 56,
-                                height: 56
-                              }}
-                            >
-                              {!member.profileImage && getRoleIcon(member.role)}
-                            </Avatar>
-                            <Box sx={{ flex: 1 }}>
-                              <Typography variant="h6" fontWeight={600}>
-                                {member.name}
-                              </Typography>
-                              <Typography variant="body2" color="textSecondary">
-                                {member.email}
-                              </Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                              <Tooltip title="Configurar Permisos">
-                                <IconButton 
-                                  color="info" 
-                                  onClick={() => handleOpenPermissions(member)}
-                                  size="small"
-                                >
-                                  <SecurityIcon />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title={member.status === 'active' ? 'Suspender Acceso' : 'Reactivar Acceso'}>
-                                <IconButton 
-                                  color={member.status === 'active' ? 'warning' : 'success'}
-                                  onClick={() => handleToggleUserAccess(member.uid || member.id, member.status, member.name)}
-                                  size="small"
-                                >
-                                  {member.status === 'active' ? <BlockIcon /> : <CheckCircleIcon />}
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title="Eliminar">
-                                <IconButton 
-                                  color="error" 
-                                  onClick={() => handleDeleteStaff(member.uid || member.id)}
-                                  size="small"
-                                >
-                                  <DeleteIcon />
-                                </IconButton>
-                              </Tooltip>
-                            </Box>
-                          </Box>
-
-                          <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-                            <Chip
-                              label={getRoleDisplayName(member.role)}
-                              size="small"
-                              color={member.role === ROLES.ADMIN ? 'error' : 
-                                     member.role === ROLES.JEFE_EDITOR || member.role === ROLES.JEFE_TRADUCTOR ? 'warning' :
-                                     member.role === ROLES.UPLOADER ? 'secondary' : 'primary'}
-                            />
-                            <Chip
-                              label={getStatusLabel(member.status)}
-                              size="small"
-                              color={getStatusColor(member.status)}
-                            />
-                          </Box>
-
-                          <Box>
-                            <Typography variant="caption" color="textSecondary" display="block">
-                              Registrado: {member.createdAt || 'No disponible'}
-                            </Typography>
-                            <Typography variant="caption" color="textSecondary">
-                              Última actividad: {member.lastActive || 'No disponible'}
-                            </Typography>
-                          </Box>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                  ))
-                )}
-              </Grid>
-            )}
+                  </Box>
+                  <Box role="cell">
+                    <Tag tone={member.role === ROLES.ADMIN ? colors.primary : undefined}>{getRoleDisplayName(member.role)}</Tag>
+                  </Box>
+                  <Box role="cell">
+                    <Tag tone={status.color}>{status.label}</Tag>
+                  </Box>
+                  <Box role="cell" sx={{ display: { xs: 'none', md: 'block' } }}>
+                    <Typography component="span" sx={{ fontSize: '0.8125rem', color: colors.onSurfaceVariant }}>
+                      {formatDate(member.createdAt) || '—'}
+                    </Typography>
+                  </Box>
+                  <Box role="cell" sx={{ display: { xs: 'none', md: 'block' } }}>
+                    <Typography component="span" sx={{ fontSize: '0.8125rem', color: colors.onSurfaceVariant }}>
+                      {formatDate(member.lastActive) || '—'}
+                    </Typography>
+                  </Box>
+                  <Box role="cell" sx={{ display: 'flex', gap: 0.25, justifyContent: 'flex-end', ml: { xs: 'auto', md: 0 } }}>
+                    <Tooltip title="Permisos">
+                      <IconButton size="small" onClick={() => handleOpenPermissions(member)} aria-label={`Permisos de ${member.name}`}>
+                        <ShieldIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title={isActive ? 'Suspender acceso' : 'Reactivar acceso'}>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleToggleUserAccess(memberId, member.status, member.name)}
+                        aria-label={`${isActive ? 'Suspender' : 'Reactivar'} el acceso de ${member.name}`}
+                      >
+                        {isActive ? <BlockIcon sx={{ fontSize: 18 }} /> : <CheckCircleOutlineIcon sx={{ fontSize: 18 }} />}
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Editar">
+                      <IconButton size="small" onClick={() => handleEditRole(member)} aria-label={`Editar a ${member.name}`}>
+                        <EditIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Eliminar">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDeleteStaff(memberId)}
+                        aria-label={`Eliminar a ${member.name}`}
+                        sx={dangerIconSx}
+                      >
+                        <DeleteIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </Box>
+              );
+            })}
           </Box>
-        );
-      })()}
+        )}
+      </Panel>
 
-      {/* Dialog para crear staff */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Agregar Nuevo Miembro del Staff</DialogTitle>
+      {/* Dialog para añadir una persona */}
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="xs" fullWidth>
+        <DialogTitle>Añadir persona</DialogTitle>
         <DialogContent>
-          <Grid container spacing={3} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Nombre completo"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Contraseña temporal"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                helperText="El usuario deberá cambiar esta contraseña en su primer inicio de sesión"
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Rol</InputLabel>
-                <Select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  label="Rol"
-                >
-                  <MenuItem value={ROLES.JEFE_EDITOR}>Jefe Editor</MenuItem>
-                  <MenuItem value={ROLES.JEFE_TRADUCTOR}>Jefe Traductor</MenuItem>
-                  <MenuItem value={ROLES.UPLOADER}>Uploader</MenuItem>
-                  <MenuItem value={ROLES.EDITOR}>Editor</MenuItem>
-                  <MenuItem value={ROLES.TRADUCTOR}>Traductor</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            <TextField
+              fullWidth
+              required
+              label="Nombre"
+              autoComplete="off"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+            <TextField
+              fullWidth
+              required
+              label="Email"
+              type="email"
+              autoComplete="off"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            />
+            <TextField
+              fullWidth
+              required
+              label="Contraseña temporal"
+              type="password"
+              autoComplete="new-password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              helperText="La cambiará en su primer inicio de sesión"
+            />
+            <TextField
+              select
+              fullWidth
+              label="Rol"
+              value={formData.role}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+            >
+              {ASSIGNABLE_ROLES.map((role) => (
+                <MenuItem key={role} value={role}>
+                  {ROLE_LABELS[role]}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancelar</Button>
-          <Button 
-            variant="contained" 
+          <Button onClick={handleCloseDialog} sx={mutedButtonSx}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
             onClick={handleSaveStaff}
             disabled={loading || !formData.name || !formData.email || !formData.password}
-            sx={{
-              background: loading ? 'rgba(0,0,0,0.1)' : 'linear-gradient(135deg, #a78bfa, #f472b6)',
-              '&:hover': {
-                background: loading ? 'rgba(0,0,0,0.1)' : 'linear-gradient(135deg, #db2777, #a78bfa)',
-              },
-            }}
           >
-            {loading ? 'Creando Usuario...' : 'Crear Cuenta'}
+            {loading ? 'Creando la cuenta…' : 'Crear cuenta'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Dialog de configuración de permisos */}
-      <Dialog 
-        open={permissionsDialog.open} 
-        onClose={() => setPermissionsDialog({ open: false, user: null })} 
-        maxWidth="md" 
+      {/* Dialog de permisos */}
+      <Dialog
+        open={permissionsDialog.open}
+        onClose={() => setPermissionsDialog({ open: false, user: null })}
+        maxWidth="sm"
         fullWidth
+        scroll="paper"
       >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <SecurityIcon color="info" />
-          Configurar Permisos - {permissionsDialog.user?.name}
-        </DialogTitle>
+        <DialogTitle>Permisos de {permissionsDialog.user?.name}</DialogTitle>
         <DialogContent>
-          <Alert 
-            severity={permissionsData._hasCustomPermissions ? "warning" : "info"} 
-            sx={{ mb: 3 }}
-          >
-            <Typography variant="body2">
-              <strong>{permissionsDialog.user?.name}</strong> ({getRoleDisplayName(permissionsDialog.user?.role)})
-              {permissionsData._hasCustomPermissions ? (
-                <><br />Este usuario tiene permisos personalizados que sobrescriben los permisos por defecto de su rol.</>
-              ) : (
-                <><br />Configure permisos específicos que sobrescribirán los permisos por defecto del rol.</>
-              )}
-            </Typography>
-          </Alert>
-          
-          <Grid container spacing={3}>
-            {/* Permisos de Asignaciones */}
-            <Grid item xs={12}>
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: 'primary.main' }}>
-                <ShieldIcon /> Permisos de Asignaciones
+          <Typography sx={{ fontSize: '0.8125rem', color: colors.onSurfaceVariant, mb: 2 }}>
+            {getRoleDisplayName(permissionsDialog.user?.role)}.{' '}
+            {permissionsData._hasCustomPermissions
+              ? 'Tiene permisos propios que sustituyen a los de su rol.'
+              : 'Usa los permisos de su rol. Lo que cambies aquí solo se aplica a esta persona.'}
+          </Typography>
+          {PERMISSION_GROUPS.filter((group) => !group.adminOnly || showAdminPermissions).map((group) => (
+            <Box key={group.title} component="fieldset" sx={{ border: 0, p: 0, m: 0, mb: 2, minWidth: 0 }}>
+              <Typography component="legend" variant="subtitle2" sx={{ color: colors.onSurface, mb: 0.5, p: 0 }}>
+                {group.title}
               </Typography>
-              <Box sx={{ pl: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={permissionsData.canAssignChapters}
-                      onChange={(e) => setPermissionsData({
-                        ...permissionsData,
-                        canAssignChapters: e.target.checked
-                      })}
-                      color="primary"
-                    />
-                  }
-                  label={
-                    <Box>
-                      <Typography variant="body1" fontWeight={500}>Asignar Capítulos</Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        Puede crear y asignar nuevos capítulos a otros usuarios
-                        {permissionsData._defaultPermissions?.canAssignChapters && 
-                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
-                        }
-                      </Typography>
-                    </Box>
-                  }
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={permissionsData.canEditAssignments}
-                      onChange={(e) => setPermissionsData({
-                        ...permissionsData,
-                        canEditAssignments: e.target.checked
-                      })}
-                      color="primary"
-                    />
-                  }
-                  label={
-                    <Box>
-                      <Typography variant="body1" fontWeight={500}>Editar Asignaciones</Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        Puede modificar asignaciones existentes
-                        {permissionsData._defaultPermissions?.canEditAssignments && 
-                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
-                        }
-                      </Typography>
-                    </Box>
-                  }
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={permissionsData.canDeleteAssignments}
-                      onChange={(e) => setPermissionsData({
-                        ...permissionsData,
-                        canDeleteAssignments: e.target.checked
-                      })}
-                      color="error"
-                    />
-                  }
-                  label={
-                    <Box>
-                      <Typography variant="body1" fontWeight={500}>Eliminar Asignaciones</Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        Puede eliminar asignaciones (acción irreversible)
-                        {permissionsData._defaultPermissions?.canDeleteAssignments && 
-                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
-                        }
-                      </Typography>
-                    </Box>
-                  }
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={permissionsData.canReassignTasks}
-                      onChange={(e) => setPermissionsData({
-                        ...permissionsData,
-                        canReassignTasks: e.target.checked
-                      })}
-                      color="primary"
-                    />
-                  }
-                  label={
-                    <Box>
-                      <Typography variant="body1" fontWeight={500}>Reasignar Tareas</Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        Puede reasignar tareas de un usuario a otro
-                        {permissionsData._defaultPermissions?.canReassignTasks && 
-                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
-                        }
-                      </Typography>
-                    </Box>
-                  }
-                />
-              </Box>
-            </Grid>
-            
-            {/* Permisos de Visualización */}
-            <Grid item xs={12}>
-              <Divider sx={{ my: 1 }} />
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: 'info.main' }}>
-                <VisibilityIcon /> Permisos de Visualización
-              </Typography>
-              <Box sx={{ pl: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={permissionsData.canViewAllProjects}
-                      onChange={(e) => setPermissionsData({
-                        ...permissionsData,
-                        canViewAllProjects: e.target.checked
-                      })}
-                      color="info"
-                    />
-                  }
-                  label={
-                    <Box>
-                      <Typography variant="body1" fontWeight={500}>Ver Todos los Proyectos</Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        Puede ver proyectos de otros equipos y usuarios
-                        {permissionsData._defaultPermissions?.canViewAllProjects && 
-                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
-                        }
-                      </Typography>
-                    </Box>
-                  }
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={permissionsData.canAccessReports}
-                      onChange={(e) => setPermissionsData({
-                        ...permissionsData,
-                        canAccessReports: e.target.checked
-                      })}
-                      color="warning"
-                    />
-                  }
-                  label={
-                    <Box>
-                      <Typography variant="body1" fontWeight={500}>Acceso a Reportes</Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        Puede generar y ver reportes del sistema
-                        {permissionsData._defaultPermissions?.canAccessReports && 
-                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
-                        }
-                      </Typography>
-                    </Box>
-                  }
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={permissionsData.canViewUserStats}
-                      onChange={(e) => setPermissionsData({
-                        ...permissionsData,
-                        canViewUserStats: e.target.checked
-                      })}
-                      color="info"
-                    />
-                  }
-                  label={
-                    <Box>
-                      <Typography variant="body1" fontWeight={500}>Ver Estadísticas de Usuarios</Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        Puede ver estadísticas detalladas de otros usuarios
-                        {permissionsData._defaultPermissions?.canViewUserStats && 
-                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
-                        }
-                      </Typography>
-                    </Box>
-                  }
-                />
-              </Box>
-            </Grid>
-            
-            {/* Permisos Especiales */}
-            <Grid item xs={12}>
-              <Divider sx={{ my: 1 }} />
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: 'secondary.main' }}>
-                <UploadIcon /> Permisos Especiales
-              </Typography>
-              <Box sx={{ pl: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={permissionsData.canManageUploads}
-                      onChange={(e) => setPermissionsData({
-                        ...permissionsData,
-                        canManageUploads: e.target.checked
-                      })}
-                      color="secondary"
-                    />
-                  }
-                  label={
-                    <Box>
-                      <Typography variant="body1" fontWeight={500}>Gestionar Subidas</Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        Puede gestionar el proceso de subida y publicación
-                        {permissionsData._defaultPermissions?.canManageUploads && 
-                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
-                        }
-                      </Typography>
-                    </Box>
-                  }
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={permissionsData.canManageSeries}
-                      onChange={(e) => setPermissionsData({
-                        ...permissionsData,
-                        canManageSeries: e.target.checked
-                      })}
-                      color="secondary"
-                    />
-                  }
-                  label={
-                    <Box>
-                      <Typography variant="body1" fontWeight={500}>Gestionar Series</Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        Puede crear, editar y eliminar series
-                        {permissionsData._defaultPermissions?.canManageSeries && 
-                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
-                        }
-                      </Typography>
-                    </Box>
-                  }
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={permissionsData.canModerateReviews}
-                      onChange={(e) => setPermissionsData({
-                        ...permissionsData,
-                        canModerateReviews: e.target.checked
-                      })}
-                      color="secondary"
-                    />
-                  }
-                  label={
-                    <Box>
-                      <Typography variant="body1" fontWeight={500}>Moderar Revisiones</Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        Puede aprobar o rechazar revisiones de otros usuarios
-                        {permissionsData._defaultPermissions?.canModerateReviews && 
-                          <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
-                        }
-                      </Typography>
-                    </Box>
-                  }
-                />
-              </Box>
-            </Grid>
-            
-            {/* Permisos Administrativos - Solo mostrar para admins */}
-            {(permissionsDialog.user?.role === 'admin' || currentUser?.uid === '7HIHfawVZtYBnUgIsvuspXY9DCw1') && (
-              <Grid item xs={12}>
-                <Divider sx={{ my: 1 }} />
-                <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: 'error.main' }}>
-                  <AdminPanelSettingsIcon /> Permisos Administrativos
-                </Typography>
-                <Box sx={{ pl: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={permissionsData.canViewSystemLogs}
-                        onChange={(e) => setPermissionsData({
-                          ...permissionsData,
-                          canViewSystemLogs: e.target.checked
-                        })}
-                        color="error"
-                      />
-                    }
-                    label={
-                      <Box>
-                        <Typography variant="body1" fontWeight={500}>Ver Logs del Sistema</Typography>
-                        <Typography variant="caption" color="textSecondary">
-                          Puede acceder a los logs y actividades del sistema
-                          {permissionsData._defaultPermissions?.canViewSystemLogs && 
-                            <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
-                          }
-                        </Typography>
-                      </Box>
-                    }
-                  />
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={permissionsData.canManageBackups}
-                        onChange={(e) => setPermissionsData({
-                          ...permissionsData,
-                          canManageBackups: e.target.checked
-                        })}
-                        color="error"
-                      />
-                    }
-                    label={
-                      <Box>
-                        <Typography variant="body1" fontWeight={500}>Gestionar Respaldos</Typography>
-                        <Typography variant="caption" color="textSecondary">
-                          Puede crear y restaurar respaldos del sistema
-                          {permissionsData._defaultPermissions?.canManageBackups && 
-                            <Chip size="small" label="Por defecto" sx={{ ml: 1, height: 16 }} />
-                          }
-                        </Typography>
-                      </Box>
-                    }
+              {group.items.map(([key, label, hint]) => (
+                <Box
+                  key={key}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 2,
+                    py: 1,
+                    '&:not(:last-of-type)': { borderBottom: `1px solid ${rowDivider}` },
+                  }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      id={`perm-${key}`}
+                      sx={{ fontSize: '0.875rem', color: colors.onSurface, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}
+                    >
+                      {label}
+                      {permissionsData._defaultPermissions?.[key] && <Tag>De su rol</Tag>}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant }}>{hint}</Typography>
+                  </Box>
+                  <Switch
+                    checked={Boolean(permissionsData[key])}
+                    onChange={(e) => setPermissionsData({ ...permissionsData, [key]: e.target.checked })}
+                    inputProps={{ 'aria-labelledby': `perm-${key}` }}
                   />
                 </Box>
-              </Grid>
-            )}
-          </Grid>
+              ))}
+            </Box>
+          ))}
         </DialogContent>
-        <DialogActions sx={{ p: 3, justifyContent: 'space-between' }}>
+        <DialogActions sx={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
           <Box>
             {permissionsData._hasCustomPermissions && (
-              <Button 
-                onClick={handleResetPermissions}
-                startIcon={<RefreshIcon />}
-                color="warning"
-                variant="outlined"
-                sx={{ mr: 1 }}
-              >
-                Resetear a por Defecto
+              <Button onClick={handleResetPermissions} startIcon={<RefreshIcon />} sx={mutedButtonSx}>
+                Volver a los de su rol
               </Button>
             )}
           </Box>
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button 
-              onClick={() => setPermissionsDialog({ open: false, user: null })}
-              color="inherit"
-            >
+            <Button onClick={() => setPermissionsDialog({ open: false, user: null })} sx={mutedButtonSx}>
               Cancelar
             </Button>
-            <Button 
-              variant="contained" 
-              onClick={handleSavePermissions}
-              startIcon={<SecurityIcon />}
-              disabled={loading}
-              sx={{
-                background: loading ? 'rgba(0,0,0,0.1)' : 'linear-gradient(135deg, #10b981, #059669)',
-                '&:hover': {
-                  background: loading ? 'rgba(0,0,0,0.1)' : 'linear-gradient(135deg, #059669, #047857)',
-                },
-              }}
-            >
-              {loading ? 'Guardando...' : 'Guardar Permisos'}
+            <Button variant="contained" onClick={handleSavePermissions} disabled={loading}>
+              {loading ? 'Guardando…' : 'Guardar permisos'}
             </Button>
           </Box>
         </DialogActions>
       </Dialog>
 
-      {/* Dialog para editar usuario */}
-      <Dialog open={editDialog.open} onClose={handleCloseEditDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          Editar Usuario - {editDialog.user?.name}
-        </DialogTitle>
+      {/* Dialog para editar a una persona */}
+      <Dialog open={editDialog.open} onClose={handleCloseEditDialog} maxWidth="xs" fullWidth>
+        <DialogTitle>Editar a {editDialog.user?.name}</DialogTitle>
         <DialogContent>
-          <Grid container spacing={3} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            <TextField
+              fullWidth
+              required
+              label="Nombre"
+              value={editFormData.name}
+              onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+            />
+            <TextField fullWidth label="Email" value={editFormData.email} disabled helperText="El email no se puede cambiar" />
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
               <TextField
+                select
                 fullWidth
-                label="Nombre completo"
-                value={editFormData.name}
-                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                error={!editFormData.name}
-                helperText={!editFormData.name ? 'Campo requerido' : ''}
-              />
-            </Grid>
-            <Grid item xs={12}>
+                required
+                label="Rol"
+                value={editFormData.role}
+                onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
+              >
+                {ASSIGNABLE_ROLES.map((role) => (
+                  <MenuItem key={role} value={role}>
+                    {ROLE_LABELS[role]}
+                  </MenuItem>
+                ))}
+                {/* Solo se puede mantener el rol de administrador, no darlo */}
+                {editDialog.user?.role === ROLES.ADMIN && <MenuItem value={ROLES.ADMIN}>{ROLE_LABELS[ROLES.ADMIN]}</MenuItem>}
+              </TextField>
               <TextField
+                select
                 fullWidth
-                label="Email"
-                value={editFormData.email}
-                disabled
-                helperText="El email no se puede modificar"
-                InputProps={{
-                  style: { backgroundColor: 'rgba(0,0,0,0.05)' }
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth error={!editFormData.role}>
-                <InputLabel>Rol *</InputLabel>
-                <Select
-                  value={editFormData.role}
-                  onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
-                  label="Rol *"
-                >
-                  <MenuItem value={ROLES.JEFE_EDITOR}>Jefe Editor</MenuItem>
-                  <MenuItem value={ROLES.JEFE_TRADUCTOR}>Jefe Traductor</MenuItem>
-                  <MenuItem value={ROLES.UPLOADER}>Uploader</MenuItem>
-                  <MenuItem value={ROLES.EDITOR}>Editor</MenuItem>
-                  <MenuItem value={ROLES.TRADUCTOR}>Traductor</MenuItem>
-                  {/* Solo superadmin puede asignar rol de admin */}
-                  {editDialog.user?.role === ROLES.ADMIN && (
-                    <MenuItem value={ROLES.ADMIN}>Administrador</MenuItem>
-                  )}
-                </Select>
-                {!editFormData.role && (
-                  <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 2 }}>
-                    Campo requerido
-                  </Typography>
-                )}
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Estado</InputLabel>
-                <Select
-                  value={editFormData.status}
-                  onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
-                  label="Estado"
-                >
-                  <MenuItem value="active">Activo</MenuItem>
-                  <MenuItem value="inactive">Inactivo</MenuItem>
-                  <MenuItem value="suspended">Suspendido</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12}>
-              <Alert severity="info" sx={{ mt: 1 }}>
-                <Typography variant="body2">
-                  📸 <strong>Nota sobre la imagen de perfil:</strong> Los usuarios pueden cambiar su propia imagen de perfil desde su página de perfil personal. Los administradores no pueden modificar las imágenes de perfil de otros usuarios por razones de privacidad.
-                </Typography>
-              </Alert>
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseEditDialog}>Cancelar</Button>
-          <Button 
-            variant="contained" 
-            onClick={handleSaveEditUser}
-            disabled={loading || !editFormData.name || !editFormData.role}
-          >
-            {loading ? 'Guardando...' : 'Guardar Cambios'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Dialog para crear usuario fantasma */}
-      <Dialog open={ghostDialogOpen} onClose={handleCloseGhostDialog} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <PersonOffIcon color="secondary" />
-          Crear Usuario Fantasma
-        </DialogTitle>
-        <DialogContent>
-          <Alert severity="info" sx={{ mb: 3 }}>
-            <Typography variant="body2">
-              👻 <strong>Los usuarios fantasma</strong> son registros de personas que trabajaron antes de implementar el sistema de autenticación. No pueden iniciar sesión, pero conservan los créditos de su trabajo.
+                label="Estado"
+                value={editFormData.status}
+                onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+              >
+                {['active', 'inactive', 'suspended'].map((key) => (
+                  <MenuItem key={key} value={key}>
+                    {USER_STATUS[key].label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Box>
+            <Typography sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant }}>
+              La foto de perfil la cambia cada persona desde su perfil; desde aquí no se puede tocar.
             </Typography>
-          </Alert>
-          
-          <Grid container spacing={3} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Nombre completo *"
-                value={ghostFormData.name}
-                onChange={(e) => setGhostFormData({ ...ghostFormData, name: e.target.value })}
-                error={!ghostFormData.name}
-                helperText={!ghostFormData.name ? 'Campo requerido' : 'Nombre del usuario que trabajó anteriormente'}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Email (opcional)"
-                type="email"
-                value={ghostFormData.email}
-                onChange={(e) => setGhostFormData({ ...ghostFormData, email: e.target.value })}
-                helperText="Email del usuario si se conoce"
-                placeholder="usuario@ejemplo.com"
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Rol que desempeñaba</InputLabel>
-                <Select
-                  value={ghostFormData.role}
-                  onChange={(e) => setGhostFormData({ ...ghostFormData, role: e.target.value })}
-                  label="Rol que desempeñaba"
-                >
-                  <MenuItem value={ROLES.JEFE_EDITOR}>Jefe Editor</MenuItem>
-                  <MenuItem value={ROLES.JEFE_TRADUCTOR}>Jefe Traductor</MenuItem>
-                  <MenuItem value={ROLES.UPLOADER}>Uploader</MenuItem>
-                  <MenuItem value={ROLES.EDITOR}>Editor</MenuItem>
-                  <MenuItem value={ROLES.TRADUCTOR}>Traductor</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12}>
-              <Alert severity="warning" sx={{ mt: 1 }}>
-                <Typography variant="body2">
-                  ⚠️ <strong>Nota:</strong> Este usuario no podrá iniciar sesión en el sistema. Solo se usará para mantener el historial de trabajos realizados antes del sistema de autenticación.
-                </Typography>
-              </Alert>
-            </Grid>
-          </Grid>
+          </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseGhostDialog}>Cancelar</Button>
-          <Button 
-            variant="contained" 
-            onClick={handleSaveGhostUser}
-            disabled={loading || !ghostFormData.name}
-            sx={{
-              background: 'linear-gradient(135deg, #6b7280, #4b5563)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #4b5563, #374151)',
-              },
-            }}
-          >
-            {loading ? 'Creando...' : 'Crear Usuario Fantasma'}
+          <Button onClick={handleCloseEditDialog} sx={mutedButtonSx}>
+            Cancelar
+          </Button>
+          <Button variant="contained" onClick={handleSaveEditUser} disabled={loading || !editFormData.name || !editFormData.role}>
+            {loading ? 'Guardando…' : 'Guardar cambios'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Dialog de confirmación */}
+      {/* Dialog para crear un usuario fantasma */}
+      <Dialog open={ghostDialogOpen} onClose={handleCloseGhostDialog} maxWidth="xs" fullWidth>
+        <DialogTitle>Crear usuario fantasma</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: '0.8125rem', color: colors.onSurfaceVariant, mb: 2 }}>
+            Guarda el crédito de alguien que trabajó antes de que existiera este sistema. No puede iniciar sesión.
+          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              fullWidth
+              required
+              label="Nombre"
+              value={ghostFormData.name}
+              onChange={(e) => setGhostFormData({ ...ghostFormData, name: e.target.value })}
+            />
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              value={ghostFormData.email}
+              onChange={(e) => setGhostFormData({ ...ghostFormData, email: e.target.value })}
+              helperText="Opcional, si se conoce"
+            />
+            <TextField
+              select
+              fullWidth
+              label="Rol que tenía"
+              value={ghostFormData.role}
+              onChange={(e) => setGhostFormData({ ...ghostFormData, role: e.target.value })}
+            >
+              {ASSIGNABLE_ROLES.map((role) => (
+                <MenuItem key={role} value={role}>
+                  {ROLE_LABELS[role]}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseGhostDialog} sx={mutedButtonSx}>
+            Cancelar
+          </Button>
+          <Button variant="contained" onClick={handleSaveGhostUser} disabled={loading || !ghostFormData.name}>
+            {loading ? 'Creando…' : 'Crear fantasma'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <ConfirmDialog
         open={confirmDialog.open}
         onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}
         onConfirm={confirmDialog.onConfirm}
         title={confirmDialog.title}
         message={confirmDialog.message}
+        confirmLabel={confirmDialog.confirmLabel}
+        destructive={confirmDialog.destructive !== false}
       />
-      
-      {/* Snackbar para notificaciones */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert 
-          onClose={() => setSnackbar({ ...snackbar, open: false })} 
-          severity={snackbar.severity}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };
@@ -2285,7 +1684,7 @@ const SystemConfiguration = () => {
     metadata: {}
   });
   const [loading, setLoading] = useState(false);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+  const setSnackbar = showNotice;
   const [unsavedChanges, setUnsavedChanges] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', onConfirm: null });
   const [validationErrors, setValidationErrors] = useState([]);
@@ -2295,7 +1694,7 @@ const SystemConfiguration = () => {
   useEffect(() => {
     loadConfigurations();
   }, []);
-  
+
   // Detectar cambios de URL en tiempo real (para SPAs con routing)
   useEffect(() => {
     const checkUrlChange = async () => {
@@ -2303,14 +1702,14 @@ const SystemConfiguration = () => {
         const currentUrl = window.location.origin;
         // Solo mostrar notificación, no actualizar automáticamente
         // El usuario puede decidir si quiere actualizar
-        setSnackbar({
+        showNotice({
           open: true,
-          message: `Detectado cambio de entorno. URL actual: ${currentUrl}. ¿Quieres actualizar la configuración?`,
+          message: `La URL base guardada no coincide con la actual (${currentUrl}). Puedes cambiarla en General.`,
           severity: 'info'
         });
       }
     };
-    
+
     // Verificar cuando se cargan las configuraciones
     if (configurations.general?.baseUrl) {
       checkUrlChange();
@@ -2322,13 +1721,13 @@ const SystemConfiguration = () => {
     try {
       const { getSystemConfigurations } = await import('../services/systemConfigService');
       const result = await getSystemConfigurations();
-      
+
       if (result.success) {
         setConfigurations(result.configurations);
         setUnsavedChanges(false);
         setValidationErrors([]);
         setValidationWarnings([]);
-        
+
         // Sincronizar información pública automáticamente
         try {
           const { updatePublicSystemInfo } = await import('../services/systemConfigService');
@@ -2339,12 +1738,7 @@ const SystemConfiguration = () => {
         } catch (error) {
           console.warn('Error sincronizando información pública:', error);
         }
-        
-        setSnackbar({
-          open: true,
-          message: 'Configuraciones cargadas exitosamente',
-          severity: 'success'
-        });
+
       } else {
         throw new Error(result.error || 'Error desconocido');
       }
@@ -2366,20 +1760,20 @@ const SystemConfiguration = () => {
         [key]: value
       }
     };
-    
+
     setConfigurations(newConfigurations);
     setUnsavedChanges(true);
-    
+
     // Validación en tiempo real (con debounce)
     if (window.validationTimeout) {
       clearTimeout(window.validationTimeout);
     }
-    
+
     window.validationTimeout = setTimeout(async () => {
       try {
         const { validateConfigurations } = await import('../services/systemConfigService');
         const validation = validateConfigurations(newConfigurations);
-        
+
         setValidationErrors(validation.errors);
         setValidationWarnings(validation.warnings);
       } catch (error) {
@@ -2392,10 +1786,10 @@ const SystemConfiguration = () => {
     // Validar configuraciones antes de guardar
     const { validateConfigurations } = await import('../services/systemConfigService');
     const validation = validateConfigurations(configurations);
-    
+
     setValidationErrors(validation.errors);
     setValidationWarnings(validation.warnings);
-    
+
     if (!validation.isValid) {
       setSnackbar({
         open: true,
@@ -2404,20 +1798,20 @@ const SystemConfiguration = () => {
       });
       return;
     }
-    
+
     setLoading(true);
     try {
       const { saveSystemConfigurations } = await import('../services/systemConfigService');
       const result = await saveSystemConfigurations(configurations, userProfile?.uid);
-      
+
       if (result.success) {
         setSnackbar({
           open: true,
-          message: 'Configuraciones guardadas exitosamente',
+          message: 'Configuración guardada',
           severity: 'success'
         });
         setUnsavedChanges(false);
-        
+
         // Mostrar advertencias si las hay
         if (validation.warnings.length > 0) {
           setTimeout(() => {
@@ -2444,15 +1838,16 @@ const SystemConfiguration = () => {
   const handleResetToDefaults = () => {
     setConfirmDialog({
       open: true,
-      title: 'Restaurar Configuraciones por Defecto',
-      message: '¿Estás seguro de que quieres restaurar todas las configuraciones a sus valores por defecto? Esta acción no se puede deshacer.',
+      title: '¿Descartar los cambios?',
+      message: 'Se vuelve a cargar la configuración guardada y se pierde lo que no hayas guardado.',
+      confirmLabel: 'Descartar',
       onConfirm: () => {
         // Resetear configuraciones
         loadConfigurations();
         setUnsavedChanges(false);
         setSnackbar({
           open: true,
-          message: 'Configuraciones restauradas a valores por defecto',
+          message: 'Cambios descartados',
           severity: 'info'
         });
         setConfirmDialog({ ...confirmDialog, open: false });
@@ -2469,10 +1864,10 @@ const SystemConfiguration = () => {
     a.download = `wpt-config-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    
+
     setSnackbar({
       open: true,
-      message: 'Configuraciones exportadas exitosamente',
+      message: 'Configuración exportada',
       severity: 'success'
     });
   };
@@ -2484,20 +1879,20 @@ const SystemConfiguration = () => {
       reader.onload = async (e) => {
         try {
           const importedConfig = JSON.parse(e.target.result);
-          
+
           // Validar configuraciones importadas
           const { validateConfigurations } = await import('../services/systemConfigService');
           const validation = validateConfigurations(importedConfig);
-          
+
           setConfigurations(importedConfig);
           setUnsavedChanges(true);
           setValidationErrors(validation.errors);
           setValidationWarnings(validation.warnings);
-          
+
           if (validation.isValid) {
             setSnackbar({
               open: true,
-              message: 'Configuraciones importadas exitosamente. Recuerda guardar los cambios.',
+              message: 'Configuración importada. Revísala y guárdala.',
               severity: 'success'
             });
           } else {
@@ -2521,498 +1916,229 @@ const SystemConfiguration = () => {
     event.target.value = '';
   };
 
-  const sectionIcons = {
-    general: <SettingsIcon />,
-    firebase: <SecurityIcon />,
-    apis: <CreateIcon />,
-    security: <ShieldIcon />
-  };
+  const CONFIG_SECTIONS = [
+    { value: 'general', label: 'General' },
+    { value: 'firebase', label: 'Firebase' },
+    { value: 'apis', label: 'APIs' },
+    { value: 'security', label: 'Seguridad' },
+  ];
 
-  const renderGeneralSection = () => (
-    <Grid container spacing={3}>
-      <Grid item xs={12}>
-        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <InfoOutlinedIcon color="primary" />
-          Configuraciones Generales del Sistema
-        </Typography>
-      </Grid>
-      
-      <Grid item xs={12} sm={6}>
-        <TextField
-          fullWidth
-          label="Nombre del Sistema"
-          value={configurations.general?.systemName || ''}
-          onChange={(e) => handleConfigChange('general', 'systemName', e.target.value)}
-          helperText="Nombre que aparece en la interfaz del sistema"
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      
-      <Grid item xs={12} sm={6}>
-        <TextField
-          fullWidth
-          label="Versión del Sistema"
-          value={configurations.general?.systemVersion || ''}
-          onChange={(e) => handleConfigChange('general', 'systemVersion', e.target.value)}
-          helperText="Versión actual del sistema"
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      
-      <Grid item xs={12}>
-        <TextField
-          fullWidth
-          label="URL Base del Sistema"
-          value={configurations.general?.baseUrl || ''}
-          onChange={(e) => handleConfigChange('general', 'baseUrl', e.target.value)}
-          helperText="URL principal donde está alojado el sistema. Se actualiza automáticamente según el entorno."
-          InputLabelProps={{ shrink: true }}
-        />
-        <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="caption" color="textSecondary">
-            🌐 <strong>Detección automática:</strong> localhost (desarrollo), wptassig.kyudenzone.com (producción), Firebase Hosting, Vercel, Netlify
-          </Typography>
-          {configurations.general?.baseUrl !== window.location.origin && (
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => handleConfigChange('general', 'baseUrl', window.location.origin)}
-              sx={{ ml: 2 }}
-            >
-              Usar URL actual ({window.location.origin})
-            </Button>
-          )}
-        </Box>
-      </Grid>
-      
-      <Grid item xs={12} sm={6}>
-        <TextField
-          fullWidth
-          label="Email de Soporte"
-          type="email"
-          value={configurations.general?.supportEmail || ''}
-          onChange={(e) => handleConfigChange('general', 'supportEmail', e.target.value)}
-          helperText="Email para contacto de soporte técnico"
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      
-      <Grid item xs={12} sm={6}>
-        <TextField
-          fullWidth
-          label="Tamaño máximo de archivo (MB)"
-          type="number"
-          value={configurations.general?.maxFileSize || ''}
-          onChange={(e) => handleConfigChange('general', 'maxFileSize', parseInt(e.target.value))}
-          helperText="Límite de tamaño para archivos subidos"
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      
-      <Grid item xs={12} sm={6}>
-        <TextField
-          fullWidth
-          label="Máximo usuarios por proyecto"
-          type="number"
-          value={configurations.general?.maxUsersPerProject || ''}
-          onChange={(e) => handleConfigChange('general', 'maxUsersPerProject', parseInt(e.target.value))}
-          helperText="Límite de usuarios que pueden trabajar en un proyecto"
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      
-      <Grid item xs={12}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Box sx={{ p: 2, border: '2px solid', borderColor: 'warning.main', borderRadius: 2, bgcolor: 'rgba(255, 193, 7, 0.1)' }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={configurations.general?.maintenanceMode || false}
-                  onChange={(e) => handleConfigChange('general', 'maintenanceMode', e.target.checked)}
-                  color="warning"
-                  size="large"
-                />
-              }
-              label={
-                <Box>
-                  <Typography variant="body1" fontWeight={600} color="warning.main">
-                    🚧 Modo Mantenimiento
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                    Activar para realizar mantenimiento del sistema. Solo administradores podrán acceder.
-                  </Typography>
-                  {configurations.general?.maintenanceMode && (
-                    <Typography variant="body2" color="warning.main" fontWeight={600} sx={{ mt: 1 }}>
-                      ⚠️ SISTEMA ACTUALMENTE EN MANTENIMIENTO
-                    </Typography>
-                  )}
-                </Box>
-              }
-            />
-            {configurations.general?.maintenanceMode && (
-              <Alert severity="warning" sx={{ mt: 2 }}>
-                <Typography variant="body2">
-                  <strong>🚨 Atención:</strong> El modo mantenimiento está ACTIVO. Los usuarios regulares no pueden acceder al sistema. Solo tú (como super administrador) puedes usar el sistema en este momento.
-                </Typography>
-              </Alert>
-            )}
-            
-          </Box>
-          
-          <FormControlLabel
-            control={
-              <Switch
-                checked={configurations.general.registrationEnabled}
-                onChange={(e) => handleConfigChange('general', 'registrationEnabled', e.target.checked)}
-                color="primary"
-              />
-            }
-            label={
-              <Box>
-                <Typography variant="body1" fontWeight={500}>Permitir Registro de Usuarios</Typography>
-                <Typography variant="caption" color="textSecondary">
-                  Permitir que nuevos usuarios se registren en el sistema
-                </Typography>
-              </Box>
-            }
-          />
-        </Box>
-      </Grid>
+  // Piezas de formulario (funciones, no componentes: se pintan dentro de este render).
+  const sectionTitle = (title, hint) => (
+    <Grid item xs={12}>
+      <Typography component="h3" variant="subtitle2" sx={{ color: colors.onSurface }}>
+        {title}
+      </Typography>
+      {hint && (
+        <Typography sx={{ fontSize: '0.8125rem', color: colors.onSurfaceVariant, mt: 0.25 }}>{hint}</Typography>
+      )}
     </Grid>
   );
 
-  const renderFirebaseSection = () => (
-    <Grid container spacing={3}>
-      <Grid item xs={12}>
-        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <SecurityIcon color="error" />
-          Configuraciones de Firebase
+  const field = (section, key, label, helperText, { number = false, type, sm = 6 } = {}) => (
+    <Grid item xs={12} sm={sm} key={key}>
+      <TextField
+        fullWidth
+        label={label}
+        type={type || (number ? 'number' : 'text')}
+        value={configurations[section]?.[key] || ''}
+        onChange={(e) => handleConfigChange(section, key, number ? parseInt(e.target.value) : e.target.value)}
+        helperText={helperText}
+        InputLabelProps={{ shrink: true }}
+      />
+    </Grid>
+  );
+
+  const toggle = (section, key, label, hint) => (
+    <Box
+      key={key}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 2,
+        py: 1.25,
+        '&:not(:last-of-type)': { borderBottom: `1px solid ${rowDivider}` },
+      }}
+    >
+      <Box sx={{ minWidth: 0 }}>
+        <Typography id={`cfg-${section}-${key}`} sx={{ fontSize: '0.875rem', color: colors.onSurface }}>
+          {label}
         </Typography>
-      </Grid>
-      
-      <Grid item xs={12}>
-        <TextField
-          fullWidth
-          label="URL del Cloudflare Worker"
-          value={configurations.firebase?.workerUrl || ''}
-          onChange={(e) => handleConfigChange('firebase', 'workerUrl', e.target.value)}
-          helperText="URL del worker que maneja las configuraciones de Firebase"
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      
-      <Grid item xs={12} sm={6}>
-        <TextField
-          fullWidth
-          label="Versión de Reglas de Base de Datos"
-          value={configurations.firebase?.databaseRulesVersion || ''}
-          onChange={(e) => handleConfigChange('firebase', 'databaseRulesVersion', e.target.value)}
-          helperText="Versión actual de las reglas de Realtime Database"
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      
-      <Grid item xs={12} sm={6}>
-        <TextField
-          fullWidth
-          label="Versión de Reglas de Storage"
-          value={configurations.firebase?.storageRulesVersion || ''}
-          onChange={(e) => handleConfigChange('firebase', 'storageRulesVersion', e.target.value)}
-          helperText="Versión actual de las reglas de Firebase Storage"
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      
-      <Grid item xs={12} sm={6}>
-        <FormControl fullWidth>
-          <InputLabel>Frecuencia de Backup</InputLabel>
-          <Select
-            value={configurations.firebase.backupFrequency}
-            onChange={(e) => handleConfigChange('firebase', 'backupFrequency', e.target.value)}
-            label="Frecuencia de Backup"
+        <Typography sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant }}>{hint}</Typography>
+      </Box>
+      <Switch
+        checked={Boolean(configurations[section]?.[key])}
+        onChange={(e) => handleConfigChange(section, key, e.target.checked)}
+        inputProps={{ 'aria-labelledby': `cfg-${section}-${key}` }}
+      />
+    </Box>
+  );
+
+  const renderGeneralSection = () => {
+    const maintenance = Boolean(configurations.general?.maintenanceMode);
+    return (
+      <Grid container spacing={2}>
+        {sectionTitle('General', 'Datos del sistema y límites de uso.')}
+        {field('general', 'systemName', 'Nombre del sistema', 'El que aparece en la interfaz')}
+        {field('general', 'systemVersion', 'Versión', 'Versión actual del sistema')}
+        <Grid item xs={12}>
+          <TextField
+            fullWidth
+            label="URL base"
+            value={configurations.general?.baseUrl || ''}
+            onChange={(e) => handleConfigChange('general', 'baseUrl', e.target.value)}
+            helperText="Se detecta según el entorno: localhost, wptassig.kyudenzone.com, Firebase Hosting, Vercel o Netlify"
+            InputLabelProps={{ shrink: true }}
+          />
+          {configurations.general?.baseUrl !== window.location.origin && (
+            <Button
+              size="small"
+              onClick={() => handleConfigChange('general', 'baseUrl', window.location.origin)}
+              sx={{ ...mutedButtonSx, mt: 0.5 }}
+            >
+              Usar la URL actual ({window.location.origin})
+            </Button>
+          )}
+        </Grid>
+        {field('general', 'supportEmail', 'Email de soporte', 'Contacto para soporte técnico', { type: 'email' })}
+        {field('general', 'maxFileSize', 'Tamaño máximo de archivo (MB)', 'Límite para los archivos subidos', { number: true })}
+        {field('general', 'maxUsersPerProject', 'Máximo de personas por proyecto', 'Cuántas pueden trabajar en un mismo proyecto', { number: true })}
+
+        <Grid item xs={12}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 1.5,
+              p: 2,
+              borderRadius: `${radius.lg}px`,
+              backgroundColor: maintenance ? withAlpha(colors.attention, 0.08) : colors.surfaceContainer,
+              transition: 'background-color 200ms ease-out',
+            }}
           >
-            <MenuItem value="hourly">Cada hora</MenuItem>
-            <MenuItem value="daily">Diario</MenuItem>
-            <MenuItem value="weekly">Semanal</MenuItem>
-            <MenuItem value="monthly">Mensual</MenuItem>
-          </Select>
-        </FormControl>
-      </Grid>
-      
-      <Grid item xs={12}>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={configurations.firebase.enableRealtimeSync}
-              onChange={(e) => handleConfigChange('firebase', 'enableRealtimeSync', e.target.checked)}
-              color="primary"
-            />
-          }
-          label={
-            <Box>
-              <Typography variant="body1" fontWeight={500}>Sincronización en Tiempo Real</Typography>
-              <Typography variant="caption" color="textSecondary">
-                Habilitar sincronización automática de datos en tiempo real
+            <ConstructionIcon aria-hidden="true" sx={{ fontSize: 20, mt: 0.25, color: maintenance ? colors.attention : colors.outline }} />
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography id="cfg-general-maintenanceMode" sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.onSurface }}>
+                Modo mantenimiento
+              </Typography>
+              <Typography sx={{ fontSize: '0.8125rem', color: colors.onSurfaceVariant }}>
+                {maintenance
+                  ? 'Activo: solo la administración puede entrar. El resto del equipo ve la pantalla de mantenimiento.'
+                  : 'Al activarlo, solo la administración puede entrar mientras haces cambios.'}
               </Typography>
             </Box>
-          }
-        />
+            <Switch
+              checked={maintenance}
+              onChange={(e) => handleConfigChange('general', 'maintenanceMode', e.target.checked)}
+              inputProps={{ 'aria-labelledby': 'cfg-general-maintenanceMode' }}
+            />
+          </Box>
+        </Grid>
+        <Grid item xs={12}>
+          <Box>
+            {toggle('general', 'registrationEnabled', 'Permitir el registro', 'Que personas nuevas puedan crearse una cuenta')}
+          </Box>
+        </Grid>
+      </Grid>
+    );
+  };
+
+  const renderFirebaseSection = () => (
+    <Grid container spacing={2}>
+      {sectionTitle('Firebase', 'Conexión con la base de datos y copias de seguridad.')}
+      {field('firebase', 'workerUrl', 'URL del Cloudflare Worker', 'Worker que entrega la configuración de Firebase', { sm: 12 })}
+      {field('firebase', 'databaseRulesVersion', 'Versión de reglas de la base de datos', 'Reglas de Realtime Database')}
+      {field('firebase', 'storageRulesVersion', 'Versión de reglas de Storage', 'Reglas de Firebase Storage')}
+      <Grid item xs={12} sm={6}>
+        <TextField
+          select
+          fullWidth
+          label="Frecuencia de copia de seguridad"
+          value={configurations.firebase?.backupFrequency || ''}
+          onChange={(e) => handleConfigChange('firebase', 'backupFrequency', e.target.value)}
+          InputLabelProps={{ shrink: true }}
+        >
+          <MenuItem value="hourly">Cada hora</MenuItem>
+          <MenuItem value="daily">Diaria</MenuItem>
+          <MenuItem value="weekly">Semanal</MenuItem>
+          <MenuItem value="monthly">Mensual</MenuItem>
+        </TextField>
+      </Grid>
+      <Grid item xs={12}>
+        <Box>
+          {toggle('firebase', 'enableRealtimeSync', 'Sincronización en tiempo real', 'Los datos se actualizan solos en todas las pantallas')}
+        </Box>
       </Grid>
     </Grid>
   );
 
   const renderApisSection = () => (
-    <Grid container spacing={3}>
+    <Grid container spacing={2}>
+      {sectionTitle('ImageKit', 'Optimización y almacenamiento de imágenes.')}
       <Grid item xs={12}>
-        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <CreateIcon color="secondary" />
-          Configuraciones de APIs Externas
-        </Typography>
+        <Box>{toggle('apis', 'imagekitEnabled', 'Usar ImageKit', 'Las imágenes se optimizan y guardan en ImageKit')}</Box>
       </Grid>
-      
-      <Grid item xs={12}>
-        <Alert severity="info" sx={{ mb: 2 }}>
-          <Typography variant="body2">
-            🔧 <strong>Configuraciones de APIs:</strong> Estas configuraciones controlan la integración con servicios externos.
-          </Typography>
-        </Alert>
-      </Grid>
-      
-      <Grid item xs={12}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>ImageKit Configuration</Typography>
-      </Grid>
-      
-      <Grid item xs={12}>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={configurations.apis.imagekitEnabled}
-              onChange={(e) => handleConfigChange('apis', 'imagekitEnabled', e.target.checked)}
-              color="primary"
-            />
-          }
-          label={
-            <Box>
-              <Typography variant="body1" fontWeight={500}>Habilitar ImageKit</Typography>
-              <Typography variant="caption" color="textSecondary">
-                Usar ImageKit para optimización y almacenamiento de imágenes
-              </Typography>
-            </Box>
-          }
-        />
-      </Grid>
-      
-      {configurations.apis.imagekitEnabled && (
+      {configurations.apis?.imagekitEnabled && (
         <>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="ImageKit Public Key"
-              value={configurations.apis?.imagekitPublicKey || ''}
-              onChange={(e) => handleConfigChange('apis', 'imagekitPublicKey', e.target.value)}
-              helperText="Clave pública de ImageKit"
-              InputLabelProps={{ shrink: true }}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="ImageKit Endpoint"
-              value={configurations.apis?.imagekitEndpoint || ''}
-              onChange={(e) => handleConfigChange('apis', 'imagekitEndpoint', e.target.value)}
-              helperText="URL del endpoint de ImageKit"
-              InputLabelProps={{ shrink: true }}
-            />
-          </Grid>
+          {field('apis', 'imagekitPublicKey', 'Clave pública de ImageKit', 'Clave pública, no la privada')}
+          {field('apis', 'imagekitEndpoint', 'Endpoint de ImageKit', 'URL del endpoint')}
         </>
       )}
-      
       <Grid item xs={12}>
-        <Divider sx={{ my: 2 }} />
-        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>Otros Servicios</Typography>
+        <Box sx={{ pt: 2, mt: 1, borderTop: `1px solid ${rowDivider}` }} />
       </Grid>
-      
-      <Grid item xs={12} sm={6}>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={configurations.apis.googleDriveEnabled}
-              onChange={(e) => handleConfigChange('apis', 'googleDriveEnabled', e.target.checked)}
-              color="primary"
-            />
-          }
-          label={
-            <Box>
-              <Typography variant="body1" fontWeight={500}>Google Drive Integration</Typography>
-              <Typography variant="caption" color="textSecondary">
-                Habilitar integración con Google Drive
-              </Typography>
-            </Box>
-          }
-        />
-      </Grid>
-      
-      <Grid item xs={12} sm={6}>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={configurations.apis.cloudflareWorkerEnabled}
-              onChange={(e) => handleConfigChange('apis', 'cloudflareWorkerEnabled', e.target.checked)}
-              color="primary"
-            />
-          }
-          label={
-            <Box>
-              <Typography variant="body1" fontWeight={500}>Cloudflare Worker</Typography>
-              <Typography variant="caption" color="textSecondary">
-                Habilitar servicios de Cloudflare Worker
-              </Typography>
-            </Box>
-          }
-        />
-      </Grid>
-      
+      {sectionTitle('Otros servicios')}
       <Grid item xs={12}>
-        <TextField
-          fullWidth
-          label="Email para Notificaciones"
-          type="email"
-          value={configurations.apis?.notificationEmail || ''}
-          onChange={(e) => handleConfigChange('apis', 'notificationEmail', e.target.value)}
-          helperText="Email donde se envían notificaciones del sistema"
-          InputLabelProps={{ shrink: true }}
-        />
+        <Box>
+          {toggle('apis', 'googleDriveEnabled', 'Google Drive', 'Integración con las carpetas de Drive')}
+          {toggle('apis', 'cloudflareWorkerEnabled', 'Cloudflare Worker', 'Servicios que pasan por el worker de Cloudflare')}
+        </Box>
       </Grid>
+      {field('apis', 'notificationEmail', 'Email para notificaciones', 'A dónde llegan los avisos del sistema', { type: 'email', sm: 12 })}
     </Grid>
   );
 
   const renderSecuritySection = () => (
-    <Grid container spacing={3}>
+    <Grid container spacing={2}>
+      {sectionTitle('Seguridad', 'Estos cambios afectan a todas las personas del sistema.')}
+      {field('security', 'sessionTimeout', 'Cierre de sesión por inactividad (horas)', 'Tiempo sin actividad antes de cerrar la sesión', { number: true })}
+      {field('security', 'passwordMinLength', 'Longitud mínima de contraseña', 'Caracteres mínimos', { number: true })}
+      {field('security', 'maxLoginAttempts', 'Intentos de inicio de sesión', 'Fallos antes de bloquear la cuenta', { number: true })}
+      {field('security', 'lockoutDuration', 'Duración del bloqueo (minutos)', 'Cuánto dura bloqueada una cuenta', { number: true })}
       <Grid item xs={12}>
-        <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ShieldIcon color="warning" />
-          Configuraciones de Seguridad
+        <Typography id="cfg-password-rules" sx={{ fontSize: '0.875rem', color: colors.onSurface, mt: 1 }}>
+          La contraseña debe llevar
         </Typography>
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            ⚠️ <strong>Precaución:</strong> Los cambios en la configuración de seguridad afectan a todos los usuarios del sistema.
-          </Typography>
-        </Alert>
-      </Grid>
-      
-      <Grid item xs={12} sm={6}>
-        <TextField
-          fullWidth
-          label="Timeout de Sesión (horas)"
-          type="number"
-          value={configurations.security?.sessionTimeout || ''}
-          onChange={(e) => handleConfigChange('security', 'sessionTimeout', parseInt(e.target.value))}
-          helperText="Tiempo de inactividad antes de cerrar sesión automáticamente"
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      
-      <Grid item xs={12} sm={6}>
-        <TextField
-          fullWidth
-          label="Longitud mínima de contraseña"
-          type="number"
-          value={configurations.security?.passwordMinLength || ''}
-          onChange={(e) => handleConfigChange('security', 'passwordMinLength', parseInt(e.target.value))}
-          helperText="Mínimo de caracteres requeridos en contraseñas"
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      
-      <Grid item xs={12} sm={6}>
-        <TextField
-          fullWidth
-          label="Máximo intentos de login"
-          type="number"
-          value={configurations.security?.maxLoginAttempts || ''}
-          onChange={(e) => handleConfigChange('security', 'maxLoginAttempts', parseInt(e.target.value))}
-          helperText="Intentos fallidos antes de bloquear cuenta"
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      
-      <Grid item xs={12} sm={6}>
-        <TextField
-          fullWidth
-          label="Duración de bloqueo (minutos)"
-          type="number"
-          value={configurations.security?.lockoutDuration || ''}
-          onChange={(e) => handleConfigChange('security', 'lockoutDuration', parseInt(e.target.value))}
-          helperText="Tiempo que permanece bloqueada una cuenta"
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      
-      <Grid item xs={12}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>Requisitos de Contraseña</Typography>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={configurations.security.requireUppercase}
-                onChange={(e) => handleConfigChange('security', 'requireUppercase', e.target.checked)}
-                color="primary"
-              />
-            }
-            label="Requiere mayúsculas"
-          />
-          
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={configurations.security.requireNumbers}
-                onChange={(e) => handleConfigChange('security', 'requireNumbers', e.target.checked)}
-                color="primary"
-              />
-            }
-            label="Requiere números"
-          />
-          
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={configurations.security.requireSpecialChars}
-                onChange={(e) => handleConfigChange('security', 'requireSpecialChars', e.target.checked)}
-                color="primary"
-              />
-            }
-            label="Requiere caracteres especiales"
-          />
+        <Box role="group" aria-labelledby="cfg-password-rules" sx={{ display: 'flex', flexWrap: 'wrap', columnGap: 3 }}>
+          {[
+            ['requireUppercase', 'Mayúsculas'],
+            ['requireNumbers', 'Números'],
+            ['requireSpecialChars', 'Caracteres especiales'],
+          ].map(([key, label]) => (
+            <FormControlLabel
+              key={key}
+              control={
+                <Checkbox
+                  checked={Boolean(configurations.security?.[key])}
+                  onChange={(e) => handleConfigChange('security', key, e.target.checked)}
+                />
+              }
+              label={<Typography sx={{ fontSize: '0.875rem' }}>{label}</Typography>}
+            />
+          ))}
         </Box>
       </Grid>
-      
       <Grid item xs={12}>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={configurations.security.enableTwoFactor}
-              onChange={(e) => handleConfigChange('security', 'enableTwoFactor', e.target.checked)}
-              color="secondary"
-            />
-          }
-          label={
-            <Box>
-              <Typography variant="body1" fontWeight={500}>Autenticación de Dos Factores</Typography>
-              <Typography variant="caption" color="textSecondary">
-                Habilitar 2FA para mayor seguridad (requerirá configuración adicional)
-              </Typography>
-            </Box>
-          }
-        />
+        <Box>
+          {toggle('security', 'enableTwoFactor', 'Verificación en dos pasos', 'Pide un segundo factor al entrar. Necesita configuración adicional')}
+        </Box>
       </Grid>
     </Grid>
   );
 
   const renderCurrentSection = () => {
     switch (currentSection) {
-      case 'general':
-        return renderGeneralSection();
       case 'firebase':
         return renderFirebaseSection();
       case 'apis':
@@ -3026,275 +2152,164 @@ const SystemConfiguration = () => {
 
   return (
     <Box>
-      {/* Header con acciones principales */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" fontWeight={600}>
-          Configuración del Sistema
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            variant="outlined"
-            onClick={handleResetToDefaults}
-            color="warning"
-            size="small"
-          >
-            Restaurar Predeterminados
-          </Button>
-          
-          <Button
-            variant="outlined"
-            onClick={handleExportConfig}
-            startIcon={<VisibilityIcon />}
-            size="small"
-          >
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+        <FilterControl
+          value={currentSection}
+          onChange={setCurrentSection}
+          options={CONFIG_SECTIONS}
+          label="Sección de configuración"
+        />
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <Button size="small" startIcon={<DownloadIcon />} onClick={handleExportConfig} sx={mutedButtonSx}>
             Exportar
           </Button>
-          
-          <input
-            type="file"
-            accept=".json"
-            style={{ display: 'none' }}
-            id="import-config"
-            onChange={handleImportConfig}
-          />
-          <label htmlFor="import-config">
-            <Button
-              component="span"
-              variant="outlined"
-              startIcon={<UploadIcon />}
-              size="small"
-            >
-              Importar
-            </Button>
-          </label>
+          <Button size="small" component="label" startIcon={<UploadIcon />} sx={mutedButtonSx}>
+            Importar
+            <input type="file" accept=".json" hidden onChange={handleImportConfig} />
+          </Button>
         </Box>
       </Box>
 
-      {/* Navegación por secciones */}
-      <Card sx={{ mb: 3 }}>
-        <Tabs
-          value={currentSection}
-          onChange={(e, newValue) => setCurrentSection(newValue)}
-          indicatorColor="primary"
-          textColor="primary"
-          variant="scrollable"
-          scrollButtons="auto"
-        >
-          <Tab 
-            value="general"
-            icon={sectionIcons.general}
-            label="General" 
-            iconPosition="start"
-          />
-          <Tab 
-            value="firebase"
-            icon={sectionIcons.firebase}
-            label="Firebase" 
-            iconPosition="start"
-          />
-          <Tab 
-            value="apis"
-            icon={sectionIcons.apis}
-            label="APIs" 
-            iconPosition="start"
-          />
-          <Tab 
-            value="security"
-            icon={sectionIcons.security}
-            label="Seguridad" 
-            iconPosition="start"
-          />
-        </Tabs>
-      </Card>
+      <Panel aria-label="Ajustes">
+        {loading && !configurations.general?.systemName ? loadingBlock('Cargando la configuración') : renderCurrentSection()}
+      </Panel>
 
-      {/* Contenido de la sección actual */}
-      <Card sx={{ p: 3, mb: 3 }}>
-        {renderCurrentSection()}
-      </Card>
-
-      {/* Alertas de validación */}
       {(validationErrors.length > 0 || validationWarnings.length > 0) && (
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
           {validationErrors.length > 0 && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              <Typography variant="body2" fontWeight={600}>Errores de validación:</Typography>
-              <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+            <Alert severity="error">
+              <Typography variant="body2" fontWeight={600}>
+                Hay que corregir esto antes de guardar
+              </Typography>
+              <Box component="ul" sx={{ my: 0.5, pl: 2.5 }}>
                 {validationErrors.map((error, index) => (
                   <li key={index}>{error}</li>
                 ))}
-              </ul>
+              </Box>
             </Alert>
           )}
-          
           {validationWarnings.length > 0 && (
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              <Typography variant="body2" fontWeight={600}>Advertencias:</Typography>
-              <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+            <Alert severity="warning">
+              <Typography variant="body2" fontWeight={600}>
+                Conviene revisar
+              </Typography>
+              <Box component="ul" sx={{ my: 0.5, pl: 2.5 }}>
                 {validationWarnings.map((warning, index) => (
                   <li key={index}>{warning}</li>
                 ))}
-              </ul>
+              </Box>
             </Alert>
           )}
         </Box>
       )}
 
-      {/* Acciones de guardado */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+      {/* Barra de guardado: flota abajo mientras haya cambios sin guardar */}
+      <Box
+        sx={{
+          position: unsavedChanges ? 'sticky' : 'static',
+          bottom: 16,
+          zIndex: 2,
+          mt: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          flexWrap: 'wrap',
+          gap: 1,
+          p: 1.5,
+          borderRadius: `${radius.xl}px`,
+          backgroundColor: unsavedChanges ? colors.surfaceHighest : 'transparent',
+          boxShadow: unsavedChanges ? '0 12px 32px rgba(0, 0, 0, 0.45)' : 'none',
+          transition: 'background-color 200ms ease-out, box-shadow 200ms ease-out',
+        }}
+      >
         {unsavedChanges && (
-          <Alert severity="warning" sx={{ mr: 'auto' }}>
-            <Typography variant="body2">
-              ⚠️ Tienes cambios sin guardar
-            </Typography>
-          </Alert>
+          <Typography role="status" sx={{ mr: 'auto', display: 'flex', alignItems: 'center', gap: 1, fontSize: '0.8125rem', color: colors.onSurface }}>
+            <Box component="span" aria-hidden="true" sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: colors.attention }} />
+            Tienes cambios sin guardar
+          </Typography>
         )}
-        
-        <Button
-          variant="outlined"
-          onClick={loadConfigurations}
-          disabled={loading}
-        >
-          Recargar
+        <Button onClick={handleResetToDefaults} disabled={loading || !unsavedChanges} sx={mutedButtonSx}>
+          Descartar cambios
         </Button>
-        
-        <Button
-          variant="contained"
-          onClick={handleSaveConfiguration}
-          disabled={loading || !unsavedChanges}
-          sx={{
-            background: unsavedChanges ? 'linear-gradient(135deg, #10b981, #059669)' : undefined,
-            '&:hover': {
-              background: unsavedChanges ? 'linear-gradient(135deg, #059669, #047857)' : undefined,
-            },
-          }}
-        >
-          {loading ? 'Guardando...' : 'Guardar Configuración'}
+        <Button variant="contained" onClick={handleSaveConfiguration} disabled={loading || !unsavedChanges}>
+          {loading ? 'Guardando…' : 'Guardar configuración'}
         </Button>
       </Box>
 
-      {/* Dialog de confirmación */}
       <ConfirmDialog
         open={confirmDialog.open}
         onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}
         onConfirm={confirmDialog.onConfirm}
         title={confirmDialog.title}
         message={confirmDialog.message}
+        confirmLabel={confirmDialog.confirmLabel}
+        destructive={confirmDialog.destructive !== false}
       />
-      
-      {/* Snackbar para notificaciones */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert 
-          onClose={() => setSnackbar({ ...snackbar, open: false })} 
-          severity={snackbar.severity}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };
 
 
 // Componente principal del panel de administrador
+const ADMIN_TABS = [
+  { label: 'Series', icon: BookIcon },
+  { label: 'Personal', icon: PeopleIcon },
+  { label: 'Configuración', icon: SettingsIcon },
+];
+
 const AdminPanel = () => {
-  const { userProfile, isSuperAdmin } = useAuth();
+  const { isSuperAdmin } = useAuth();
   const [currentTab, setCurrentTab] = useState(0);
 
   // Solo el superusuario puede acceder
   if (!isSuperAdmin()) {
     return (
-      <Container maxWidth="md" sx={{ mt: 8 }}>
-        <Alert severity="error">
-          <Typography variant="h6">Acceso Denegado</Typography>
-          <Typography>
-            No tienes permisos para acceder al panel de administración.
-          </Typography>
-        </Alert>
-      </Container>
+      <Box sx={{ maxWidth: 480, mx: 'auto', mt: 6 }}>
+        <Panel>
+          <EmptyState icon={LockOutlinedIcon} title="No tienes acceso a Administración">
+            Esta sección es solo para el superadministrador.
+          </EmptyState>
+        </Panel>
+      </Box>
     );
   }
 
-  const handleTabChange = (event, newValue) => {
-    setCurrentTab(newValue);
-  };
-
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-      {/* Header */}
-      <Box className="animate-fade-in" sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-          <Avatar sx={{ bgcolor: 'error.main', width: 48, height: 48 }}>
-            <AdminIcon />
-          </Avatar>
-          <Box>
-            <Typography 
-              variant="h3" 
-              component="h1"
-              sx={{ 
-                fontWeight: 700,
-                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              Panel de Administración
-            </Typography>
-            <Typography variant="h6" color="textSecondary">
-              Gestión completa del sistema WhitePearl Translations
-            </Typography>
-          </Box>
-        </Box>
-        
-        <Alert severity="warning" sx={{ mt: 2 }}>
-          <Typography variant="body2">
-            ⚠️ Tienes acceso completo al sistema. Usa estos poderes con responsabilidad.
-          </Typography>
-        </Alert>
-      </Box>
+    <Box>
+      <PageHeader
+        title="Administración"
+        subtitle="Series, personal y configuración del sistema. Lo que cambies aquí afecta a todo el equipo."
+      />
 
-      {/* Tabs */}
-      <Card sx={{ mb: 3 }}>
-        <Tabs
-          value={currentTab}
-          onChange={handleTabChange}
-          indicatorColor="primary"
-          textColor="primary"
-          variant="scrollable"
-          scrollButtons="auto"
-        >
-          <Tab 
-            icon={<BookIcon />} 
-            label="Gestión de Mangas" 
+      <Tabs
+        value={currentTab}
+        onChange={(e, value) => {
+          triggerHaptic('light');
+          setCurrentTab(value);
+        }}
+        variant="scrollable"
+        scrollButtons="auto"
+        aria-label="Secciones de administración"
+        sx={{ mb: 2 }}
+      >
+        {ADMIN_TABS.map(({ label, icon: Icon }, index) => (
+          <Tab
+            key={label}
+            label={label}
+            icon={<Icon sx={{ fontSize: 18 }} />}
             iconPosition="start"
+            id={`admin-tab-${index}`}
+            aria-controls={`admin-tabpanel-${index}`}
           />
-          <Tab 
-            icon={<PeopleIcon />} 
-            label="Gestión del Staff" 
-            iconPosition="start"
-          />
-          <Tab 
-            icon={<SettingsIcon />} 
-            label="Configuración del Sistema" 
-            iconPosition="start"
-          />
-        </Tabs>
-      </Card>
+        ))}
+      </Tabs>
 
-      {/* Tab Content */}
-      <Box sx={{ mt: 3 }}>
+      <Box role="tabpanel" id={`admin-tabpanel-${currentTab}`} aria-labelledby={`admin-tab-${currentTab}`}>
         {currentTab === 0 && <MangaManagement />}
         {currentTab === 1 && <StaffManagement />}
         {currentTab === 2 && <SystemConfiguration />}
       </Box>
-    </Container>
+    </Box>
   );
 };
 

@@ -1,4 +1,21 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+/* Colores y tipografía: ver DESIGN.md y src/theme/tokens.js.
+   Plus Jakarta Sans se carga en public/index.html. */
+:root {
+  --wpt-surface: #070e1d;
+  --wpt-surface-lowest: #000000;
+  --wpt-surface-low: #0b1323;
+  --wpt-surface-container: #11192b;
+  --wpt-surface-high: #161f33;
+  --wpt-surface-highest: #1b263b;
+  --wpt-on-surface: #dfe5fa;
+  --wpt-on-surface-variant: #a4abbf;
+  --wpt-outline: #6e7588;
+  --wpt-outline-variant: #414859;
+  --wpt-divider: rgba(65, 72, 89, 0.15);
+  --wpt-primary: #cfbdfb;
+  --wpt-primary-on-container: #28194c;
+  --wpt-error: #ff6e84;
+}
 
 * {
   box-sizing: border-box;
@@ -12,15 +29,14 @@ html {
 
 body {
   margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-  background: #0f1014;
-  color: #e2e4e9;
-  overflow-x: hidden;
+  background: var(--wpt-surface);
+  color: var(--wpt-on-surface);
+  /* clip y no hidden: hidden convierte a body en un contenedor de scroll y la
+     barra lateral (position: sticky) se iba con el contenido al bajar. */
+  overflow-x: clip;
 }
 
 code {
@@ -28,41 +44,54 @@ code {
     monospace;
 }
 
+/* min-height y no height: con una altura fija el layout quedaba encerrado en
+   la altura de la pantalla y el contenido largo se salía por debajo. */
 html, body, #root {
-  height: 100%;
+  min-height: 100%;
 }
 
-/* Hidden scrollbar – keeps scroll, hides chrome */
+/* Barras de desplazamiento finas en el tono de la superficie (antes estaban
+   ocultas: en tablas largas no se sabía que había más contenido). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--wpt-outline-variant) transparent;
+}
+
 ::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;
+  width: 8px;
+  height: 8px;
 }
 
-html {
-  scrollbar-width: none;          /* Firefox */
-  -ms-overflow-style: none;       /* IE / Edge */
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--wpt-outline-variant);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 /* Selection styling */
 ::selection {
-  background: rgba(106, 158, 255, 0.3);
-  color: #e2e4e9;
+  background: rgba(207, 189, 251, 0.3);
+  color: var(--wpt-on-surface);
 }
 
-::-moz-selection {
-  background: rgba(106, 158, 255, 0.3);
-  color: #e2e4e9;
-}
-
-/* Focus styles */
+/* Focus: contorno lavanda de 2 px, solo con teclado */
 :focus {
   outline: none;
 }
 
 :focus-visible {
-  outline: 2px solid #6a9eff;
+  outline: 2px solid var(--wpt-primary);
   outline-offset: 2px;
+}
+
+/* Cifras que se comparan */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Animation keyframes */
@@ -204,8 +233,8 @@ html {
 
 /* Glass morphism utility */
 .glass-morphism {
-  background: #17181d;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--wpt-surface-low);
+  border: 1px solid var(--wpt-divider);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   transition: border-color 0.2s ease;
 }
@@ -240,9 +269,9 @@ html {
 .custom-loader {
   width: 40px;
   height: 40px;
-  border: 3px solid rgba(106, 158, 255, 0.2);
+  border: 3px solid rgba(207, 189, 251, 0.2);
   border-radius: 50%;
-  border-top: 3px solid #6a9eff;
+  border-top: 3px solid var(--wpt-primary);
   animation: spin 1s linear infinite;
 }
 
@@ -564,7 +593,7 @@ html {
 .responsive-table td {
   padding: var(--space-3) var(--space-2);
   text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--wpt-divider);
 }
 
 @media (max-width: 768px) {
@@ -584,7 +613,7 @@ html {
   .responsive-table tr {
     display: block;
     margin-bottom: var(--space-4);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--wpt-divider);
     border-radius: 8px;
     padding: var(--space-3);
   }
@@ -605,14 +634,14 @@ html {
     padding-right: var(--space-2);
     white-space: nowrap;
     font-weight: 600;
-    color: #7d8190;
+    color: var(--wpt-on-surface-variant);
   }
 }
 
 /* Mobile-first cards */
 .card {
-  background: #17181d;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--wpt-surface-low);
+  border: 1px solid var(--wpt-divider);
   border-radius: 12px;
   padding: var(--space-6);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -666,8 +695,8 @@ html {
   right: -100%;
   width: 280px;
   height: 100vh;
-  background: #17181d;
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--wpt-surface-low);
+  border-left: 1px solid var(--wpt-divider);
   transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 50;
   padding: var(--space-6);
@@ -742,16 +771,16 @@ html {
   padding: var(--space-3);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  background: #17181d;
-  color: #e2e4e9;
+  background: var(--wpt-surface-low);
+  color: var(--wpt-on-surface);
   font-size: var(--text-base);
   transition: border-color 0.2s ease;
   min-height: 44px; /* Touch target size */
 }
 
 .form-input:focus {
-  border-color: #6a9eff;
-  box-shadow: 0 0 0 3px rgba(106, 158, 255, 0.1);
+  border-color: var(--wpt-primary);
+  box-shadow: 0 0 0 3px rgba(207, 189, 251, 0.1);
   outline: none;
 }
 
@@ -779,7 +808,7 @@ html {
 }
 
 .modal-content {
-  background: #1e1f25;
+  background: var(--wpt-surface-highest);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
@@ -829,8 +858,8 @@ html {
   border-radius: 8px;
   margin-right: var(--space-2);
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: #7d8190;
+  border: 1px solid var(--wpt-divider);
+  color: var(--wpt-on-surface-variant);
   cursor: pointer;
   transition: border-color 0.2s ease, color 0.2s ease;
   white-space: nowrap;
@@ -840,9 +869,9 @@ html {
 }
 
 .nav-tab.active {
-  background: rgba(106, 158, 255, 0.08);
-  border-color: rgba(106, 158, 255, 0.25);
-  color: #6a9eff;
+  background: rgba(207, 189, 251, 0.08);
+  border-color: rgba(207, 189, 251, 0.25);
+  color: var(--wpt-primary);
 }
 
 @media (max-width: 768px) {

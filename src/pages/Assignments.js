@@ -1,19 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Container,
   Grid,
-  Paper,
   Typography,
   Box,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Chip,
-  LinearProgress,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -26,52 +17,50 @@ import {
   InputLabel,
   Select,
   OutlinedInput,
-  FormControlLabel,
   Checkbox,
-  FormGroup,
-  Card,
-  CardContent,
   Avatar,
-  Badge,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Divider,
-  Stack,
   Menu,
   ListItemIcon,
   ListItemText,
-  Alert
+  Alert,
+  ButtonBase,
+  ToggleButton,
+  ToggleButtonGroup,
+  Drawer
 } from '@mui/material';
 import {
   Add,
   Edit,
-  Visibility,
   CheckCircle,
-  Schedule,
   Assignment,
   Link as LinkIcon,
   CalendarToday,
-  Done,
-  ExpandMore,
   Delete,
   DeleteSweep,
   MoreVert,
   Warning,
   Search,
-  FilterList,
   Clear,
   Person,
   Book,
   Refresh,
-  Sync
+  Sync,
+  Close,
+  ScheduleRounded,
+  LockOutlined
 } from '@mui/icons-material';
 import { realtimeService } from '../services/realtimeService';
 import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { getUniqueUsers } from '../utils/cleanDuplicateUsers';
 import useAssignmentsSync from '../hooks/useAssignmentsSync';
-import { formatLocalDate, isoStringToDateInput, dateInputToISOString } from '../utils/dateUtils';
+import { isoStringToDateInput, dateInputToISOString } from '../utils/dateUtils';
 import toast from 'react-hot-toast';
+import notify from '../utils/notify';
+import { triggerHaptic } from '../hooks/useWebHaptics';
+import PressIconButton from '../components/motion/PressIconButton';
+import { PageHeader, Panel, StatusBadge, TaskTypeTag, MeterBar, EmptyState } from '../components/ui';
+import { STATUS_CONFIG, ASSIGNMENT_TYPES, ROLE_LABELS } from '../utils/constants';
+import { colors, radius, divider, rowDivider, focusOutline, withAlpha } from '../theme/tokens';
 
 // Importar componentes adicionales para el nuevo diálogo
 import { Autocomplete } from '@mui/material';
@@ -466,29 +455,22 @@ const Assignments = () => {
   // Mostrar loading mientras se verifican permisos
   if (isPermissionLoading) {
     return (
-      <Container maxWidth="md" sx={{ mt: 8, textAlign: 'center' }}>
-        <Typography>Verificando permisos...</Typography>
-      </Container>
+      <Box sx={{ py: 8, textAlign: 'center' }}>
+        <Typography sx={{ color: colors.onSurfaceVariant }}>Verificando permisos…</Typography>
+      </Box>
     );
   }
 
   // Restricción de acceso - verificar permisos personalizados
   if (!userProfile || !canAssignChapters) {
     return (
-      <Container maxWidth="sm" sx={{ mt: 8, textAlign: 'center' }}>
-        <Alert severity="error" sx={{ mb: 2 }}>
-          <Typography variant="h6" sx={{ mb: 1 }}>
-            <Warning sx={{ mr: 1, verticalAlign: 'middle' }} />
-            Acceso Restringido
-          </Typography>
-          <Typography variant="body1">
-            No tienes permisos para gestionar asignaciones. Contacta a un administrador si necesitas acceso.
-          </Typography>
-        </Alert>
-        <Typography variant="body2" color="text.secondary">
-          Si crees que deberías tener acceso, contacta con un administrador.
-        </Typography>
-      </Container>
+      <Box sx={{ maxWidth: 480, mx: 'auto', mt: 6 }}>
+        <Panel>
+          <EmptyState icon={LockOutlined} title="No tienes acceso a Asignaciones">
+            Esta página es para quien reparte capítulos. Si deberías poder entrar, pide a un administrador que te dé el permiso «Asignar capítulos».
+          </EmptyState>
+        </Panel>
+      </Box>
     );
   }
 
@@ -621,59 +603,6 @@ const Assignments = () => {
   };
 
   // Función para obtener el texto del estado con indicador de atraso
-  const getStatusText = (assignment) => {
-    let statusText = assignment.status.replace('_', ' ').toUpperCase();
-    
-    if (wasCompletedLate(assignment)) {
-      statusText += ' (CON ATRASO)';
-    }
-    
-    return statusText;
-  };
-
-  const getStatusColor = (assignment) => {
-    // Si es un objeto assignment, usar su status, sino asumir que es un string status directo
-    const status = typeof assignment === 'string' ? assignment : assignment.status;
-    
-    switch (status) {
-      case 'completado':
-      case 'aprobado':
-      case 'uploaded':
-        return 'success';
-      case 'en_progreso':
-        return 'warning';
-      default:
-        return 'default';
-    }
-  };
-
-  const getStatusIcon = (assignment) => {
-    // Si es un objeto assignment, usar su status, sino asumir que es un string status directo
-    const status = typeof assignment === 'string' ? assignment : assignment.status;
-    
-    switch (status) {
-      case 'completado':
-      case 'aprobado':
-      case 'uploaded':
-        return <CheckCircle color="success" />;
-      case 'en_progreso':
-        return <Schedule color="warning" />;
-      default:
-        return <Assignment color="action" />;
-    }
-  };
-
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'alta':
-        return 'error';
-      case 'media':
-        return 'warning';
-      default:
-        return 'info';
-    }
-  };
-
   const canManageAssignment = (assignment) => {
     // Si tiene permisos de asignación, puede gestionar cualquier asignación
     // O si es el usuario asignado, puede gestionar su propia asignación
@@ -789,17 +718,7 @@ const Assignments = () => {
   const getUserRole = (userId) => {
     if (!userId) return '';
     const user = users.find(u => (u.uid || u.id) === userId);
-    return user?.role || '';
-  };
-
-  const getTaskColor = (task) => {
-    switch (task) {
-      case 'traduccion': return { color: '#6a9eff', bg: 'rgba(106, 158, 255, 0.1)' };
-      case 'proofreading': return { color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.1)' };
-      case 'cleanRedrawer': return { color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)' };
-      case 'type': return { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)' };
-      default: return { color: '#6b7280', bg: 'rgba(107, 114, 128, 0.1)' };
-    }
+    return ROLE_LABELS[user?.role] || user?.role || '';
   };
 
   // Funciones de eliminación
@@ -919,7 +838,7 @@ const Assignments = () => {
   };
 
   // Función para filtrar asignaciones
-  const getFilteredGroups = () => {
+  const getFilteredGroups = ({ ignoreStatus = false } = {}) => {
     const groups = groupedAssignments();
     
     return groups.filter(group => {
@@ -930,7 +849,7 @@ const Assignments = () => {
       if (filters.user && group.assignedTo !== filters.user) return false;
       
       // Filtro por estado
-      if (filters.status) {
+      if (filters.status && !ignoreStatus) {
         const groupStatus = getGroupStatus(group.assignments);
         if (groupStatus !== filters.status) return false;
       }
@@ -964,6 +883,12 @@ const Assignments = () => {
       
       return true;
     });
+  };
+
+  const closeChapterCompletedDialog = () => {
+    setChapterCompletedDialog({ open: false, mangaTitle: '', chapter: '', reason: '', chapterData: null });
+    // Limpiar el campo capítulo para que se pueda intentar con otro
+    setNewAssignmentForm(prev => ({ ...prev, chapter: '' }));
   };
 
   // Función para abrir modal de detalles
@@ -1104,672 +1029,470 @@ const Assignments = () => {
     });
   };
 
-  return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-      {/* Header */}
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        mb: 4,
-        p: 3,
-        borderRadius: 3,
-        border: '1px solid rgba(255, 255, 255, 0.06)'
-      }}>
-        <Box>
-          <Typography 
-            variant="h3" 
-            sx={{ 
-              fontWeight: 700,
-              color: '#e2e4e9',
-              letterSpacing: '-0.01em',
-              mb: 1
-            }}
-          >
-            Asignaciones
+  const groupKey = (g) => `${g.mangaId}-${g.chapter}-${g.assignedTo}`;
+  const FINAL_STATES = ['completado', 'aprobado', 'uploaded'];
+  const isGroupOverdue = (g) =>
+    g.dueDate && new Date(g.dueDate) < new Date() && getGroupStatus(g.assignments) !== 'completado';
+
+  // Los recuentos del control de estado salen de los grupos que pasan el resto de filtros.
+  const baseGroups = getFilteredGroups({ ignoreStatus: true });
+  const statusCounts = baseGroups.reduce(
+    (acc, g) => {
+      acc[getGroupStatus(g.assignments)] += 1;
+      return acc;
+    },
+    { pendiente: 0, en_progreso: 0, completado: 0 }
+  );
+  const visibleGroups = (filters.status
+    ? baseGroups.filter((g) => getGroupStatus(g.assignments) === filters.status)
+    : baseGroups
+  )
+    .slice()
+    .sort((a, b) => {
+      // Primero lo retrasado, después por fecha límite; sin fecha al final.
+      const ao = isGroupOverdue(a) ? 0 : 1;
+      const bo = isGroupOverdue(b) ? 0 : 1;
+      if (ao !== bo) return ao - bo;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return new Date(a.dueDate) - new Date(b.dueDate);
+    });
+
+  const STATUS_FILTERS = [
+    { value: 'pendiente', label: 'Pendientes', count: statusCounts.pendiente },
+    { value: 'en_progreso', label: 'En progreso', count: statusCounts.en_progreso },
+    { value: 'completado', label: 'Completadas', count: statusCounts.completado },
+    { value: '', label: 'Todas', count: baseGroups.length },
+  ];
+
+  const hasExtraFilters = Boolean(filters.manga || filters.user || filters.search || filters.week);
+
+  // Ficha abierta: se recalcula con los datos en vivo para que refleje cambios al momento.
+  const detailsGroup = detailsDialog.group
+    ? groupedAssignments().find((g) => groupKey(g) === groupKey(detailsDialog.group)) || detailsDialog.group
+    : null;
+
+  const shortDate = (iso) =>
+    new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+
+  const markGroupCompleted = async (group) => {
+    const pendingAssignments = group.assignments.filter((a) => a.status !== 'completado');
+    for (const assignment of pendingAssignments) {
+      await handleMarkAsCompleted(assignment.id);
+    }
+    notify.success(
+      `${pendingAssignments.length} ${pendingAssignments.length === 1 ? 'tarea marcada' : 'tareas marcadas'} como completada${pendingAssignments.length === 1 ? '' : 's'}`
+    );
+  };
+
+  const renderPerson = (group, dense = false) => {
+    const name = getUserName(group.assignedTo, group.assignedToName);
+    const avatar = getUserAvatar(group.assignedTo);
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+        <Avatar src={avatar || undefined} alt="" sx={{ width: dense ? 22 : 28, height: dense ? 22 : 28, fontSize: '0.6875rem', fontWeight: 700 }}>
+          {!avatar && name.substring(0, 2).toUpperCase()}
+        </Avatar>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography noWrap sx={{ fontSize: '0.8125rem', color: colors.onSurface, lineHeight: 1.35 }}>
+            {name}
           </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Gestiona todas las asignaciones de traducción y edición
-          </Typography>
-          {assignmentsLoading && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-              <Sync sx={{ color: 'primary.main', fontSize: '1rem' }} className="rotating" />
-              <Typography variant="body2" color="primary.main">
-                Sincronizando datos...
-              </Typography>
-            </Box>
-          )}
-        </Box>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          {/* Botón de sincronización */}
-          <Tooltip title={(syncLoading || assignmentsLoading) ? "Sincronizando..." : "Sincronizar asignaciones con capítulos publicados"}>
-            <span>
-              <IconButton
-                onClick={handleSyncAssignments}
-                disabled={syncLoading || assignmentsLoading}
-                sx={{
-                  backgroundColor: syncLoading ? 'rgba(106, 158, 255, 0.2)' : 'rgba(106, 158, 255, 0.1)',
-                  color: '#6a9eff',
-                  '&:hover': {
-                    backgroundColor: 'rgba(106, 158, 255, 0.2)',
-                    transform: syncLoading ? 'none' : 'scale(1.05)'
-                  },
-                  '&:disabled': {
-                    backgroundColor: 'rgba(107, 114, 128, 0.1)',
-                    color: '#6b7280'
-                  },
-                  transition: 'all 0.3s ease'
-                }}
-              >
-                <Sync 
-                  sx={{ 
-                    fontSize: '1.2rem',
-                    animation: syncLoading ? 'spin 1s linear infinite' : 'none',
-                    '@keyframes spin': {
-                      '0%': { transform: 'rotate(0deg)' },
-                      '100%': { transform: 'rotate(360deg)' }
-                    }
-                  }} 
-                />
-              </IconButton>
-            </span>
-          </Tooltip>
-          
-          {/* Botón de refresh */}
-          <Tooltip title={assignmentsLoading ? "Actualizando..." : "Forzar actualización de asignaciones"}>
-            <span>
-              <IconButton
-                onClick={() => {
-                  forceRefresh();
-                  toast.success('Actualizando asignaciones...');
-                }}
-                disabled={assignmentsLoading}
-                sx={{
-                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                  color: '#10b981',
-                  '&:hover': {
-                    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                    transform: 'scale(1.05)'
-                  },
-                  '&:disabled': {
-                    backgroundColor: 'rgba(107, 114, 128, 0.1)',
-                    color: '#6b7280'
-                  },
-                  transition: 'all 0.3s ease'
-                }}
-              >
-                <Refresh sx={{ fontSize: '1.2rem' }} />
-              </IconButton>
-            </span>
-          </Tooltip>
-          
-          
-          {canAssignChapters && (
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => handleOpenAssignmentDialog()}
-              sx={{
-                backgroundColor: '#6a9eff',
-                boxShadow: 'none',
-                '&:hover': {
-                  backgroundColor: '#5a8eef',
-                  boxShadow: '0 2px 8px rgba(106, 158, 255, 0.25)',
-                }
-              }}
-            >
-              Nueva Asignación
-            </Button>
+          {!dense && getUserRole(group.assignedTo) && (
+            <Typography noWrap sx={{ fontSize: '0.6875rem', color: colors.onSurfaceVariant, lineHeight: 1.35 }}>
+              {getUserRole(group.assignedTo)}
+            </Typography>
           )}
         </Box>
       </Box>
+    );
+  };
 
-      {/* Filtros */}
-      <Card sx={{ 
-        mb: 4,
-        background: '#17181d',
-        border: '1px solid rgba(255, 255, 255, 0.1)'
-      }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-            <FilterList sx={{ color: 'primary.main' }} />
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Filtros
-            </Typography>
-            <Box sx={{ flexGrow: 1 }} />
-            {(filters.manga || filters.user || filters.status || filters.search || filters.week) && (
-              <Button
-                size="small"
-                startIcon={<Clear />}
-                onClick={clearAllFilters}
-                sx={{ color: 'text.secondary' }}
-              >
-                Limpiar filtros
+  // Una insignia corta por tarea (T, P, C, Ty). Las terminadas llevan su tono de fondo lleno.
+  const renderTaskChips = (group) => (
+    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+      {group.assignments.map((a) => {
+        const cfg = ASSIGNMENT_TYPES[a.type];
+        const color = cfg?.color ?? colors.outline;
+        const done = FINAL_STATES.includes(a.status);
+        return (
+          <Tooltip key={a.id} title={`${cfg?.label ?? a.type} · ${STATUS_CONFIG[a.status]?.label ?? a.status}`}>
+            <Box
+              component="span"
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: 26,
+                height: 22,
+                px: 0.5,
+                borderRadius: `${radius.DEFAULT}px`,
+                fontSize: '0.6875rem',
+                fontWeight: 700,
+                color: done ? colors.surface : color,
+                backgroundColor: done ? color : withAlpha(color, 0.12),
+              }}
+            >
+              {cfg?.short ?? '?'}
+            </Box>
+          </Tooltip>
+        );
+      })}
+    </Box>
+  );
+
+  const renderDue = (group) => {
+    if (!group.dueDate) return <Typography sx={{ fontSize: '0.8125rem', color: colors.outline }}>Sin fecha</Typography>;
+    const overdue = isGroupOverdue(group);
+    return (
+      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: '0.8125rem', color: colors.onSurfaceVariant }}>
+        {overdue && <ScheduleRounded aria-hidden="true" sx={{ fontSize: 15, color: colors.error }} />}
+        <span>{shortDate(group.dueDate)}</span>
+        {overdue && (
+          <Box component="span" sx={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
+            (retrasado)
+          </Box>
+        )}
+      </Box>
+    );
+  };
+
+  const GRID_COLUMNS = 'minmax(0, 2.4fr) minmax(0, 1.5fr) minmax(0, 1.2fr) 120px 96px 72px';
+
+  return (
+    <Box>
+      <PageHeader
+        title="Asignaciones"
+        subtitle={
+          assignmentsLoading
+            ? 'Sincronizando datos…'
+            : `${baseGroups.length} ${baseGroups.length === 1 ? 'capítulo' : 'capítulos'} · ${assignments.length} ${assignments.length === 1 ? 'tarea' : 'tareas'}`
+        }
+        actions={
+          <>
+            <Tooltip title={syncLoading || assignmentsLoading ? 'Sincronizando…' : 'Sincronizar con capítulos publicados'}>
+              <span>
+                <PressIconButton
+                  onClick={handleSyncAssignments}
+                  disabled={syncLoading || assignmentsLoading}
+                  aria-label="Sincronizar con capítulos publicados"
+                  sx={{ width: 40, height: 40, backgroundColor: colors.surfaceContainer }}
+                >
+                  <Sync sx={{ fontSize: 20 }} className={syncLoading ? 'rotating' : undefined} />
+                </PressIconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title={assignmentsLoading ? 'Actualizando…' : 'Volver a cargar asignaciones'}>
+              <span>
+                <PressIconButton
+                  onClick={() => {
+                    forceRefresh();
+                    notify.info('Actualizando asignaciones…');
+                  }}
+                  disabled={assignmentsLoading}
+                  aria-label="Volver a cargar asignaciones"
+                  sx={{ width: 40, height: 40, backgroundColor: colors.surfaceContainer }}
+                >
+                  <Refresh sx={{ fontSize: 20 }} />
+                </PressIconButton>
+              </span>
+            </Tooltip>
+            {canAssignChapters && (
+              <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenAssignmentDialog()}>
+                Nueva asignación
               </Button>
             )}
-          </Box>
-          
-          <Grid container spacing={2}>
-            {/* Búsqueda de texto */}
-            <Grid item xs={12} md={2.4}>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Buscar..."
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-                InputProps={{
-                  startAdornment: <Search sx={{ color: 'text.secondary', mr: 1 }} />
-                }}
-              />
-            </Grid>
-            
-            {/* Filtro por Semana */}
-            <Grid item xs={12} md={2.4}>
-              <TextField
-                select
-                fullWidth
-                size="small"
-                label="Semana de Asignación"
-                value={filters.week}
-                onChange={(e) => handleFilterChange('week', e.target.value)}
-                InputProps={{
-                  startAdornment: <CalendarToday sx={{ color: 'text.secondary', mr: 1 }} />
-                }}
-              >
-                <MenuItem value="">Todas las semanas</MenuItem>
-                <MenuItem value={getCurrentWeek()}>Semana Actual</MenuItem>
-                {getAvailableWeeks().map((weekKey) => {
-                  const isCurrentWeek = weekKey === getCurrentWeek();
-                  if (isCurrentWeek) return null; // Ya está mostrada arriba
-                  return (
-                    <MenuItem key={weekKey} value={weekKey}>
-                      {formatWeekLabel(weekKey)}
-                    </MenuItem>
-                  );
-                })}
-              </TextField>
-            </Grid>
-            
-            {/* Filtro por Manga */}
-            <Grid item xs={12} md={2.4}>
-              <TextField
-                select
-                fullWidth
-                size="small"
-                label="Manga"
-                value={filters.manga}
-                onChange={(e) => handleFilterChange('manga', e.target.value)}
-                InputProps={{
-                  startAdornment: <Book sx={{ color: 'text.secondary', mr: 1 }} />
-                }}
-              >
-                <MenuItem value="">Todos los mangas</MenuItem>
-                {mangas.map((manga) => (
-                  <MenuItem key={manga.id} value={manga.id}>
-                    {manga.title}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            
-            {/* Filtro por Usuario */}
-            <Grid item xs={12} md={2.4}>
-              <Autocomplete
-                fullWidth
-                size="small"
-                options={[{ uid: '', name: 'Todos los usuarios' }, ...getUniqueUsers(users)]}
-                value={getUniqueUsers(users).find(user => (user.uid || user.id) === filters.user) || { uid: '', name: 'Todos los usuarios' }}
-                onChange={(event, newValue) => {
-                  handleFilterChange('user', newValue ? (newValue.uid || newValue.id || '') : '');
-                }}
-                getOptionLabel={(option) => option ? option.name || 'Usuario desconocido' : ''}
-                isOptionEqualToValue={(option, value) => (option.uid || option.id || '') === (value.uid || value.id || '')}
-                renderInput={(params) => {
-                  const { inputProps, ...restParams } = params;
-                  return (
-                    <TextField
-                      {...restParams}
-                      label="Usuario"
-                      inputProps={{
-                        ...inputProps,
-                        placeholder: filters.user === '' ? 'Buscar usuario...' : undefined
-                      }}
-                      InputProps={{
-                        ...params.InputProps,
-                        startAdornment: (
-                          <>
-                            <Person sx={{ color: 'text.secondary', mr: 1 }} />
-                            {params.InputProps.startAdornment}
-                          </>
-                        )
-                      }}
-                    />
-                  );
-                }}
-                renderOption={(props, option) => (
-                  <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1 }}>
-                    <Avatar
-                      src={option.profileImage || option.photoURL || option.avatar}
-                      sx={{
-                        width: 32,
-                        height: 32,
-                        fontSize: '0.75rem',
-                        ...(option.profileImage || option.photoURL || option.avatar) && {
-                          bgcolor: 'transparent',
-                          border: `2px solid #6a9eff60`,
-                        },
-                        ...(!(option.profileImage || option.photoURL || option.avatar)) && {
-                          bgcolor: option.uid ? '#6a9eff' : '#6b7280',
-                          color: 'white',
-                          fontWeight: 700,
-                        }
-                      }}
-                    >
-                      {!(option.profileImage || option.photoURL || option.avatar) && option.name && 
-                       (option.uid ? option.name.substring(0, 2).toUpperCase() : '👥')}
-                    </Avatar>
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {option.name || 'Usuario desconocido'}
-                      </Typography>
-                      {option.role && (
-                        <Typography variant="caption" color="text.secondary">
-                          {option.role}
-                        </Typography>
-                      )}
-                    </Box>
-                  </Box>
-                )}
-              />
-            </Grid>
-            
-            {/* Filtro por Estado */}
-            <Grid item xs={12} md={2.4}>
-              <TextField
-                select
-                fullWidth
-                size="small"
-                label="Estado"
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-              >
-                <MenuItem value="">Todos los estados</MenuItem>
-                <MenuItem value="pendiente">Pendiente</MenuItem>
-                <MenuItem value="en_progreso">En Progreso</MenuItem>
-                <MenuItem value="completado">Completado</MenuItem>
-              </TextField>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
+          </>
+        }
+      />
 
-      {/* Stats Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ 
-            backgroundColor: '#6a9eff',
-            color: 'white',
-            boxShadow: 'none'
-          }}>
-            <CardContent>
-              <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-                {assignments.length}
-              </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                Total Asignaciones
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ 
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-            color: 'white',
-            boxShadow: '0 8px 32px rgba(16, 185, 129, 0.3)'
-          }}>
-            <CardContent>
-              <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-                {assignments.filter(a => a.status === 'completado').length}
-              </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                Completadas
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ 
-            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-            color: 'white',
-            boxShadow: '0 8px 32px rgba(245, 158, 11, 0.3)'
-          }}>
-            <CardContent>
-              <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-                {assignments.filter(a => a.status === 'en_progreso').length}
-              </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                En Progreso
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ 
-            background: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
-            color: 'white',
-            boxShadow: '0 8px 32px rgba(107, 114, 128, 0.3)'
-          }}>
-            <CardContent>
-              <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-                {assignments.filter(a => a.status === 'pendiente').length}
-              </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                Pendientes
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      {/* Filtros */}
+      <Panel sx={{ mb: 2, p: { xs: 1.5, sm: 1.5 } }} aria-label="Filtros">
+        <Box
+          sx={{
+            display: 'grid',
+            gap: 1,
+            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'minmax(0, 1.6fr) repeat(3, minmax(0, 1fr)) auto' },
+            alignItems: 'center',
+          }}
+        >
+          <TextField
+            size="small"
+            placeholder="Buscar serie, capítulo o persona"
+            value={filters.search}
+            onChange={(e) => handleFilterChange('search', e.target.value)}
+            inputProps={{ 'aria-label': 'Buscar' }}
+            InputProps={{ startAdornment: <Search sx={{ color: colors.outline, mr: 1, fontSize: 20 }} /> }}
+          />
+          <TextField
+            select
+            size="small"
+            value={filters.week}
+            onChange={(e) => handleFilterChange('week', e.target.value)}
+            SelectProps={{ displayEmpty: true }}
+            inputProps={{ 'aria-label': 'Semana de asignación' }}
+          >
+            <MenuItem value="">Todas las semanas</MenuItem>
+            <MenuItem value={getCurrentWeek()}>Semana actual</MenuItem>
+            {getAvailableWeeks()
+              .filter((weekKey) => weekKey !== getCurrentWeek())
+              .map((weekKey) => (
+                <MenuItem key={weekKey} value={weekKey}>
+                  {formatWeekLabel(weekKey)}
+                </MenuItem>
+              ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            value={filters.manga}
+            onChange={(e) => handleFilterChange('manga', e.target.value)}
+            SelectProps={{ displayEmpty: true }}
+            inputProps={{ 'aria-label': 'Serie' }}
+          >
+            <MenuItem value="">Todas las series</MenuItem>
+            {mangas.map((manga) => (
+              <MenuItem key={manga.id} value={manga.id}>
+                {manga.title}
+              </MenuItem>
+            ))}
+          </TextField>
+          <Autocomplete
+            size="small"
+            options={[{ uid: '', name: 'Todas las personas' }, ...getUniqueUsers(users)]}
+            value={
+              getUniqueUsers(users).find((user) => (user.uid || user.id) === filters.user) || { uid: '', name: 'Todas las personas' }
+            }
+            onChange={(event, newValue) => handleFilterChange('user', newValue ? newValue.uid || newValue.id || '' : '')}
+            getOptionLabel={(option) => (option ? option.name || 'Usuario desconocido' : '')}
+            isOptionEqualToValue={(option, value) => (option.uid || option.id || '') === (value.uid || value.id || '')}
+            renderInput={(params) => <TextField {...params} inputProps={{ ...params.inputProps, 'aria-label': 'Persona' }} />}
+            renderOption={(props, option) => (
+              <Box component="li" {...props} key={option.uid || option.id || 'todas'} sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                <Avatar
+                  src={option.profileImage || option.photoURL || option.avatar || undefined}
+                  alt=""
+                  sx={{ width: 26, height: 26, fontSize: '0.6875rem', fontWeight: 700 }}
+                >
+                  {!(option.profileImage || option.photoURL || option.avatar) && option.uid && option.name?.substring(0, 2).toUpperCase()}
+                </Avatar>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography sx={{ fontSize: '0.875rem' }}>{option.name || 'Usuario desconocido'}</Typography>
+                  {option.role && (
+                    <Typography sx={{ fontSize: '0.6875rem', color: colors.onSurfaceVariant }}>{ROLE_LABELS[option.role] || option.role}</Typography>
+                  )}
+                </Box>
+              </Box>
+            )}
+          />
+          {hasExtraFilters ? (
+            <Button size="small" startIcon={<Clear />} onClick={clearAllFilters} sx={{ color: colors.onSurfaceVariant, justifySelf: 'start' }}>
+              Limpiar
+            </Button>
+          ) : (
+            <Box sx={{ display: { xs: 'none', lg: 'block' }, width: 84 }} />
+          )}
+        </Box>
+      </Panel>
 
-      {/* Grouped Assignments */}
-      <Grid container spacing={3}>
-        {getFilteredGroups().map((group, index) => {
-          const overallProgress = getOverallProgress(group.assignments);
-          const groupStatus = getGroupStatus(group.assignments);
-          const userName = getUserName(group.assignedTo, group.assignedToName);
-          const userAvatar = getUserAvatar(group.assignedTo);
-          const userRole = getUserRole(group.assignedTo);
-          const isOverdue = group.dueDate && new Date(group.dueDate) < new Date() && groupStatus !== 'completado';
-          
-          return (
-            <Grid item xs={12} md={6} lg={4} key={`${group.mangaId}-${group.chapter}-${group.assignedTo}`}>
-              <Card 
-                sx={{ 
-                  height: '100%',
-                  background: '#17181d',
-                  border: isOverdue ? '2px solid #ef4444' : 
-                          groupStatus === 'completado' ? '2px solid #10b981' :
-                          groupStatus === 'en_progreso' ? '2px solid #f59e0b' :
-                          '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: 3,
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  '&:hover': {
-                    borderColor: 'rgba(255, 255, 255, 0.12)',
-                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
-                  },
-                  position: 'relative',
-                  overflow: 'hidden',
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: '4px',
-                    background: isOverdue ? '#ef4444' : 
-                               groupStatus === 'completado' ? 'linear-gradient(90deg, #10b981, #059669)' :
-                               groupStatus === 'en_progreso' ? 'linear-gradient(90deg, #f59e0b, #d97706)' :
-                               'linear-gradient(90deg, #6b7280, #4b5563)',
-                  }
-                }}
-              >
-                <CardContent sx={{ p: 3 }}>
-                  {/* Header */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Avatar
-                        src={userAvatar}
-                        sx={{
-                          width: 48,
-                          height: 48,
-                          fontSize: '1rem',
-                          ...(userAvatar ? {
-                            border: '3px solid rgba(106, 158, 255, 0.3)',
-                          } : {
-                            backgroundColor: '#6a9eff',
-                            color: 'white',
-                            fontWeight: 700
-                          })
-                        }}
-                      >
-                        {!userAvatar && userName.substring(0, 2).toUpperCase()}
-                      </Avatar>
-                      <Box>
-                        <Typography variant="h6" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
-                          {userName}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {userRole}
-                        </Typography>
+      {/* Lista */}
+      <Panel
+        title="Capítulos"
+        count={visibleGroups.length}
+        action={
+          <ToggleButtonGroup
+            exclusive
+            size="small"
+            value={filters.status}
+            onChange={(e, value) => {
+              if (value !== null) {
+                triggerHaptic('light');
+                handleFilterChange('status', value);
+              }
+            }}
+            aria-label="Estado"
+            sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
+          >
+            {STATUS_FILTERS.map((f) => (
+              <ToggleButton key={f.value || 'todas'} value={f.value} sx={{ px: 1.25, fontSize: '0.8125rem' }}>
+                {f.label}
+                <Box component="span" sx={{ ml: 0.75, color: colors.outline, fontVariantNumeric: 'tabular-nums' }}>
+                  {f.count}
+                </Box>
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        }
+      >
+        {/* En móvil el control de estado va en su propia fila, con scroll horizontal */}
+        <Box sx={{ display: { xs: 'block', sm: 'none' }, overflowX: 'auto', mb: 1.5, mx: -0.5, px: 0.5 }}>
+          <ToggleButtonGroup
+            exclusive
+            size="small"
+            value={filters.status}
+            onChange={(e, value) => value !== null && handleFilterChange('status', value)}
+            aria-label="Estado"
+          >
+            {STATUS_FILTERS.map((f) => (
+              <ToggleButton key={f.value || 'todas'} value={f.value} sx={{ px: 1.25, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
+                {f.label}
+                <Box component="span" sx={{ ml: 0.75, color: colors.outline, fontVariantNumeric: 'tabular-nums' }}>
+                  {f.count}
+                </Box>
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Box>
+
+        {visibleGroups.length > 0 ? (
+          <Box role="table" aria-label="Capítulos asignados" sx={{ mx: { xs: -1, sm: -1 } }}>
+            {/* Cabecera (solo escritorio) */}
+            <Box
+              role="row"
+              sx={{
+                display: { xs: 'none', md: 'grid' },
+                gridTemplateColumns: GRID_COLUMNS,
+                gap: 2,
+                px: 1,
+                pb: 1,
+                borderBottom: `1px solid ${rowDivider}`,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: colors.onSurfaceVariant,
+              }}
+            >
+              <span role="columnheader">Capítulo</span>
+              <span role="columnheader">Persona</span>
+              <span role="columnheader">Tareas</span>
+              <span role="columnheader">Progreso</span>
+              <span role="columnheader">Fecha límite</span>
+              <span role="columnheader" style={{ textAlign: 'right' }}>
+                <Box component="span" sx={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
+                  Acciones
+                </Box>
+              </span>
+            </Box>
+
+            {visibleGroups.map((group) => {
+              const progress = getOverallProgress(group.assignments);
+              const overdue = isGroupOverdue(group);
+              const status = overdue ? 'retrasado' : getGroupStatus(group.assignments);
+              return (
+                <Box
+                  key={groupKey(group)}
+                  role="row"
+                  sx={{
+                    position: 'relative',
+                    borderBottom: `1px solid ${rowDivider}`,
+                    '&:last-of-type': { borderBottom: 'none' },
+                  }}
+                >
+                  <ButtonBase
+                    onClick={() => {
+                      triggerHaptic('light');
+                      handleOpenDetails(group);
+                    }}
+                    aria-label={`Ver ${group.mangaTitle}, capítulo ${group.chapter}`}
+                    sx={{
+                      width: '100%',
+                      display: { xs: 'flex', md: 'grid' },
+                      flexDirection: 'column',
+                      alignItems: { xs: 'stretch', md: 'center' },
+                      gridTemplateColumns: GRID_COLUMNS,
+                      gap: { xs: 0.75, md: 2 },
+                      px: 1,
+                      py: { xs: 1.5, md: 1.25 },
+                      pr: { xs: 6, md: 1 },
+                      borderRadius: `${radius.md}px`,
+                      textAlign: 'left',
+                      transition: 'background-color 150ms ease-out',
+                      '&:hover': { backgroundColor: colors.surfaceContainer },
+                      '&.Mui-focusVisible': { ...focusOutline, outlineOffset: -2 },
+                    }}
+                  >
+                    {/* Capítulo */}
+                    <Box role="cell" sx={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, minWidth: 0 }}>
+                          <Typography noWrap component="span" sx={{ fontSize: '0.875rem', fontWeight: 500, color: colors.onSurface, minWidth: 0 }}>
+                            {group.mangaTitle}
+                          </Typography>
+                          <Box component="span" sx={{ flexShrink: 0, fontSize: '0.875rem', color: colors.onSurfaceVariant, fontVariantNumeric: 'tabular-nums' }}>
+                            Cap. {group.chapter}
+                          </Box>
+                        </Box>
+                        <Box sx={{ mt: 0.5 }}>
+                          <StatusBadge status={status} />
+                        </Box>
                       </Box>
                     </Box>
-                    <Badge 
-                      badgeContent={group.assignments.length} 
-                      color="primary"
-                      sx={{
-                        '& .MuiBadge-badge': {
-                          backgroundColor: '#6a9eff',
-                          fontWeight: 600
-                        }
-                      }}
-                    >
-                      <Assignment sx={{ color: 'text.secondary' }} />
-                    </Badge>
-                  </Box>
-
-                  {/* Manga & Chapter Info */}
-                  <Box sx={{ mb: 3 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
-                      {group.mangaTitle}
-                    </Typography>
-                    <Chip 
-                      label={`Capítulo ${group.chapter}`} 
-                      size="small"
-                      sx={{
-                        backgroundColor: '#6a9eff',
-                        color: 'white',
-                        fontWeight: 500
-                      }}
-                    />
-                  </Box>
-
-                  {/* Tasks */}
-                  <Box sx={{ mb: 3 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 500 }}>
-                      Tareas ({group.assignments.length}):
-                    </Typography>
-                    <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                      {group.assignments.map((assignment, idx) => {
-                        const taskColor = getTaskColor(assignment.type);
-                        return (
-                          <Chip
-                            key={idx}
-                            size="small"
-                            label={TASK_TYPES[assignment.type] || assignment.type}
-                            sx={{
-                              backgroundColor: taskColor.bg,
-                              color: taskColor.color,
-                              fontWeight: 500,
-                              border: `1px solid ${taskColor.color}30`,
-                              position: 'relative',
-                              '&::after': assignment.status === 'completado' ? {
-                                content: '"✓"',
-                                position: 'absolute',
-                                top: -4,
-                                right: -4,
-                                fontSize: '12px',
-                                backgroundColor: '#10b981',
-                                color: 'white',
-                                borderRadius: '50%',
-                                width: 16,
-                                height: 16,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              } : {}
-                            }}
-                          />
-                        );
-                      })}
-                    </Stack>
-                  </Box>
-
-                  {/* Progress */}
-                  <Box sx={{ mb: 3 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Progreso General
-                      </Typography>
-                      <Typography variant="body2" fontWeight={600}>
-                        {overallProgress}%
+                    {/* Persona */}
+                    <Box role="cell" sx={{ minWidth: 0 }}>
+                      {renderPerson(group)}
+                    </Box>
+                    {/* Tareas */}
+                    <Box role="cell">
+                      {renderTaskChips(group)}
+                    </Box>
+                    {/* Progreso */}
+                    <Box role="cell" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ flex: 1 }}>
+                        <MeterBar value={progress} max={100} color={progress === 100 ? colors.goodNews : colors.primary} />
+                      </Box>
+                      <Typography sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant, fontVariantNumeric: 'tabular-nums', minWidth: 32, textAlign: 'right' }}>
+                        {progress}%
                       </Typography>
                     </Box>
-                    <LinearProgress
-                      variant="determinate"
-                      value={overallProgress}
-                      sx={{
-                        height: 8,
-                        borderRadius: 4,
-                        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                        '& .MuiLinearProgress-bar': {
-                          borderRadius: 4,
-                          background: overallProgress === 100 ? 'linear-gradient(90deg, #10b981, #059669)' :
-                                     overallProgress >= 50 ? 'linear-gradient(90deg, #f59e0b, #d97706)' :
-                                     'linear-gradient(90deg, #ef4444, #dc2626)'
-                        }
-                      }}
-                    />
-                  </Box>
-
-                  {/* Due Date */}
-                  {group.dueDate && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-                      <CalendarToday sx={{ fontSize: '1rem', color: isOverdue ? 'error.main' : 'text.secondary' }} />
-                      <Typography 
-                        variant="body2" 
-                        color={isOverdue ? 'error.main' : 'text.secondary'}
-                        sx={{ fontWeight: isOverdue ? 600 : 400 }}
-                      >
-                        {new Date(group.dueDate).toLocaleDateString('es-ES')}
-                        {isOverdue && ' (Atrasado)'}
-                      </Typography>
+                    {/* Fecha */}
+                    <Box role="cell">
+                      {renderDue(group)}
                     </Box>
-                  )}
+                    <Box role="cell" sx={{ display: { xs: 'none', md: 'block' } }} />
+                  </ButtonBase>
 
-                  {/* Actions */}
-                  <Box sx={{ display: 'flex', gap: 1, justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      {group.assignments.map((assignment) => (
-                        canManageAssignment(assignment) && (
-                          <Tooltip key={assignment.id} title="Editar">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleOpenDialog(assignment)}
-                              sx={{
-                                backgroundColor: 'rgba(106, 158, 255, 0.1)',
-                                '&:hover': { backgroundColor: 'rgba(106, 158, 255, 0.2)' }
-                              }}
-                            >
-                              <Edit sx={{ fontSize: '1rem' }} />
-                            </IconButton>
-                          </Tooltip>
-                        )
-                      ))}
-                      
-                      {/* Botón para marcar todas las asignaciones pendientes como completadas */}
-                      {canMarkAsCompleted() && group.assignments.some(a => a.status !== 'completado') && (
-                        <Tooltip title="Marcar todas como completadas">
-                          <IconButton
-                            size="small"
-                            onClick={async () => {
-                              const pendingAssignments = group.assignments.filter(a => a.status !== 'completado');
-                              for (const assignment of pendingAssignments) {
-                                await handleMarkAsCompleted(assignment.id);
-                              }
-                              toast.success(`${pendingAssignments.length} asignación(es) marcada(s) como completada(s)`);
-                            }}
-                            sx={{
-                              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                              color: '#10b981',
-                              '&:hover': { 
-                                backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                                transform: 'scale(1.05)'
-                              }
-                            }}
-                          >
-                            <CheckCircle sx={{ fontSize: '1rem' }} />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Box>
-                    
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      {group.driveLink && (
-                        <Tooltip title="Abrir en Google Drive">
-                          <IconButton
-                            size="small"
-                            onClick={() => window.open(group.driveLink, '_blank')}
-                            sx={{
-                              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                              color: '#10b981',
-                              '&:hover': { backgroundColor: 'rgba(16, 185, 129, 0.2)' }
-                            }}
-                          >
-                            <LinkIcon sx={{ fontSize: '1rem' }} />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                      <Tooltip title="Ver detalles">
-                        <IconButton 
-                          size="small"
-                          onClick={() => handleOpenDetails(group)}
-                          sx={{
-                            backgroundColor: 'rgba(107, 114, 128, 0.1)',
-                            '&:hover': { backgroundColor: 'rgba(107, 114, 128, 0.2)' }
-                          }}
-                        >
-                          <Visibility sx={{ fontSize: '1rem' }} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Opciones">
+                  {/* Acciones (fuera del botón de fila para no anidar botones) */}
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      right: 4,
+                      top: { xs: 10, md: '50%' },
+                      transform: { md: 'translateY(-50%)' },
+                      display: 'flex',
+                      gap: 0.25,
+                    }}
+                  >
+                    {group.driveLink && (
+                      <Tooltip title="Abrir carpeta de Drive">
                         <IconButton
                           size="small"
-                          onClick={(e) => handleMenuClick(e, group)}
-                          sx={{
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            color: '#ef4444',
-                            '&:hover': { backgroundColor: 'rgba(239, 68, 68, 0.2)' }
-                          }}
+                          component="a"
+                          href={group.driveLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label="Abrir carpeta de Drive"
+                          sx={{ display: { xs: 'none', md: 'inline-flex' } }}
                         >
-                          <MoreVert sx={{ fontSize: '1rem' }} />
+                          <LinkIcon sx={{ fontSize: 18 }} />
                         </IconButton>
                       </Tooltip>
-                    </Box>
+                    )}
+                    <Tooltip title="Más opciones">
+                      <IconButton size="small" onClick={(e) => handleMenuClick(e, group)} aria-label="Más opciones">
+                        <MoreVert sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
                   </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          );
-        })}
-      </Grid>
-
-      {getFilteredGroups().length === 0 && (
-        <Card sx={{ 
-          textAlign: 'center', 
-          py: 8,
-          background: '#17181d',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
-        }}>
-          <Assignment sx={{ fontSize: '4rem', color: 'text.secondary', mb: 2 }} />
-          <Typography variant="h5" color="text.secondary" sx={{ mb: 1 }}>
-            No hay asignaciones disponibles
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Las asignaciones aparecerán aquí cuando sean creadas
-          </Typography>
-        </Card>
-      )}
+                </Box>
+              );
+            })}
+          </Box>
+        ) : (
+          <EmptyState icon={Assignment} title={hasExtraFilters || filters.status ? 'Nada con estos filtros' : 'Todavía no hay asignaciones'}>
+            {hasExtraFilters || filters.status
+              ? 'Prueba con otro estado o limpia los filtros para ver todos los capítulos.'
+              : 'Crea una con «Nueva asignación»: elige la serie, el capítulo, las tareas y a quién se las das.'}
+          </EmptyState>
+        )}
+      </Panel>
 
       {/* Dialog para crear/editar asignación */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
@@ -2026,297 +1749,178 @@ const Assignments = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog de detalles del grupo */}
-      <Dialog
+      {/* Ficha del capítulo: panel lateral derecho (DESIGN.md), datos en vivo */}
+      <Drawer
+        anchor="right"
         open={detailsDialog.open}
         onClose={handleCloseDetails}
-        maxWidth="md"
-        fullWidth
+        PaperProps={{
+          sx: {
+            width: { xs: '100%', sm: 600 },
+            backgroundColor: colors.surfaceLow,
+            boxShadow: '-12px 0 32px rgba(0, 0, 0, 0.35)',
+          },
+        }}
       >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Avatar
-            src={detailsDialog.group && getUserAvatar(detailsDialog.group.assignedTo)}
-            sx={{
-              width: 40,
-              height: 40,
-              fontSize: '0.9rem',
-              ...(detailsDialog.group && getUserAvatar(detailsDialog.group.assignedTo) ? {
-                border: '2px solid rgba(106, 158, 255, 0.3)',
-              } : {
-                background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
-                color: 'white',
-                fontWeight: 700
-              })
-            }}
-          >
-            {detailsDialog.group && !getUserAvatar(detailsDialog.group.assignedTo) && 
-             getUserName(detailsDialog.group.assignedTo, detailsDialog.group.assignedToName).substring(0, 2).toUpperCase()}
-          </Avatar>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              {detailsDialog.group && detailsDialog.group.mangaTitle} - Capítulo {detailsDialog.group && detailsDialog.group.chapter}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Asignado a: {detailsDialog.group && getUserName(detailsDialog.group.assignedTo, detailsDialog.group.assignedToName)}
-            </Typography>
-          </Box>
-        </DialogTitle>
-        
-        <DialogContent>
-          {detailsDialog.group && (
-            <Grid container spacing={3}>
-              {/* Información general */}
-              <Grid item xs={12} md={6}>
-                <Card sx={{ 
-                  background: 'rgba(106, 158, 255, 0.05)',
-                  border: '1px solid rgba(106, 158, 255, 0.2)'
-                }}>
-                  <CardContent>
-                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                      📋 Información General
+        {detailsGroup && (() => {
+          const progress = getOverallProgress(detailsGroup.assignments);
+          const overdue = isGroupOverdue(detailsGroup);
+          const groupStatus = overdue ? 'retrasado' : getGroupStatus(detailsGroup.assignments);
+          const canCompleteAll = canMarkAsCompleted() && detailsGroup.assignments.some((a) => a.status !== 'completado');
+          return (
+            <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              {/* Cabecera */}
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, p: { xs: 2, sm: 3 }, pb: 2 }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography component="h2" variant="h5" sx={{ textWrap: 'balance' }}>
+                    {detailsGroup.mangaTitle}
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.75, flexWrap: 'wrap' }}>
+                    <Typography sx={{ fontSize: '0.875rem', color: colors.onSurfaceVariant, fontVariantNumeric: 'tabular-nums' }}>
+                      Capítulo {detailsGroup.chapter}
                     </Typography>
-                    
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="body2" color="text.secondary">Manga:</Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                        {detailsDialog.group.mangaTitle}
-                      </Typography>
+                    <StatusBadge status={groupStatus} />
+                  </Box>
+                </Box>
+                <PressIconButton onClick={handleCloseDetails} aria-label="Cerrar" autoFocus sx={{ width: 40, height: 40 }}>
+                  <Close sx={{ fontSize: 20 }} />
+                </PressIconButton>
+              </Box>
+
+              <Box sx={{ flex: 1, overflowY: 'auto', px: { xs: 2, sm: 3 }, pb: 3 }}>
+                {/* Resumen */}
+                <Box
+                  component="dl"
+                  sx={{
+                    m: 0,
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                    gap: 2,
+                    p: 2,
+                    borderRadius: `${radius.lg}px`,
+                    backgroundColor: colors.surfaceContainer,
+                  }}
+                >
+                  <Box>
+                    <Typography component="dt" sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant, mb: 0.5 }}>
+                      Asignado a
+                    </Typography>
+                    <Box component="dd" sx={{ m: 0 }}>
+                      {renderPerson(detailsGroup)}
                     </Box>
-                    
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="body2" color="text.secondary">Capítulo:</Typography>
-                      <Chip 
-                        label={`Capítulo ${detailsDialog.group.chapter}`}
-                        size="small"
-                        sx={{
-                          background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
-                          color: 'white',
-                          fontWeight: 500
-                        }}
-                      />
+                  </Box>
+                  <Box>
+                    <Typography component="dt" sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant, mb: 0.5 }}>
+                      Fecha límite
+                    </Typography>
+                    <Box component="dd" sx={{ m: 0 }}>
+                      {detailsGroup.dueDate ? (
+                        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: '0.875rem', color: colors.onSurface }}>
+                          {overdue && <ScheduleRounded aria-hidden="true" sx={{ fontSize: 16, color: colors.error }} />}
+                          {new Date(detailsGroup.dueDate).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'long' })}
+                          {overdue && <Box component="span" sx={{ color: colors.onSurfaceVariant }}>· retrasado</Box>}
+                        </Box>
+                      ) : (
+                        <Typography sx={{ fontSize: '0.875rem', color: colors.outline }}>Sin fecha</Typography>
+                      )}
                     </Box>
-                    
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="body2" color="text.secondary">Asignado a:</Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                        <Avatar
-                          src={getUserAvatar(detailsDialog.group.assignedTo)}
-                          sx={{ width: 24, height: 24 }}
-                        >
-                          {!getUserAvatar(detailsDialog.group.assignedTo) && 
-                           getUserName(detailsDialog.group.assignedTo, detailsDialog.group.assignedToName).substring(0, 1).toUpperCase()}
-                        </Avatar>
-                        <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                          {getUserName(detailsDialog.group.assignedTo, detailsDialog.group.assignedToName)}
-                        </Typography>
-                        <Chip 
-                          label={getUserRole(detailsDialog.group.assignedTo)}
-                          size="small"
-                          variant="outlined"
-                          sx={{ fontSize: '0.7rem' }}
-                        />
+                  </Box>
+                  <Box sx={{ gridColumn: { sm: '1 / -1' } }}>
+                    <Typography component="dt" sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant, mb: 0.75 }}>
+                      Progreso del capítulo
+                    </Typography>
+                    <Box component="dd" sx={{ m: 0, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Box sx={{ flex: 1 }}>
+                        <MeterBar value={progress} max={100} color={progress === 100 ? colors.goodNews : colors.primary} />
                       </Box>
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{progress}%</Typography>
                     </Box>
-                    
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="body2" color="text.secondary">Estado General:</Typography>
-                      <Chip
-                        icon={getStatusIcon(getGroupStatus(detailsDialog.group.assignments))}
-                        label={getGroupStatus(detailsDialog.group.assignments).replace('_', ' ').toUpperCase()}
-                        color={getStatusColor(getGroupStatus(detailsDialog.group.assignments))}
-                        sx={{ mt: 0.5, fontWeight: 500 }}
-                      />
-                    </Box>
-                    
-                    <Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Progreso General:</Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <LinearProgress
-                          variant="determinate"
-                          value={getOverallProgress(detailsDialog.group.assignments)}
-                          sx={{
-                            flex: 1,
-                            height: 8,
-                            borderRadius: 4,
-                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                            '& .MuiLinearProgress-bar': {
-                              borderRadius: 4,
-                              background: getOverallProgress(detailsDialog.group.assignments) === 100 ? 
-                                         'linear-gradient(90deg, #10b981, #059669)' :
-                                         getOverallProgress(detailsDialog.group.assignments) >= 50 ? 
-                                         'linear-gradient(90deg, #f59e0b, #d97706)' :
-                                         'linear-gradient(90deg, #ef4444, #dc2626)'
-                            }
-                          }}
-                        />
-                        <Typography variant="body2" sx={{ fontWeight: 600, minWidth: 40 }}>
-                          {getOverallProgress(detailsDialog.group.assignments)}%
-                        </Typography>
-                      </Box>
-                    </Box>
-                    
-                    {detailsDialog.group.dueDate && (
-                      <Box sx={{ mt: 2 }}>
-                        <Typography variant="body2" color="text.secondary">Fecha límite:</Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                          <CalendarToday sx={{ 
-                            fontSize: '1rem', 
-                            color: new Date(detailsDialog.group.dueDate) < new Date() && 
-                                   getGroupStatus(detailsDialog.group.assignments) !== 'completado' ? 
-                                   'error.main' : 'text.secondary' 
-                          }} />
-                          <Typography 
-                            variant="body1" 
-                            color={new Date(detailsDialog.group.dueDate) < new Date() && 
-                                   getGroupStatus(detailsDialog.group.assignments) !== 'completado' ? 
-                                   'error.main' : 'text.primary'}
-                            sx={{ fontWeight: 500 }}
-                          >
-                            {new Date(detailsDialog.group.dueDate).toLocaleDateString('es-ES')}
-                            {new Date(detailsDialog.group.dueDate) < new Date() && 
-                             getGroupStatus(detailsDialog.group.assignments) !== 'completado' && 
-                             ' (Atrasado)'}
+                  </Box>
+                </Box>
+
+                {/* Acciones */}
+                {(canCompleteAll || detailsGroup.driveLink) && (
+                  <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
+                    {canCompleteAll && (
+                      <Button variant="contained" startIcon={<CheckCircle />} onClick={() => markGroupCompleted(detailsGroup)}>
+                        Marcar todo como completado
+                      </Button>
+                    )}
+                    {detailsGroup.driveLink && (
+                      <Button
+                        variant="outlined"
+                        startIcon={<LinkIcon />}
+                        component="a"
+                        href={detailsGroup.driveLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Abrir en Drive
+                      </Button>
+                    )}
+                  </Box>
+                )}
+
+                {/* Tareas */}
+                <Typography component="h3" variant="subtitle2" sx={{ mt: 3, mb: 1 }}>
+                  Tareas
+                  <Box component="span" sx={{ ml: 0.75, color: colors.outline, fontWeight: 500 }}>
+                    {detailsGroup.assignments.length}
+                  </Box>
+                </Typography>
+                <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
+                  {detailsGroup.assignments.map((assignment) => (
+                    <Box
+                      component="li"
+                      key={assignment.id}
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr auto',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        py: 1.5,
+                        '&:not(:last-of-type)': { borderBottom: `1px solid ${rowDivider}` },
+                      }}
+                    >
+                      <Box sx={{ minWidth: 0 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', fontSize: '0.875rem' }}>
+                          <TaskTypeTag type={assignment.type} sx={{ color: colors.onSurface, fontWeight: 500 }} />
+                          <StatusBadge status={assignment.status} />
+                          {wasCompletedLate(assignment) && (
+                            <Typography component="span" sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant }}>
+                              con atraso
+                            </Typography>
+                          )}
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1 }}>
+                          <Box sx={{ flex: 1, maxWidth: 240 }}>
+                            <MeterBar value={assignment.progress || 0} max={100} color={colors.primary} />
+                          </Box>
+                          <Typography sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant, fontVariantNumeric: 'tabular-nums' }}>
+                            {assignment.progress || 0}%
                           </Typography>
+                          {assignment.createdAt && (
+                            <Typography sx={{ fontSize: '0.75rem', color: colors.outline }}>
+                              · creada el {new Date(assignment.createdAt).toLocaleDateString('es-ES')}
+                            </Typography>
+                          )}
                         </Box>
                       </Box>
-                    )}
-                    
-                    {detailsDialog.group.driveLink && (
-                      <Box sx={{ mt: 2 }}>
-                        <Button
-                          variant="outlined"
-                          startIcon={<LinkIcon />}
-                          onClick={() => window.open(detailsDialog.group.driveLink, '_blank')}
-                          sx={{ 
-                            borderColor: '#10b981',
-                            color: '#10b981',
-                            '&:hover': {
-                              borderColor: '#059669',
-                              backgroundColor: 'rgba(16, 185, 129, 0.1)'
-                            }
-                          }}
-                        >
-                          Abrir en Google Drive
-                        </Button>
-                      </Box>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
-              
-              {/* Lista de tareas */}
-              <Grid item xs={12} md={6}>
-                <Card sx={{ 
-                  background: 'rgba(16, 185, 129, 0.05)',
-                  border: '1px solid rgba(16, 185, 129, 0.2)'
-                }}>
-                  <CardContent>
-                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                      ✅ Tareas ({detailsDialog.group.assignments.length})
-                    </Typography>
-                    
-                    <Stack spacing={2}>
-                      {detailsDialog.group.assignments.map((assignment, idx) => {
-                        const taskColor = getTaskColor(assignment.type);
-                        return (
-                          <Card 
-                            key={idx}
-                            sx={{ 
-                              background: assignment.status === 'completado' ? 
-                                         'rgba(16, 185, 129, 0.1)' : 
-                                         assignment.status === 'en_progreso' ? 
-                                         'rgba(245, 158, 11, 0.1)' : 
-                                         'rgba(107, 114, 128, 0.1)',
-                              border: `1px solid ${assignment.status === 'completado' ? 
-                                                  '#10b981' : 
-                                                  assignment.status === 'en_progreso' ? 
-                                                  '#f59e0b' : 
-                                                  '#6b7280'}30`
-                            }}
-                          >
-                            <CardContent sx={{ p: 2 }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                <Chip
-                                  size="small"
-                                  label={TASK_TYPES[assignment.type] || assignment.type}
-                                  sx={{
-                                    backgroundColor: taskColor.bg,
-                                    color: taskColor.color,
-                                    fontWeight: 500,
-                                    border: `1px solid ${taskColor.color}30`
-                                  }}
-                                />
-                                <Chip
-                                  icon={getStatusIcon(assignment)}
-                                  label={getStatusText(assignment)}
-                                  color={getStatusColor(assignment)}
-                                  size="small"
-                                  sx={{ fontWeight: 500 }}
-                                />
-                              </Box>
-                              
-                              <Box sx={{ mb: 2 }}>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                                  <Typography variant="body2" color="text.secondary">
-                                    Progreso:
-                                  </Typography>
-                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                    {assignment.progress || 0}%
-                                  </Typography>
-                                </Box>
-                                <LinearProgress
-                                  variant="determinate"
-                                  value={assignment.progress || 0}
-                                  sx={{
-                                    height: 6,
-                                    borderRadius: 3,
-                                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                                    '& .MuiLinearProgress-bar': {
-                                      borderRadius: 3,
-                                      background: (assignment.progress || 0) === 100 ? 
-                                                 'linear-gradient(90deg, #10b981, #059669)' :
-                                                 (assignment.progress || 0) >= 50 ? 
-                                                 'linear-gradient(90deg, #f59e0b, #d97706)' :
-                                                 'linear-gradient(90deg, #ef4444, #dc2626)'
-                                    }
-                                  }}
-                                />
-                              </Box>
-                              
-                              {assignment.priority && assignment.priority !== 'normal' && (
-                                <Box sx={{ mb: 1 }}>
-                                  <Chip
-                                    label={`Prioridad: ${assignment.priority.toUpperCase()}`}
-                                    color={getPriorityColor(assignment.priority)}
-                                    size="small"
-                                    variant="outlined"
-                                  />
-                                </Box>
-                              )}
-                              
-                              {assignment.createdAt && (
-                                <Typography variant="caption" color="text.secondary">
-                                  Creada: {new Date(assignment.createdAt).toLocaleDateString('es-ES')}
-                                </Typography>
-                              )}
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                    </Stack>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
-          )}
-        </DialogContent>
-        
-        <DialogActions>
-          <Button onClick={handleCloseDetails}>
-            Cerrar
-          </Button>
-        </DialogActions>
-      </Dialog>
+                      {canManageAssignment(assignment) && (
+                        <Tooltip title="Editar tarea">
+                          <IconButton onClick={() => handleOpenDialog(assignment)} aria-label={`Editar ${TASK_TYPES[assignment.type] || assignment.type}`}>
+                            <Edit sx={{ fontSize: 18 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            </Box>
+          );
+        })()}
+      </Drawer>
 
       {/* Nuevo diálogo estilo SeriesManagement */}
       <Dialog 
@@ -2325,28 +1929,10 @@ const Assignments = () => {
         maxWidth="md" 
         fullWidth
         scroll="body"
-        PaperProps={{
-          sx: {
-            background: (theme) => theme.palette.mode === 'dark' 
-              ? 'rgba(30, 30, 40, 0.98)' 
-              : 'rgba(255, 255, 255, 0.98)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            borderRadius: 2,
-            margin: '32px auto',
-            position: 'relative'
-          }
-        }}
+        PaperProps={{ sx: { margin: '32px auto', position: 'relative' } }}
       >
-        <DialogTitle sx={{ 
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-          py: 3
-        }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Assignment sx={{ color: 'primary.main', fontSize: '1.8rem' }} />
-            <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary' }}>
-              Nueva Asignación
-            </Typography>
-          </Box>
+        <DialogTitle sx={{ borderBottom: `1px solid ${divider}`, py: 2.5 }}>
+          Nueva asignación
         </DialogTitle>
         
         <DialogContent sx={{ p: 3, pt: 8, mt: 3 }}>
@@ -2667,176 +2253,97 @@ const Assignments = () => {
           </Grid>
         </DialogContent>
         
-        <DialogActions sx={{ p: 3, borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
-          <Button 
-            onClick={handleCloseAssignmentDialog}
-            variant="outlined"
-            sx={{ mr: 2 }}
-          >
+        <DialogActions sx={{ px: 3, py: 2, gap: 1, borderTop: `1px solid ${divider}` }}>
+          <Button onClick={handleCloseAssignmentDialog} variant="outlined">
             Cancelar
           </Button>
-          <Button 
+          <Button
             onClick={handleSaveNewAssignment}
             variant="contained"
             disabled={!newAssignmentForm.mangaId || !newAssignmentForm.chapter}
-            sx={{
-              backgroundColor: '#6a9eff',
-              '&:hover': {
-                backgroundColor: '#5a8eef'
-              },
-              '&:disabled': {
-                backgroundColor: 'rgba(107, 114, 128, 0.3)',
-                color: 'rgba(255, 255, 255, 0.5)'
-              }
-            }}
           >
-            Crear Asignación
+            Crear asignación
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Diálogo de error para capítulo completado */}
+      {/* Aviso: el capítulo ya está terminado (informativo, no destructivo: ámbar, no rojo) */}
       <Dialog
         open={chapterCompletedDialog.open}
-        onClose={() => {
-          setChapterCompletedDialog({ open: false, mangaTitle: '', chapter: '', reason: '', chapterData: null });
-          // Limpiar el campo capítulo para que el usuario pueda intentar con otro
-          setNewAssignmentForm(prev => ({ ...prev, chapter: '' }));
-        }}
+        onClose={closeChapterCompletedDialog}
         maxWidth="sm"
         fullWidth
-        PaperProps={{
-          sx: {
-            background: (theme) => theme.palette.mode === 'dark' 
-              ? 'rgba(30, 30, 40, 0.98)' 
-              : 'rgba(255, 255, 255, 0.98)',
-            border: '2px solid #ef4444',
-            borderRadius: 3
-          }
-        }}
       >
-        <DialogTitle sx={{ 
-          background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%)',
-          borderBottom: '1px solid rgba(239, 68, 68, 0.2)',
-          color: 'error.main'
-        }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Warning sx={{ color: 'error.main', fontSize: '2rem' }} />
-            <Box>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: 'error.main' }}>
-                No se puede asignar este capítulo
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                El capítulo ya está completado
-              </Typography>
-            </Box>
-          </Box>
-        </DialogTitle>
-        
-        <DialogContent sx={{ p: 3 }}>
-          <Alert severity="error" sx={{ mb: 3 }}>
-            <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, pb: 1 }}>
+          <Warning sx={{ color: colors.attention, fontSize: 24, mt: 0.25 }} aria-hidden="true" />
+          <Box>
+            Este capítulo ya está terminado
+            <Typography sx={{ fontSize: '0.875rem', color: colors.onSurfaceVariant, fontWeight: 400, mt: 0.5 }}>
               {chapterCompletedDialog.reason}
             </Typography>
-          </Alert>
-          
-          <Card sx={{ 
-            background: 'rgba(239, 68, 68, 0.05)',
-            border: '1px solid rgba(239, 68, 68, 0.2)',
-            mb: 2
-          }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Book sx={{ color: 'primary.main' }} />
-                Detalles del Capítulo
-              </Typography>
-              
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">Manga:</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {chapterCompletedDialog.mangaTitle}
-                  </Typography>
-                </Grid>
-                
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">Número de Capítulo:</Typography>
-                  <Chip 
-                    label={`Capítulo ${chapterCompletedDialog.chapter}`}
-                    size="small"
-                    sx={{
-                      background: 'linear-gradient(135deg, #6a9eff, #a78bfa)',
-                      color: 'white',
-                      fontWeight: 500
-                    }}
-                  />
-                </Grid>
-                
-                {chapterCompletedDialog.chapterData?.fechaSubida && (
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="body2" color="text.secondary">Fecha de Subida:</Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                      {chapterCompletedDialog.chapterData.fechaSubida}
-                    </Typography>
-                  </Grid>
-                )}
-                
-                {chapterCompletedDialog.chapterData?.linkCapitulo && (
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="body2" color="text.secondary">Enlace del Capítulo:</Typography>
-                    <Button
-                      size="small"
-                      startIcon={<LinkIcon />}
-                      onClick={() => window.open(chapterCompletedDialog.chapterData.linkCapitulo, '_blank')}
-                      sx={{ mt: 0.5 }}
-                    >
-                      Ver Capítulo
-                    </Button>
-                  </Grid>
-                )}
-                
-                {chapterCompletedDialog.chapterData?.status && (
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="body2" color="text.secondary">Estado:</Typography>
-                    <Chip 
-                      label={chapterCompletedDialog.chapterData.status}
-                      size="small"
-                      color="success"
-                      sx={{ mt: 0.5 }}
-                    />
-                  </Grid>
-                )}
-              </Grid>
-            </CardContent>
-          </Card>
-          
-          <Alert severity="info" icon={<Assignment />}>
-            <Typography variant="body2">
-              <strong>Sugerencia:</strong> Intenta con un capítulo diferente que aún no haya sido completado o publicado.
-            </Typography>
-          </Alert>
-        </DialogContent>
-        
-        <DialogActions sx={{ p: 3, borderTop: '1px solid rgba(239, 68, 68, 0.1)' }}>
-          <Button 
-            onClick={() => {
-              setChapterCompletedDialog({ open: false, mangaTitle: '', chapter: '', reason: '', chapterData: null });
-              // Limpiar el campo capítulo para que el usuario pueda intentar con otro
-              setNewAssignmentForm(prev => ({ ...prev, chapter: '' }));
-            }}
-            variant="contained"
+          </Box>
+        </DialogTitle>
+
+        <DialogContent>
+          <Box
+            component="dl"
             sx={{
-              backgroundColor: '#6a9eff',
-              '&:hover': {
-                backgroundColor: '#5a8eef'
-              }
+              m: 0,
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+              gap: 2,
+              p: 2,
+              borderRadius: `${radius.lg}px`,
+              backgroundColor: colors.surfaceContainer,
             }}
           >
-            Entendido
+            <Box>
+              <Typography component="dt" sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant }}>Serie</Typography>
+              <Typography component="dd" sx={{ m: 0, fontSize: '0.875rem', fontWeight: 500 }}>{chapterCompletedDialog.mangaTitle}</Typography>
+            </Box>
+            <Box>
+              <Typography component="dt" sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant }}>Capítulo</Typography>
+              <Typography component="dd" sx={{ m: 0, fontSize: '0.875rem', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+                {chapterCompletedDialog.chapter}
+              </Typography>
+            </Box>
+            {chapterCompletedDialog.chapterData?.fechaSubida && (
+              <Box>
+                <Typography component="dt" sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant }}>Subido el</Typography>
+                <Typography component="dd" sx={{ m: 0, fontSize: '0.875rem' }}>{chapterCompletedDialog.chapterData.fechaSubida}</Typography>
+              </Box>
+            )}
+            {chapterCompletedDialog.chapterData?.status && (
+              <Box>
+                <Typography component="dt" sx={{ fontSize: '0.75rem', color: colors.onSurfaceVariant }}>Estado</Typography>
+                <Typography component="dd" sx={{ m: 0, fontSize: '0.875rem' }}>{chapterCompletedDialog.chapterData.status}</Typography>
+              </Box>
+            )}
+          </Box>
+          <Typography sx={{ fontSize: '0.875rem', color: colors.onSurfaceVariant, mt: 2 }}>
+            Elige un capítulo que todavía no se haya completado ni publicado.
+          </Typography>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          {chapterCompletedDialog.chapterData?.linkCapitulo && (
+            <Button
+              variant="outlined"
+              startIcon={<LinkIcon />}
+              component="a"
+              href={chapterCompletedDialog.chapterData.linkCapitulo}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Ver capítulo publicado
+            </Button>
+          )}
+          <Button onClick={closeChapterCompletedDialog} variant="contained">
+            Elegir otro capítulo
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+    </Box>
   );
 };
 
