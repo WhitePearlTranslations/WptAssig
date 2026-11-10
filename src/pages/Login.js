@@ -15,6 +15,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { auth } from '../services/firebase';
+import LoginBackdrop from '../components/LoginBackdrop';
 import { triggerHaptic } from '../hooks/useWebHaptics';
 import { EASE_OUT_EXPO } from '../theme/motion';
 import { colors, radius } from '../theme/tokens';
@@ -127,8 +128,11 @@ const Login = () => {
         justifyContent: 'center',
         p: { xs: 2, sm: 3 },
         backgroundColor: colors.surface,
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
+      <LoginBackdrop />
       <Paper
         component={motion.section}
         initial={{ opacity: 0, y: 8 }}
@@ -136,10 +140,14 @@ const Login = () => {
         transition={{ duration: 0.35, ease: EASE_OUT_EXPO }}
         aria-labelledby="login-title"
         sx={{
+          position: 'relative',
+          zIndex: 1,
           width: '100%',
           maxWidth: 400,
           p: { xs: 3, sm: 4 },
           borderRadius: `${radius.xl}px`,
+          // La tarjeta flota sobre el fondo animado y sigue siendo opaca para leerse bien.
+          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.5)',
         }}
       >
         {/* Cabecera */}
