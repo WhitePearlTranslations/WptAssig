@@ -1,18 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Container,
   Grid,
-  Paper,
   Typography,
   Box,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -29,25 +20,27 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Divider
+  Divider,
+  ToggleButton,
+  ToggleButtonGroup
 } from '@mui/material';
 import {
-  Add,
   Edit,
-  PersonAdd,
-  SupervisorAccount,
   PersonOutline,
-  History,
-  Warning,
   SwapHoriz,
-  Delete,
-  PersonRemove
+  PersonRemove,
+  LockOutlined,
+  SearchRounded
 } from '@mui/icons-material';
 import { ref, onValue, set, update, remove, push } from 'firebase/database';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { realtimeDb, auth } from '../services/firebase';
 import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import toast from 'react-hot-toast';
+import { PageHeader, Panel, EmptyState, StatusBadge, TaskTypeTag } from '../components/ui';
+import { ROLE_LABELS } from '../utils/constants';
+import { triggerHaptic } from '../hooks/useWebHaptics';
+import { colors, radius, rowDivider, withAlpha } from '../theme/tokens';
 
 const Users = () => {
   const { userProfile, hasRole } = useAuth();
@@ -62,7 +55,7 @@ const Users = () => {
     active: true,
     isGhost: false
   });
-  
+
   // Estados para transferencia de asignaciones
   const [transferDialog, setTransferDialog] = useState({
     open: false,
@@ -71,11 +64,15 @@ const Users = () => {
     assignments: [],
     loading: false
   });
-  
+
   const [confirmDeleteDialog, setConfirmDeleteDialog] = useState({
     open: false,
     ghostUser: null
   });
+
+  // Búsqueda y filtro de la lista
+  const [userSearch, setUserSearch] = useState('');
+  const [userFilter, setUserFilter] = useState('all');
 
   useEffect(() => {
     // Solo admin y jefes pueden ver usuarios
@@ -159,11 +156,11 @@ const Users = () => {
       } else {
         // Crear nuevo usuario
         let userId;
-        
+
         if (formData.isGhost) {
           // Usuario fantasma - no crear cuenta real en Auth
           userId = `ghost_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          
+
           const userData = {
             name: formData.name,
             email: formData.email || 'no-email@ghost.user',
@@ -186,8 +183,8 @@ const Users = () => {
         } else {
           // Usuario normal - crear cuenta real
           const userCredential = await createUserWithEmailAndPassword(
-            auth, 
-            formData.email, 
+            auth,
+            formData.email,
             formData.password
           );
 
@@ -232,9 +229,9 @@ const Users = () => {
       const snapshot = await new Promise((resolve) => {
         onValue(assignmentsRef, resolve, { onlyOnce: true });
       });
-      
+
       if (!snapshot.exists()) return [];
-      
+
       const assignments = [];
       snapshot.forEach((childSnapshot) => {
         const assignment = childSnapshot.val();
@@ -245,23 +242,23 @@ const Users = () => {
           });
         }
       });
-      
+
       return assignments;
     } catch (error) {
       console.error('Error obteniendo asignaciones del usuario fantasma:', error);
       return [];
     }
   };
-  
+
   // Función para abrir el diálogo de transferencia
   const handleOpenTransferDialog = async (ghostUser) => {
     if (!ghostUser.isGhost) {
       toast.error('Esta función solo está disponible para usuarios fantasma');
       return;
     }
-    
+
     setTransferDialog({ ...transferDialog, loading: true, open: true, ghostUser });
-    
+
     try {
       const assignments = await getGhostUserAssignments(ghostUser.uid || ghostUser.id);
       setTransferDialog({
@@ -276,26 +273,26 @@ const Users = () => {
       setTransferDialog({ ...transferDialog, loading: false, open: false });
     }
   };
-  
+
   // Función para transferir asignaciones
   const handleTransferAssignments = async () => {
     if (!transferDialog.targetUser || !transferDialog.ghostUser) {
       toast.error('Por favor selecciona un usuario destino');
       return;
     }
-    
+
     if (transferDialog.assignments.length === 0) {
       toast.error('No hay asignaciones para transferir');
       return;
     }
-    
+
     setTransferDialog({ ...transferDialog, loading: true });
-    
+
     try {
       const updates = {};
       const targetUserId = transferDialog.targetUser.uid || transferDialog.targetUser.id;
       const targetUserName = transferDialog.targetUser.name;
-      
+
       // Preparar actualizaciones para todas las asignaciones
       transferDialog.assignments.forEach(assignment => {
         updates[`assignments/${assignment.id}/assignedTo`] = targetUserId;
@@ -304,51 +301,51 @@ const Users = () => {
         updates[`assignments/${assignment.id}/transferredAt`] = new Date().toISOString();
         updates[`assignments/${assignment.id}/transferredBy`] = userProfile.uid;
       });
-      
+
       // Actualizar estadísticas del usuario destino
-      const completedAssignments = transferDialog.assignments.filter(a => 
+      const completedAssignments = transferDialog.assignments.filter(a =>
         a.status === 'completado' || a.status === 'aprobado' || a.status === 'uploaded'
       ).length;
-      
-      const activeAssignments = transferDialog.assignments.filter(a => 
+
+      const activeAssignments = transferDialog.assignments.filter(a =>
         a.status === 'pendiente' || a.status === 'en_progreso'
       ).length;
-      
+
       if (completedAssignments > 0) {
-        updates[`users/${targetUserId}/stats/assignmentsCompleted`] = 
+        updates[`users/${targetUserId}/stats/assignmentsCompleted`] =
           (transferDialog.targetUser.stats?.assignmentsCompleted || 0) + completedAssignments;
       }
-      
+
       if (activeAssignments > 0) {
-        updates[`users/${targetUserId}/stats/assignmentsActive`] = 
+        updates[`users/${targetUserId}/stats/assignmentsActive`] =
           (transferDialog.targetUser.stats?.assignmentsActive || 0) + activeAssignments;
       }
-      
+
       // Ejecutar todas las actualizaciones
       await update(ref(realtimeDb), updates);
-      
+
       toast.success(
-        `✅ ${transferDialog.assignments.length} asignaciones transferidas exitosamente a ${targetUserName}`
+        `${transferDialog.assignments.length} asignaciones pasadas a ${targetUserName}`
       );
-      
+
       // Ahora proceder a eliminar el usuario fantasma
       setTransferDialog({ ...transferDialog, open: false, loading: false });
       setConfirmDeleteDialog({ open: true, ghostUser: transferDialog.ghostUser });
-      
+
     } catch (error) {
       console.error('Error transfiriendo asignaciones:', error);
       toast.error('Error al transferir las asignaciones');
       setTransferDialog({ ...transferDialog, loading: false });
     }
   };
-  
+
   // Función para eliminar usuario fantasma después de transferir
   const handleDeleteGhostUser = async () => {
     if (!confirmDeleteDialog.ghostUser) return;
-    
+
     try {
       const ghostUserId = confirmDeleteDialog.ghostUser.uid || confirmDeleteDialog.ghostUser.id;
-      
+
       // Marcar como eliminado en lugar de eliminar completamente
       await update(ref(realtimeDb, `users/${ghostUserId}`), {
         status: 'deleted',
@@ -356,16 +353,16 @@ const Users = () => {
         deletedBy: userProfile.uid,
         reason: 'Transferencia de asignaciones completada'
       });
-      
-      toast.success(`👻 Usuario fantasma "${confirmDeleteDialog.ghostUser.name}" eliminado exitosamente`);
+
+      toast.success(`Usuario fantasma "${confirmDeleteDialog.ghostUser.name}" eliminado`);
       setConfirmDeleteDialog({ open: false, ghostUser: null });
-      
+
     } catch (error) {
       console.error('Error eliminando usuario fantasma:', error);
       toast.error('Error al eliminar el usuario fantasma');
     }
   };
-  
+
   // Función para cerrar diálogos
   const handleCloseTransferDialog = () => {
     setTransferDialog({
@@ -376,44 +373,11 @@ const Users = () => {
       loading: false
     });
   };
-  
+
   // Función de eliminación removida - se debe usar el Panel Admin para eliminar usuarios
 
-  const getRoleColor = (role) => {
-    switch (role) {
-      case ROLES.ADMIN:
-        return 'error';
-      case ROLES.JEFE_EDITOR:
-      case ROLES.JEFE_TRADUCTOR:
-        return 'warning';
-      case ROLES.EDITOR:
-        return 'secondary';
-      case ROLES.TRADUCTOR:
-        return 'primary';
-      default:
-        return 'default';
-    }
-  };
-
   const getRoleDisplayName = (role) => {
-    const roleNames = {
-      [ROLES.ADMIN]: 'Administrador',
-      [ROLES.JEFE_EDITOR]: 'Jefe Editor',
-      [ROLES.JEFE_TRADUCTOR]: 'Jefe Traductor',
-      [ROLES.EDITOR]: 'Editor',
-      [ROLES.TRADUCTOR]: 'Traductor'
-    };
-    return roleNames[role] || role;
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active': return 'success';
-      case 'inactive': return 'default';
-      case 'suspended': return 'error';
-      case 'deleted': return 'error';
-      default: return 'default';
-    }
+    return ROLE_LABELS[role] || role;
   };
 
   const getStatusLabel = (status) => {
@@ -422,280 +386,266 @@ const Users = () => {
       case 'inactive': return 'Inactivo';
       case 'suspended': return 'Suspendido';
       case 'deleted': return 'Eliminado';
+      case 'ghost': return 'Fantasma';
       default: return status || 'Desconocido';
     }
   };
 
   const canManageUser = (user) => {
     if (hasRole(ROLES.ADMIN)) return true;
-    
+
     // Jefe Editor puede manejar editores
     if (hasRole(ROLES.JEFE_EDITOR) && user.role === ROLES.EDITOR) return true;
-    
+
     // Jefe Traductor puede manejar traductores
     if (hasRole(ROLES.JEFE_TRADUCTOR) && user.role === ROLES.TRADUCTOR) return true;
-    
+
     return false;
   };
 
   const getAvailableRoles = () => {
     const roles = [];
-    
+
     if (hasRole(ROLES.ADMIN)) {
       return Object.values(ROLES);
     }
-    
+
     if (hasRole(ROLES.JEFE_EDITOR)) {
       roles.push(ROLES.EDITOR);
     }
-    
+
     if (hasRole(ROLES.JEFE_TRADUCTOR)) {
       roles.push(ROLES.TRADUCTOR);
     }
-    
+
     return roles;
   };
 
   // Verificar permisos
   if (!hasRole(ROLES.JEFE_EDITOR) && !hasRole(ROLES.JEFE_TRADUCTOR)) {
     return (
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" align="center">
-          No tienes permisos para acceder a esta página
-        </Typography>
-      </Container>
+      <Box sx={{ maxWidth: 480, mx: 'auto', mt: 6 }}>
+        <Panel>
+          <EmptyState icon={LockOutlined} title="No tienes acceso a Usuarios">
+            Esta página es para administradores y jefes de equipo.
+          </EmptyState>
+        </Panel>
+      </Box>
     );
   }
 
+  // Estado de la cuenta: suspendido en ámbar (como en RanobeClub), inactivo en humo.
+  const USER_STATUS_TONE = {
+    active: colors.goodNews,
+    inactive: colors.outline,
+    suspended: colors.attention,
+    deleted: colors.error,
+    ghost: colors.outline,
+  };
+
+  const USER_FILTERS = [
+    { value: 'all', label: 'Todas', test: () => true },
+    { value: 'active', label: 'Activas', test: (u) => u.status === 'active' },
+    { value: 'inactive', label: 'Inactivas', test: (u) => u.status === 'inactive' },
+    { value: 'suspended', label: 'Suspendidas', test: (u) => u.status === 'suspended' },
+    { value: 'ghost', label: 'Fantasma', test: (u) => u.isGhost },
+  ];
+
+  const term = userSearch.trim().toLowerCase();
+  const searched = users.filter(
+    (u) => !term || u.name?.toLowerCase().includes(term) || u.email?.toLowerCase().includes(term)
+  );
+  const activeFilter = USER_FILTERS.find((f) => f.value === userFilter) || USER_FILTERS[0];
+  const visibleUsers = searched
+    .filter(activeFilter.test)
+    .slice()
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es'));
+
+  const GRID = 'minmax(0, 1.6fr) minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 0.9fr) 150px 80px';
+
+  const renderTag = (children, tone) => (
+    <Box
+      component="span"
+      sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        height: 22,
+        px: 0.875,
+        borderRadius: `${radius.md}px`,
+        fontSize: '0.6875rem',
+        fontWeight: 600,
+        whiteSpace: 'nowrap',
+        color: tone || colors.onSurfaceVariant,
+        backgroundColor: tone ? withAlpha(tone, 0.1) : colors.surfaceHigh,
+      }}
+    >
+      {children}
+    </Box>
+  );
+
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h4">
-          Gestión de Usuarios
+    <Box>
+      <PageHeader
+        title="Usuarios"
+        subtitle={`${users.length} personas · ${users.filter((u) => u.status === 'active').length} activas${
+          users.filter((u) => u.status === 'suspended').length > 0
+            ? ` · ${users.filter((u) => u.status === 'suspended').length} suspendidas`
+            : ''
+        }`}
+      />
+
+      <Panel
+        title="Equipo"
+        count={visibleUsers.length}
+        action={
+          <TextField
+            size="small"
+            value={userSearch}
+            onChange={(e) => setUserSearch(e.target.value)}
+            placeholder="Buscar por nombre o email"
+            inputProps={{ 'aria-label': 'Buscar personas' }}
+            InputProps={{ startAdornment: <SearchRounded sx={{ color: colors.outline, mr: 1, fontSize: 20 }} /> }}
+            sx={{ width: { xs: '100%', sm: 280 } }}
+          />
+        }
+        sx={{ '& > div:first-of-type': { flexWrap: 'wrap' } }}
+      >
+        <Typography sx={{ fontSize: '0.8125rem', color: colors.onSurfaceVariant, mb: 1.5 }}>
+          Aquí se ven y editan las cuentas. Para crear o eliminar personas, usa Administración.
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            variant="outlined"
-            startIcon={<History />}
-            disabled
-            sx={{
-              borderColor: 'grey.400',
-              color: 'grey.400',
-              cursor: 'not-allowed'
-            }}
-          >
-            Usuario Fantasma
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<PersonAdd />}
-            disabled
-            sx={{
-              bgcolor: 'grey.400',
-              color: 'grey.600',
-              cursor: 'not-allowed',
-              '&:hover': {
-                bgcolor: 'grey.400'
+
+        <Box sx={{ overflowX: 'auto', mb: 1.5, mx: -0.5, px: 0.5 }}>
+          <ToggleButtonGroup
+            exclusive
+            size="small"
+            value={userFilter}
+            onChange={(e, value) => {
+              if (value !== null) {
+                triggerHaptic('light');
+                setUserFilter(value);
               }
             }}
+            aria-label="Estado de la cuenta"
           >
-            Crear Usuario
-          </Button>
+            {USER_FILTERS.map((f) => (
+              <ToggleButton key={f.value} value={f.value} sx={{ px: 1.25, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
+                {f.label}
+                <Box component="span" sx={{ ml: 0.75, color: colors.outline, fontVariantNumeric: 'tabular-nums' }}>
+                  {searched.filter(f.test).length}
+                </Box>
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
         </Box>
-      </Box>
 
-      {/* Advertencia sobre eliminación de usuarios */}
-      <Paper sx={{ mb: 4, p: 3, bgcolor: 'rgba(255, 152, 0, 0.1)', border: '1px solid rgba(255, 152, 0, 0.3)' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Warning sx={{ color: 'warning.main' }} />
-          <Box>
-            <Typography variant="h6" sx={{ color: 'warning.main', fontWeight: 600 }}>
-              Nota Importante sobre Gestión de Usuarios
-            </Typography>
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              Para <strong>crear o eliminar usuarios</strong> del sistema, utiliza el <strong>Panel de Administración</strong>. 
-              Esta página está destinada únicamente para <strong>visualizar y editar</strong> usuarios existentes. 
-              La gestión completa de usuarios desde el panel admin garantiza que se realicen todas las 
-              validaciones necesarias y se mantenga la integridad de los datos del sistema.
-            </Typography>
+        {visibleUsers.length === 0 ? (
+          <EmptyState icon={PersonOutline} title="Nadie con estos filtros">
+            Prueba con otro estado o borra la búsqueda.
+          </EmptyState>
+        ) : (
+          <Box role="table" aria-label="Personas del equipo" sx={{ mx: -1 }}>
+            <Box
+              role="row"
+              sx={{
+                display: { xs: 'none', md: 'grid' },
+                gridTemplateColumns: GRID,
+                gap: 2,
+                px: 1,
+                pb: 1,
+                borderBottom: `1px solid ${rowDivider}`,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: colors.onSurfaceVariant,
+              }}
+            >
+              <span role="columnheader">Persona</span>
+              <span role="columnheader">Email</span>
+              <span role="columnheader">Rol</span>
+              <span role="columnheader">Estado</span>
+              <span role="columnheader">Trabajo</span>
+              <span role="columnheader" style={{ textAlign: 'right' }}>Acciones</span>
+            </Box>
+            {visibleUsers.map((user) => (
+              <Box
+                key={user.id}
+                role="row"
+                sx={{
+                  display: { xs: 'flex', md: 'grid' },
+                  flexWrap: 'wrap',
+                  gridTemplateColumns: GRID,
+                  alignItems: 'center',
+                  gap: { xs: 1, md: 2 },
+                  px: 1,
+                  py: 1.25,
+                  borderRadius: `${radius.md}px`,
+                  transition: 'background-color 150ms ease-out',
+                  '&:hover': { backgroundColor: colors.surfaceContainer },
+                  '&:not(:last-of-type)': { borderBottom: `1px solid ${rowDivider}` },
+                }}
+              >
+                <Box role="cell" sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0, flex: { xs: '1 1 100%', md: 'initial' } }}>
+                  <Avatar
+                    src={user.profileImage || undefined}
+                    alt=""
+                    sx={{ width: 32, height: 32, fontSize: '0.75rem', fontWeight: 700, opacity: user.isGhost ? 0.6 : 1 }}
+                  >
+                    {!user.profileImage && (user.name || '?').substring(0, 2).toUpperCase()}
+                  </Avatar>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography noWrap sx={{ fontSize: '0.875rem', fontWeight: 500, color: colors.onSurface }}>
+                      {user.name || 'Sin nombre'}
+                    </Typography>
+                    {user.isGhost && (
+                      <Typography sx={{ fontSize: '0.6875rem', color: colors.onSurfaceVariant }}>
+                        Fantasma · solo para dar crédito
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+                <Box role="cell" sx={{ minWidth: 0, flex: { xs: '1 1 100%', md: 'initial' } }}>
+                  <Typography noWrap sx={{ fontSize: '0.8125rem', color: colors.onSurfaceVariant }}>
+                    {user.email || 'Sin email'}
+                  </Typography>
+                </Box>
+                <Box role="cell">
+                  {renderTag(getRoleDisplayName(user.role), user.role === ROLES.ADMIN ? colors.primary : undefined)}
+                </Box>
+                <Box role="cell">
+                  {renderTag(getStatusLabel(user.status), USER_STATUS_TONE[user.status])}
+                </Box>
+                <Box role="cell">
+                  <Tooltip title={`${user.stats?.assignmentsCompleted || 0} completadas · ${user.stats?.assignmentsActive || 0} activas`}>
+                    <Typography component="span" sx={{ fontSize: '0.8125rem', color: colors.onSurfaceVariant, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                      {user.stats?.assignmentsCompleted || 0} hechas · {user.stats?.assignmentsActive || 0} activas
+                    </Typography>
+                  </Tooltip>
+                </Box>
+                <Box role="cell" sx={{ display: 'flex', gap: 0.25, justifyContent: 'flex-end', ml: { xs: 'auto', md: 0 } }}>
+                  {user.isGhost && (
+                    <Tooltip title="Pasar sus asignaciones a otra persona">
+                      <IconButton size="small" onClick={() => handleOpenTransferDialog(user)} aria-label={`Transferir asignaciones de ${user.name}`}>
+                        <SwapHoriz sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  {canManageUser(user) && (
+                    <Tooltip title="Editar">
+                      <IconButton size="small" onClick={() => handleOpenDialog(user)} aria-label={`Editar a ${user.name}`}>
+                        <Edit sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Box>
+              </Box>
+            ))}
           </Box>
-        </Box>
-      </Paper>
-
-      {/* Estadísticas rápidas */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h4" color="primary">
-              {users.length}
-            </Typography>
-            <Typography color="textSecondary">
-              Total Usuarios
-            </Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h4" color="success.main">
-              {users.filter(u => u.status === 'active').length}
-            </Typography>
-            <Typography color="textSecondary">
-              Activos
-            </Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h4" color="primary">
-              {users.filter(u => u.role === ROLES.TRADUCTOR).length}
-            </Typography>
-            <Typography color="textSecondary">
-              Traductores
-            </Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h4" color="secondary">
-              {users.filter(u => u.role === ROLES.EDITOR).length}
-            </Typography>
-            <Typography color="textSecondary">
-              Editores
-            </Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h4" color="error.main">
-              {users.filter(u => u.status === 'suspended').length}
-            </Typography>
-            <Typography color="textSecondary">
-              Suspendidos
-            </Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h4" sx={{ color: 'orange' }}>
-              {users.filter(u => u.isGhost).length}
-            </Typography>
-            <Typography color="textSecondary">
-              Usuarios Fantasma
-            </Typography>
-          </Paper>
-        </Grid>
-      </Grid>
-
-      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-        <TableContainer>
-          <Table stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell>Usuario</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Rol</TableCell>
-                <TableCell>Estado</TableCell>
-                <TableCell>Estadísticas</TableCell>
-                <TableCell>Acciones</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Avatar 
-                        src={user.profileImage}
-                        sx={{ 
-                          bgcolor: user.profileImage ? 'transparent' : user.isGhost ? 'orange' : getRoleColor(user.role) + '.main',
-                          opacity: user.isGhost ? 0.7 : 1
-                        }}
-                      >
-                        {!user.profileImage && (user.isGhost ? <PersonOutline /> : <SupervisorAccount />)}
-                      </Avatar>
-                      <Box>
-                        <Typography variant="subtitle2">
-                          {user.name} {user.isGhost && '👻'}
-                        </Typography>
-                        {user.isGhost && (
-                          <Typography variant="caption" sx={{ color: 'orange', fontStyle: 'italic' }}>
-                            Usuario Fantasma
-                          </Typography>
-                        )}
-                      </Box>
-                    </Box>
-                  </TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    <Chip
-                      size="small"
-                      label={getRoleDisplayName(user.role)}
-                      color={getRoleColor(user.role)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      <Chip
-                        size="small"
-                        label={getStatusLabel(user.status)}
-                        color={getStatusColor(user.status)}
-                      />
-                      {user.isGhost && (
-                        <Chip
-                          size="small"
-                          label="Fantasma"
-                          sx={{ 
-                            backgroundColor: 'rgba(255, 165, 0, 0.2)',
-                            color: 'darkorange',
-                            border: '1px solid orange'
-                          }}
-                        />
-                      )}
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="textSecondary">
-                      Completadas: {user.stats?.assignmentsCompleted || 0}
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      Activas: {user.stats?.assignmentsActive || 0}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      {user.isGhost && (
-                        <Tooltip title="Transferir asignaciones a usuario real">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleOpenTransferDialog(user)}
-                          >
-                            <SwapHoriz />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                      {canManageUser(user) && (
-                        <Tooltip title="Editar">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleOpenDialog(user)}
-                          >
-                            <Edit />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
+        )}
+      </Panel>
 
       {/* Dialog para crear/editar usuario */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editingUser ? 'Editar Usuario' : formData.isGhost ? '👻 Crear Usuario Fantasma' : 'Crear Nuevo Usuario'}
+          {editingUser ? 'Editar persona' : formData.isGhost ? 'Crear usuario fantasma' : 'Crear usuario'}
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -732,14 +682,14 @@ const Users = () => {
                     />
                     <label htmlFor="isGhost">
                       <Typography variant="body2">
-                        🚨 <strong>Usuario Fantasma</strong> - Para dar crédito a trabajo anterior al sistema
+                        <strong>Usuario fantasma</strong>: para dar crédito a trabajo anterior al sistema
                       </Typography>
                     </label>
                   </Box>
                   {formData.isGhost && (
-                    <Box sx={{ p: 2, bgcolor: 'rgba(255, 165, 0, 0.1)', borderRadius: 1, mb: 2 }}>
-                      <Typography variant="body2" sx={{ color: 'darkorange', mb: 1 }}>
-                        ⚠️ <strong>Usuario Fantasma:</strong>
+                    <Box sx={{ p: 2, bgcolor: colors.surfaceContainer, borderRadius: 2, mb: 2 }}>
+                      <Typography variant="body2" sx={{ color: colors.onSurface, mb: 1 }}>
+                        <strong>Un usuario fantasma:</strong>
                       </Typography>
                       <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                         • No tendrá cuenta real de Firebase Auth<br/>
@@ -802,16 +752,16 @@ const Users = () => {
           </Button>
         </DialogActions>
       </Dialog>
-      
+
       {/* Dialog para transferir asignaciones */}
-      <Dialog 
-        open={transferDialog.open} 
+      <Dialog
+        open={transferDialog.open}
         onClose={transferDialog.loading ? undefined : handleCloseTransferDialog}
-        maxWidth="md" 
+        maxWidth="md"
         fullWidth
       >
         <DialogTitle>
-          👻➡️👤 Transferir Asignaciones de Usuario Fantasma
+          Pasar asignaciones a otra persona
         </DialogTitle>
         <DialogContent>
           {transferDialog.loading ? (
@@ -823,19 +773,19 @@ const Users = () => {
             <>
               <Alert severity="info" sx={{ mb: 3 }}>
                 <Typography variant="body2">
-                  <strong>Usuario Fantasma:</strong> {transferDialog.ghostUser?.name} 👻
+                  <strong>Usuario Fantasma:</strong> {transferDialog.ghostUser?.name}
                   <br/>
                   <strong>Asignaciones encontradas:</strong> {transferDialog.assignments.length}
                 </Typography>
               </Alert>
-              
+
               {transferDialog.assignments.length > 0 ? (
                 <>
                   {/* Selector de usuario destino */}
                   <Typography variant="h6" sx={{ mb: 2 }}>
                     Seleccionar Usuario Destino
                   </Typography>
-                  
+
                   <Autocomplete
                     fullWidth
                     options={users.filter(u => !u.isGhost && u.status !== 'deleted')}
@@ -848,22 +798,10 @@ const Users = () => {
                       <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1 }}>
                         <Avatar
                           src={option.profileImage || option.photoURL || option.avatar}
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            fontSize: '0.75rem',
-                            ...(option.profileImage || option.photoURL || option.avatar) && {
-                              bgcolor: 'transparent',
-                              border: `2px solid rgba(106, 158, 255, 0.35)`,
-                            },
-                            ...(!(option.profileImage || option.photoURL || option.avatar)) && {
-                              bgcolor: '#6a9eff',
-                              color: 'white',
-                              fontWeight: 700,
-                            }
-                          }}
+                          alt=""
+                          sx={{ width: 30, height: 30, fontSize: '0.6875rem', fontWeight: 700 }}
                         >
-                          {!(option.profileImage || option.photoURL || option.avatar) && option.name && 
+                          {!(option.profileImage || option.photoURL || option.avatar) && option.name &&
                            option.name.substring(0, 2).toUpperCase()}
                         </Avatar>
                         <Box>
@@ -871,7 +809,7 @@ const Users = () => {
                             {option.name || 'Usuario desconocido'}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {option.role} • {option.stats?.assignmentsCompleted || 0} completadas
+                            {ROLE_LABELS[option.role] || option.role} · {option.stats?.assignmentsCompleted || 0} completadas
                           </Typography>
                         </Box>
                       </Box>
@@ -885,46 +823,28 @@ const Users = () => {
                       />
                     )}
                   />
-                  
+
                   <Divider sx={{ my: 3 }} />
-                  
+
                   {/* Lista de asignaciones */}
                   <Typography variant="h6" sx={{ mb: 2 }}>
                     Asignaciones a Transferir ({transferDialog.assignments.length})
                   </Typography>
-                  
+
                   <List sx={{ maxHeight: 300, overflow: 'auto', bgcolor: 'background.paper', borderRadius: 1 }}>
                     {transferDialog.assignments.map((assignment) => {
-                      const statusColor = assignment.status === 'completado' || assignment.status === 'aprobado' || assignment.status === 'uploaded' 
-                        ? '#10b981' : assignment.status === 'en_progreso' ? '#f59e0b' : '#6b7280';
-                      
                       return (
                         <ListItem key={assignment.id} divider>
                           <ListItemIcon>
-                            <Chip
-                              size="small"
-                              label={assignment.type}
-                              sx={{ 
-                                bgcolor: statusColor + '20',
-                                color: statusColor,
-                                fontWeight: 500
-                              }}
-                            />
+                            <Box sx={{ fontSize: '0.75rem' }}>
+                              <TaskTypeTag type={assignment.type} />
+                            </Box>
                           </ListItemIcon>
                           <ListItemText
                             primary={`${assignment.mangaTitle} - Capítulo ${assignment.chapter}`}
                             secondary={
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                                <Chip
-                                  size="small"
-                                  label={assignment.status}
-                                  sx={{ 
-                                    bgcolor: statusColor + '20',
-                                    color: statusColor,
-                                    fontSize: '0.7rem',
-                                    height: 20
-                                  }}
-                                />
+                                <StatusBadge status={assignment.status} />
                                 {assignment.createdAt && (
                                   <Typography variant="caption" color="text.secondary">
                                     Creada: {new Date(assignment.createdAt).toLocaleDateString()}
@@ -937,10 +857,10 @@ const Users = () => {
                       );
                     })}
                   </List>
-                  
+
                   <Alert severity="warning" sx={{ mt: 3 }}>
                     <Typography variant="body2">
-                      ⚠️ <strong>Esta acción:</strong>
+                      <strong>Esta acción:</strong>
                       <br/>• Transferirá todas las asignaciones al usuario seleccionado
                       <br/>• Actualizará las estadísticas del usuario destino
                       <br/>• Eliminará automáticamente el usuario fantasma después de la transferencia
@@ -959,16 +879,16 @@ const Users = () => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button 
-            onClick={handleCloseTransferDialog} 
+          <Button
+            onClick={handleCloseTransferDialog}
             disabled={transferDialog.loading}
           >
             Cancelar
           </Button>
           {transferDialog.assignments.length > 0 && (
-            <Button 
-              onClick={handleTransferAssignments} 
-              variant="contained" 
+            <Button
+              onClick={handleTransferAssignments}
+              variant="contained"
               disabled={transferDialog.loading || !transferDialog.targetUser}
               color="primary"
             >
@@ -977,28 +897,28 @@ const Users = () => {
           )}
         </DialogActions>
       </Dialog>
-      
+
       {/* Dialog de confirmación para eliminar usuario fantasma */}
-      <Dialog 
-        open={confirmDeleteDialog.open} 
+      <Dialog
+        open={confirmDeleteDialog.open}
         onClose={() => setConfirmDeleteDialog({ open: false, ghostUser: null })}
-        maxWidth="sm" 
+        maxWidth="sm"
         fullWidth
       >
         <DialogTitle>
-          🗑️ Confirmar Eliminación de Usuario Fantasma
+          ¿Eliminar el usuario fantasma?
         </DialogTitle>
         <DialogContent>
           <Alert severity="success" sx={{ mb: 2 }}>
             <Typography variant="body2">
-              ✅ Las asignaciones se han transferido exitosamente.
+              Las asignaciones ya están en su nueva persona.
             </Typography>
           </Alert>
-          
+
           <Typography variant="body1" sx={{ mb: 2 }}>
             ¿Deseas proceder a eliminar el usuario fantasma <strong>"{confirmDeleteDialog.ghostUser?.name}"</strong>?
           </Typography>
-          
+
           <Typography variant="body2" color="text.secondary">
             El usuario fantasma será marcado como eliminado y ya no aparecerá en la lista de usuarios.
             Esta acción completará el proceso de transferencia.
@@ -1006,19 +926,19 @@ const Users = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmDeleteDialog({ open: false, ghostUser: null })}>
-            Mantener Usuario Fantasma
+            Mantenerlo
           </Button>
-          <Button 
-            onClick={handleDeleteGhostUser} 
-            variant="contained" 
+          <Button
+            onClick={handleDeleteGhostUser}
+            variant="contained"
             color="error"
             startIcon={<PersonRemove />}
           >
-            Eliminar Usuario Fantasma
+            Eliminar fantasma
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+    </Box>
   );
 };
 
