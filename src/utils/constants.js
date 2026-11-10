@@ -87,6 +87,15 @@ export const ROLES = {
   UPLOADER: 'uploader',
 };
 
+// Estado de la serie. Cancelada/hiato no son urgentes: humo, no rojo.
+export const MANGA_STATUS = {
+  active: { label: 'Activa', color: colors.goodNews },
+  completed: { label: 'Completada', color: colors.primary },
+  paused: { label: 'Pausada', color: colors.attention },
+  cancelled: { label: 'Cancelada', color: colors.outline },
+  hiatus: { label: 'En hiato', color: colors.outline }
+};
+
 // Nombre visible de cada rol (caja de frase)
 export const ROLE_LABELS = {
   [ROLES.ADMIN]: 'Administrador',

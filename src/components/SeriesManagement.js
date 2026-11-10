@@ -54,21 +54,13 @@ import { realtimeService } from '../services/realtimeService';
 import { useAuth, ROLES } from '../contexts/AuthContextSimple';
 import { getUniqueUsers } from '../utils/cleanDuplicateUsers';
 import { isoStringToDateInput, dateInputToISOString } from '../utils/dateUtils';
-import { ASSIGNMENT_TYPES, ROLE_LABELS } from '../utils/constants';
+import { ASSIGNMENT_TYPES, ROLE_LABELS, MANGA_STATUS } from '../utils/constants';
 import { PageHeader, Panel, MeterBar, EmptyState, StatusBadge } from './ui';
 import { triggerHaptic } from '../hooks/useWebHaptics';
 import { colors, radius, rowDivider, focusOutline, withAlpha } from '../theme/tokens';
 
 // Estados y configuraciones
 // Estados y tipos de tarea compartidos (src/utils/constants.js)
-// Estado de la serie. Cancelada/hiato no son urgentes: humo, no rojo.
-const MANGA_STATUS = {
-  active: { label: 'Activa', color: colors.goodNews },
-  completed: { label: 'Completada', color: colors.primary },
-  paused: { label: 'Pausada', color: colors.attention },
-  cancelled: { label: 'Cancelada', color: colors.outline },
-  hiatus: { label: 'En hiato', color: colors.outline }
-};
 
 // Componente para mostrar información de asignación
 const AssignmentInfo = ({ assignment, users }) => {
