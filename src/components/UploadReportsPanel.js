@@ -1,54 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Container,
   Typography,
-  Card,
-  CardContent,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Chip,
   Button,
   IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
   Avatar,
-  Grid,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
   MenuItem,
-  DatePicker,
-  LinearProgress,
-  Alert,
+  Tooltip,
+  CircularProgress,
 } from '@mui/material';
 import {
-  Assessment as ReportIcon,
-  Visibility as ViewIcon,
-  Download as DownloadIcon,
-  FilterList as FilterIcon,
-  Link as LinkIcon,
-  Person as PersonIcon,
-  CalendarToday as DateIcon,
-  CloudUpload as UploadIcon,
+  VisibilityOutlined as ViewIcon,
+  FileDownloadOutlined as DownloadIcon,
+  OpenInNew as OpenInNewIcon,
   Close as CloseIcon,
-  Search as SearchIcon,
-  AutoStories as ChapterIcon,
+  SearchRounded as SearchIcon,
+  HistoryRounded as HistoryIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { realtimeService } from '../services/realtimeService';
-import { useAuth, ROLES } from '../contexts/AuthContextSimple';
+import { useAuth } from '../contexts/AuthContextSimple';
+import { Panel, EmptyState } from './ui';
+import PressIconButton from './motion/PressIconButton';
+import { colors, radius, rowDivider } from '../theme/tokens';
+
+const formatDateTime = (value) =>
+  new Date(value).toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+const mutedButtonSx = { color: colors.onSurfaceVariant };
 
 const UploadReportsPanel = () => {
   const { userProfile } = useAuth();
@@ -57,7 +47,7 @@ const UploadReportsPanel = () => {
   const [loading, setLoading] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
-  
+
   // Filtros
   const [filters, setFilters] = useState({
     uploaderFilter: 'all',
@@ -78,15 +68,15 @@ const UploadReportsPanel = () => {
   const loadReports = async () => {
     try {
       setLoading(true);
-      
+
       // Usar el nuevo método que respeta las reglas de seguridad
       const reportsData = await realtimeService.getUploadReports(
-        userProfile?.role, 
+        userProfile?.role,
         userProfile?.uid
       );
-      
+
       if (reportsData) {
-        const reportsList = Object.values(reportsData).sort((a, b) => 
+        const reportsList = Object.values(reportsData).sort((a, b) =>
           new Date(b.uploadDate) - new Date(a.uploadDate)
         );
         setReports(reportsList);
@@ -116,23 +106,24 @@ const UploadReportsPanel = () => {
 
     // Filtro por fecha
     if (filters.dateFrom) {
-      filtered = filtered.filter(report => 
+      filtered = filtered.filter(report =>
         new Date(report.uploadDate) >= new Date(filters.dateFrom)
       );
     }
     if (filters.dateTo) {
-      filtered = filtered.filter(report => 
+      filtered = filtered.filter(report =>
         new Date(report.uploadDate) <= new Date(filters.dateTo)
       );
     }
 
     // Filtro por término de búsqueda
     if (filters.searchTerm) {
+      const term = filters.searchTerm.toLowerCase();
       filtered = filtered.filter(report =>
-        report.chapters.some(chapter =>
-          chapter.mangaTitle.toLowerCase().includes(filters.searchTerm.toLowerCase())
-        ) || 
-        report.uploaderName.toLowerCase().includes(filters.searchTerm.toLowerCase())
+        (report.chapters || []).some(chapter =>
+          (chapter.mangaTitle || '').toLowerCase().includes(term)
+        ) ||
+        (report.uploaderName || '').toLowerCase().includes(term)
       );
     }
 
@@ -184,368 +175,288 @@ const UploadReportsPanel = () => {
   // Estadísticas rápidas
   const getQuickStats = () => {
     const totalReports = filteredReports.length;
-    const totalChapters = filteredReports.reduce((sum, report) => sum + report.totalChapters, 0);
-    
+    const totalChapters = filteredReports.reduce((sum, report) => sum + (report.totalChapters || 0), 0);
+
     // Contar capítulos únicos por serie (evitar duplicados entre reportes)
     const uniqueChapters = new Set();
     filteredReports.forEach(report => {
-      report.chapters.forEach(chapter => {
-        const chapterKey = `${chapter.mangaTitle}-${chapter.chapter}`;
-        uniqueChapters.add(chapterKey);
+      (report.chapters || []).forEach(chapter => {
+        uniqueChapters.add(`${chapter.mangaTitle}-${chapter.chapter}`);
       });
     });
-    
+
     const uniqueUploaders = new Set(filteredReports.map(r => r.uploaderId)).size;
 
     return { totalReports, totalChapters, uniqueChapters: uniqueChapters.size, uniqueUploaders };
   };
 
   const stats = getQuickStats();
+  const hasFilters = filters.uploaderFilter !== 'all' || filters.dateFrom || filters.dateTo || filters.searchTerm;
+  const GRID = '170px minmax(0, 1.2fr) 90px minmax(0, 2fr) 84px';
+
+  const summary = [
+    `${stats.totalReports} ${stats.totalReports === 1 ? 'subida' : 'subidas'}`,
+    `${stats.totalChapters} capítulos${stats.uniqueChapters !== stats.totalChapters ? ` (${stats.uniqueChapters} distintos)` : ''}`,
+    `${stats.uniqueUploaders} ${stats.uniqueUploaders === 1 ? 'persona' : 'personas'}`,
+  ].join(' · ');
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight={700} sx={{ mb: 2 }}>
-          📊 Reportes de Uploads
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Historial completo de todos los uploads realizados en el sistema.
-        </Typography>
-      </Box>
-
-      {/* Estadísticas rápidas */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <ReportIcon sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
-              <Typography variant="h4" fontWeight={600}>
-                {stats.totalReports}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Reportes Totales
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <UploadIcon sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
-              <Typography variant="h4" fontWeight={600}>
-                {stats.totalChapters}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Capítulos Subidos
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <ChapterIcon sx={{ fontSize: 40, color: 'warning.main', mb: 1 }} />
-              <Typography variant="h4" fontWeight={600}>
-                {stats.uniqueChapters}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Capítulos Únicos
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <PersonIcon sx={{ fontSize: 40, color: 'info.main', mb: 1 }} />
-              <Typography variant="h4" fontWeight={600}>
-                {stats.uniqueUploaders}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Uploaders Activos
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Filtros */}
-      <Card sx={{ mb: 4 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
-            <FilterIcon sx={{ mr: 1 }} />
-            Filtros
-          </Typography>
-          
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth>
-                <InputLabel>Uploader</InputLabel>
-                <Select
-                  value={filters.uploaderFilter}
-                  label="Uploader"
-                  onChange={(e) => setFilters(prev => ({ ...prev, uploaderFilter: e.target.value }))}
-                >
-                  <MenuItem value="all">Todos</MenuItem>
-                  {userProfile?.uid && <MenuItem value="me">Mis Reportes</MenuItem>}
-                  {getUniqueUploaders().map(([id, name]) => (
-                    <MenuItem key={id} value={id}>{name}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                label="Buscar"
-                value={filters.searchTerm}
-                onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-                InputProps={{
-                  startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                }}
-                placeholder="Buscar por serie o uploader..."
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                type="date"
-                label="Fecha desde"
-                value={filters.dateFrom || ''}
-                onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                type="date"
-                label="Fecha hasta"
-                value={filters.dateTo || ''}
-                onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
-
-      {/* Tabla de reportes */}
-      <Card>
-        <CardContent>
-          <Typography variant="h6" sx={{ mb: 3 }}>
-            Historial de Reportes ({filteredReports.length})
-          </Typography>
-          
-          {loading ? (
-            <LinearProgress />
-          ) : filteredReports.length === 0 ? (
-            <Alert severity="info">
-              {reports.length === 0 
-                ? 'No hay reportes disponibles.' 
-                : 'No se encontraron reportes que coincidan con los filtros aplicados.'
-              }
-            </Alert>
-          ) : (
-            <TableContainer component={Paper} variant="outlined">
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Fecha</TableCell>
-                    <TableCell>Uploader</TableCell>
-                    <TableCell align="center">Capítulos</TableCell>
-                    <TableCell>Series Principales</TableCell>
-                    <TableCell align="center">Acciones</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredReports.map((report) => {
-                    const uniqueSeries = [...new Set(report.chapters.map(ch => ch.mangaTitle))];
-                    const displaySeries = uniqueSeries.slice(0, 2);
-                    const remainingSeries = uniqueSeries.length - 2;
-                    
-                    return (
-                      <TableRow key={report.id} hover>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <DateIcon sx={{ mr: 1, fontSize: '1rem', color: 'text.secondary' }} />
-                            {new Date(report.uploadDate).toLocaleDateString('es-ES', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </Box>
-                        </TableCell>
-                        
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Avatar sx={{ width: 32, height: 32, mr: 2, fontSize: '0.8rem' }}>
-                              {report.uploaderName.charAt(0).toUpperCase()}
-                            </Avatar>
-                            {report.uploaderName}
-                          </Box>
-                        </TableCell>
-                        
-                        <TableCell align="center">
-                          <Chip 
-                            label={report.totalChapters} 
-                            color="primary" 
-                            size="small"
-                          />
-                        </TableCell>
-                        
-                        <TableCell>
-                          <Box>
-                            {displaySeries.map((series, index) => (
-                              <Typography key={index} variant="body2" noWrap>
-                                {series}
-                              </Typography>
-                            ))}
-                            {remainingSeries > 0 && (
-                              <Typography variant="caption" color="text.secondary">
-                                +{remainingSeries} más
-                              </Typography>
-                            )}
-                          </Box>
-                        </TableCell>
-                        
-                        <TableCell align="center">
-                          <IconButton
-                            size="small"
-                            onClick={() => viewReportDetails(report)}
-                            title="Ver detalles"
-                          >
-                            <ViewIcon />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => exportReportToCSV(report)}
-                            title="Exportar CSV"
-                          >
-                            <DownloadIcon />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Dialog de detalles del reporte */}
-      <Dialog
-        open={reportDialogOpen}
-        onClose={() => setReportDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
+    <Box>
+      <Panel
+        title="Historial"
+        count={filteredReports.length}
+        action={
+          <Tooltip title="Volver a cargar">
+            <span>
+              <PressIconButton onClick={loadReports} disabled={loading} aria-label="Volver a cargar el historial">
+                <RefreshIcon sx={{ fontSize: 20 }} />
+              </PressIconButton>
+            </span>
+          </Tooltip>
+        }
       >
-        <DialogTitle>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">
-              Detalle del Reporte
-            </Typography>
-            <IconButton onClick={() => setReportDialogOpen(false)}>
-              <CloseIcon />
-            </IconButton>
+        <Typography sx={{ fontSize: '0.8125rem', color: colors.onSurfaceVariant, mb: 1.5 }}>
+          {loading ? 'Cargando…' : summary}
+        </Typography>
+
+        {/* Filtros */}
+        <Box
+          sx={{
+            display: 'grid',
+            gap: 1,
+            mb: 1.5,
+            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'minmax(0, 1.6fr) minmax(0, 1fr) 170px 170px auto' },
+            alignItems: 'center',
+          }}
+        >
+          <TextField
+            size="small"
+            value={filters.searchTerm}
+            onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+            placeholder="Buscar serie o persona"
+            inputProps={{ 'aria-label': 'Buscar en el historial' }}
+            InputProps={{ startAdornment: <SearchIcon sx={{ color: colors.outline, mr: 1, fontSize: 20 }} /> }}
+          />
+          <TextField
+            select
+            size="small"
+            value={filters.uploaderFilter}
+            onChange={(e) => setFilters(prev => ({ ...prev, uploaderFilter: e.target.value }))}
+            inputProps={{ 'aria-label': 'Quién subió' }}
+          >
+            <MenuItem value="all">Todas las personas</MenuItem>
+            {userProfile?.uid && <MenuItem value="me">Solo las mías</MenuItem>}
+            {getUniqueUploaders().map(([id, name]) => (
+              <MenuItem key={id} value={id}>{name}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            size="small"
+            type="date"
+            label="Desde"
+            value={filters.dateFrom || ''}
+            onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+            InputLabelProps={{ shrink: true }}
+          />
+          <TextField
+            size="small"
+            type="date"
+            label="Hasta"
+            value={filters.dateTo || ''}
+            onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+            InputLabelProps={{ shrink: true }}
+          />
+          {hasFilters ? (
+            <Button
+              size="small"
+              onClick={() => setFilters({ uploaderFilter: 'all', dateFrom: null, dateTo: null, searchTerm: '' })}
+              sx={{ ...mutedButtonSx, justifySelf: 'start' }}
+            >
+              Limpiar
+            </Button>
+          ) : (
+            <Box sx={{ display: { xs: 'none', lg: 'block' }, width: 72 }} />
+          )}
+        </Box>
+
+        {loading ? (
+          <Box sx={{ py: 6, textAlign: 'center' }}>
+            <CircularProgress size={28} aria-label="Cargando el historial" />
           </Box>
+        ) : filteredReports.length === 0 ? (
+          <EmptyState icon={HistoryIcon} title={reports.length === 0 ? 'Todavía no hay subidas' : 'Ninguna subida con estos filtros'}>
+            {reports.length === 0
+              ? 'Cada vez que termines una subida desde "Por subir", quedará registrada aquí.'
+              : 'Prueba con otras fechas o persona, o limpia los filtros.'}
+          </EmptyState>
+        ) : (
+          <Box role="table" aria-label="Historial de subidas" sx={{ mx: -1 }}>
+            <Box
+              role="row"
+              sx={{
+                display: { xs: 'none', md: 'grid' },
+                gridTemplateColumns: GRID,
+                gap: 2,
+                px: 1,
+                pb: 1,
+                borderBottom: `1px solid ${rowDivider}`,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: colors.onSurfaceVariant,
+              }}
+            >
+              <span role="columnheader">Fecha</span>
+              <span role="columnheader">Subió</span>
+              <span role="columnheader">Capítulos</span>
+              <span role="columnheader">Series</span>
+              <span role="columnheader" style={{ textAlign: 'right' }}>Acciones</span>
+            </Box>
+            {filteredReports.map((report) => {
+              const uniqueSeries = [...new Set((report.chapters || []).map(ch => ch.mangaTitle))];
+              const displaySeries = uniqueSeries.slice(0, 2).join(', ');
+              const remainingSeries = uniqueSeries.length - 2;
+              const uploaderName = report.uploaderName || 'Sin nombre';
+
+              return (
+                <Box
+                  key={report.id}
+                  role="row"
+                  sx={{
+                    display: { xs: 'flex', md: 'grid' },
+                    flexWrap: 'wrap',
+                    gridTemplateColumns: GRID,
+                    alignItems: 'center',
+                    gap: { xs: 1, md: 2 },
+                    px: 1,
+                    py: 1.25,
+                    borderRadius: `${radius.md}px`,
+                    transition: 'background-color 150ms ease-out',
+                    '&:hover': { backgroundColor: colors.surfaceContainer },
+                    '&:not(:last-of-type)': { borderBottom: `1px solid ${rowDivider}` },
+                  }}
+                >
+                  <Box role="cell" sx={{ flex: { xs: '1 1 100%', md: 'initial' } }}>
+                    <Typography component="span" sx={{ fontSize: '0.8125rem', color: colors.onSurfaceVariant, fontVariantNumeric: 'tabular-nums' }}>
+                      {formatDateTime(report.uploadDate)}
+                    </Typography>
+                  </Box>
+                  <Box role="cell" sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                    <Avatar alt="" sx={{ width: 26, height: 26, fontSize: '0.6875rem', fontWeight: 700 }}>
+                      {uploaderName.charAt(0).toUpperCase()}
+                    </Avatar>
+                    <Typography noWrap sx={{ fontSize: '0.8125rem', color: colors.onSurface }}>
+                      {uploaderName}
+                    </Typography>
+                  </Box>
+                  <Box role="cell">
+                    <Typography component="span" sx={{ fontSize: '0.875rem', fontWeight: 600, color: colors.onSurface, fontVariantNumeric: 'tabular-nums' }}>
+                      {report.totalChapters}
+                    </Typography>
+                    <Box component="span" sx={{ display: { md: 'none' }, fontSize: '0.8125rem', color: colors.onSurfaceVariant }}> capítulos</Box>
+                  </Box>
+                  <Box role="cell" sx={{ minWidth: 0, flex: { xs: '1 1 100%', md: 'initial' } }}>
+                    <Typography noWrap sx={{ fontSize: '0.8125rem', color: colors.onSurface }}>
+                      {displaySeries}
+                      {remainingSeries > 0 && (
+                        <Box component="span" sx={{ color: colors.onSurfaceVariant }}> y {remainingSeries} más</Box>
+                      )}
+                    </Typography>
+                  </Box>
+                  <Box role="cell" sx={{ display: 'flex', gap: 0.25, justifyContent: 'flex-end', ml: { xs: 'auto', md: 0 } }}>
+                    <Tooltip title="Ver detalle">
+                      <IconButton size="small" onClick={() => viewReportDetails(report)} aria-label="Ver detalle de la subida">
+                        <ViewIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Exportar CSV">
+                      <IconButton size="small" onClick={() => exportReportToCSV(report)} aria-label="Exportar la subida a CSV">
+                        <DownloadIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        )}
+      </Panel>
+
+      {/* Detalle de una subida */}
+      <Dialog open={reportDialogOpen} onClose={() => setReportDialogOpen(false)} maxWidth="sm" fullWidth scroll="paper">
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+          Detalle de la subida
+          <IconButton onClick={() => setReportDialogOpen(false)} aria-label="Cerrar" edge="end">
+            <CloseIcon sx={{ fontSize: 20 }} />
+          </IconButton>
         </DialogTitle>
-        
-        <DialogContent dividers>
+
+        <DialogContent>
           {selectedReport && (
             <Box>
-              {/* Información general */}
-              <Grid container spacing={3} sx={{ mb: 3 }}>
-                <Grid item xs={6}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Uploader:
-                  </Typography>
-                  <Typography variant="body1" fontWeight={500}>
-                    {selectedReport.uploaderName}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Fecha de Upload:
-                  </Typography>
-                  <Typography variant="body1" fontWeight={500}>
-                    {new Date(selectedReport.uploadDate).toLocaleString('es-ES')}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} sx={{ textAlign: 'center' }}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Total Capítulos:
-                  </Typography>
-                  <Typography variant="h4" color="primary" fontWeight={600}>
-                    {selectedReport.totalChapters}
-                  </Typography>
-                </Grid>
-              </Grid>
-              
-              <Divider sx={{ my: 3 }} />
-              
-              {/* Lista de capítulos */}
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Capítulos Subidos
+              <Box component="dl" sx={{ display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 2, rowGap: 0.75, m: 0, mb: 2, fontSize: '0.875rem' }}>
+                <Box component="dt" sx={{ color: colors.onSurfaceVariant }}>Subió</Box>
+                <Box component="dd" sx={{ m: 0, color: colors.onSurface }}>{selectedReport.uploaderName}</Box>
+                <Box component="dt" sx={{ color: colors.onSurfaceVariant }}>Fecha</Box>
+                <Box component="dd" sx={{ m: 0, color: colors.onSurface }}>{new Date(selectedReport.uploadDate).toLocaleString('es-ES')}</Box>
+                <Box component="dt" sx={{ color: colors.onSurfaceVariant }}>Capítulos</Box>
+                <Box component="dd" sx={{ m: 0, color: colors.onSurface, fontVariantNumeric: 'tabular-nums' }}>{selectedReport.totalChapters}</Box>
+              </Box>
+
+              <Typography component="h3" variant="subtitle2" sx={{ color: colors.onSurface, mb: 0.5 }}>
+                Capítulos subidos
               </Typography>
-              
-              <List>
-                {selectedReport.chapters.map((chapter, index) => (
-                  <ListItem 
+              <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
+                {(selectedReport.chapters || []).map((chapter, index) => (
+                  <Box
+                    component="li"
                     key={index}
-                    sx={{ 
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 1,
-                      mb: 1
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 1,
+                      py: 1,
+                      '&:not(:last-of-type)': { borderBottom: `1px solid ${rowDivider}` },
                     }}
                   >
-                    <ListItemText
-                      primary={
-                        <Typography variant="subtitle1" fontWeight={600}>
-                          {chapter.mangaTitle} - Capítulo {chapter.chapter}
-                        </Typography>
-                      }
-                      secondary={
-                        <Typography variant="body2" color="text.secondary">
-                          Link de Drive disponible
-                        </Typography>
-                      }
-                    />
-                    <IconButton
-                      onClick={() => window.open(chapter.driveLink, '_blank')}
-                      title="Abrir en Drive"
-                    >
-                      <LinkIcon />
-                    </IconButton>
-                  </ListItem>
+                    <Typography sx={{ fontSize: '0.875rem', color: colors.onSurface, minWidth: 0 }} noWrap>
+                      {chapter.mangaTitle}
+                      <Box component="span" sx={{ color: colors.onSurfaceVariant, fontVariantNumeric: 'tabular-nums' }}> · Cap. {chapter.chapter}</Box>
+                    </Typography>
+                    {chapter.driveLink ? (
+                      <Button
+                        size="small"
+                        component="a"
+                        href={chapter.driveLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
+                        sx={{ ...mutedButtonSx, minHeight: 32, flexShrink: 0 }}
+                      >
+                        Drive
+                      </Button>
+                    ) : (
+                      <Typography component="span" sx={{ fontSize: '0.8125rem', color: colors.outline, flexShrink: 0 }}>
+                        Sin Drive
+                      </Typography>
+                    )}
+                  </Box>
                 ))}
-              </List>
+              </Box>
             </Box>
           )}
         </DialogContent>
-        
+
         <DialogActions>
-          <Button
-            startIcon={<DownloadIcon />}
-            onClick={() => selectedReport && exportReportToCSV(selectedReport)}
-          >
+          <Button startIcon={<DownloadIcon />} onClick={() => selectedReport && exportReportToCSV(selectedReport)} sx={mutedButtonSx}>
             Exportar CSV
           </Button>
-          <Button onClick={() => setReportDialogOpen(false)}>
+          <Button variant="contained" onClick={() => setReportDialogOpen(false)}>
             Cerrar
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+    </Box>
   );
 };
 
