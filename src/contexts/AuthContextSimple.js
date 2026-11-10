@@ -3,6 +3,8 @@ import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { ref, onValue } from 'firebase/database';
 import { getFirebaseAuth, getRealtimeDb } from '../services/firebase';
 import { getEffectiveUserPermissions, hasPermission } from '../services/permissionsService';
+import { Box, Typography, CircularProgress, Alert } from '@mui/material';
+import { colors } from '../theme/tokens';
 
 const AuthContext = createContext();
 
@@ -511,55 +513,36 @@ export const AuthProvider = ({ children }) => {
     permissionsUpdatedBy: userPermissions?._updatedBy || null
   };
 
-  // Show loading screen
+  // Pantalla de carga: superficie lisa, logo y un indicador discreto.
   if (loading) {
     return (
       <AuthContext.Provider value={value}>
-        <div style={{
-          minHeight: '100vh',
-          background: 'linear-gradient(135deg, #0a0a0f 0%, #1e1b4b 50%, #0f0f23 100%)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'column',
-          color: '#f1f5f9',
-          fontFamily: 'Inter, Roboto, sans-serif',
-          padding: '20px'
-        }}>
-          <div style={{
-            width: '50px',
-            height: '50px',
-            border: '3px solid rgba(106, 158, 255, 0.3)',
-            borderRadius: '50%',
-            borderTop: '3px solid #6a9eff',
-            animation: 'spin 1s linear infinite',
-            marginBottom: '20px'
-          }} />
-          <div style={{ fontSize: '18px', fontWeight: '500', marginBottom: '10px' }}>
-            Cargando aplicación...
-          </div>
+        <Box
+          component="main"
+          aria-busy="true"
+          sx={{
+            minHeight: '100dvh',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 2,
+            p: 3,
+            backgroundColor: colors.surface,
+            textAlign: 'center',
+          }}
+        >
+          <Box component="img" src="/logo-text.webp" alt="WhitePearl Translations" sx={{ height: 48, width: 'auto', maxWidth: '80vw', opacity: 0.9 }} />
+          <CircularProgress size={28} aria-label="Cargando" />
+          <Typography role="status" sx={{ fontSize: '0.875rem', color: colors.onSurfaceVariant }}>
+            Cargando la aplicación…
+          </Typography>
           {authError && (
-            <div style={{
-              marginTop: '20px',
-              padding: '12px 16px',
-              background: 'rgba(244, 67, 54, 0.1)',
-              border: '1px solid rgba(244, 67, 54, 0.3)',
-              borderRadius: '8px',
-              color: '#ff6b6b',
-              fontSize: '14px',
-              textAlign: 'center',
-              maxWidth: '400px'
-            }}>
+            <Alert severity="error" sx={{ mt: 1, maxWidth: 400, textAlign: 'left' }}>
               {authError}
-            </div>
+            </Alert>
           )}
-          <style>{`
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          `}</style>
-        </div>
+        </Box>
       </AuthContext.Provider>
     );
   }
